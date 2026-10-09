@@ -1,8 +1,8 @@
-# XcodeGen 工程定义 —— 在 CI（macOS）上执行 `xcodegen generate` 生成 Jizhan.xcodeproj
+# XcodeGen 工程定义 —— 在 CI（macOS）上执行 `xcodegen generate` 生成 iOwn.xcodeproj
 # Windows 本地不生成工程，只改本文件 + Swift 源码
-name: Jizhan
+name: iOwn
 options:
-  bundleIdPrefix: com.jizhan
+  bundleIdPrefix: com.iown
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -15,23 +15,26 @@ settings:
     CODE_SIGNING_ALLOWED: "NO"    # 签名交给 Windows 端 Sideloadly / 后续 CI 签名阶段
 
 targets:
-  Jizhan:
+  iOwn:
     type: application
     platform: iOS
     sources:
-      - path: Jizhan
+      - path: iOwn
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.iown.app
     info:
-      path: Jizhan/Info.plist
+      path: iOwn/Info.plist
       properties:
-        CFBundleDisplayName: 记盏
+        CFBundleDisplayName: iOwn
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
 
 schemes:
-  Jizhan:
+  iOwn:
     build:
       targets:
-        Jizhan: all
+        iOwn: all
     run:
       config: Debug

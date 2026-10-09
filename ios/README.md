@@ -6,7 +6,7 @@
 
 ```
 project.yml          # 工程定义：目标 iOS 17.0 / 仅 iPhone / Swift v5 模式
-Jizhan/
+iOwn/
   App/               # 入口 + RootTabView（4 Tab + FAB）
   Models/            # SwiftData：Tx / Account（Spec §4）
   Data/              # 分类预设表（六大消费意图 + 二级子项）
@@ -21,4 +21,4 @@ Jizhan/
 2. Actions 跑完 → 下载 artifacts：`screenshots`（视觉核对，对照 `site/prototype.html`）和 `unsigned-ipa`
 3. 真机：Sideloadly + 免费 Apple ID 签名 unsigned-ipa → USB 装机（7 天重签）
 
-Bundle ID：`com.jizhan.Jizhan`（免费 Apple ID 每天限 2 个 App ID，改包名会消耗额度）
+Bundle ID：`com.iown.app`（免费 Apple ID 每天限 2 个 App ID，改包名会消耗额度）

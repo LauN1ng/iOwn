@@ -36,16 +36,16 @@ jobs:
       - name: Build (iOS Simulator)
         run: |
           set -o pipefail
-          xcodebuild -project Jizhan.xcodeproj -scheme Jizhan \
+          xcodebuild -project iOwn.xcodeproj -scheme iOwn \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath build build
 
       - name: Run in simulator & take screenshots
         run: |
           xcrun simctl boot "${{ steps.sim.outputs.udid }}" || true
-          APP=build/Build/Products/Debug-iphonesimulator/Jizhan.app
+          APP=build/Build/Products/Debug-iphonesimulator/iOwn.app
           xcrun simctl install "${{ steps.sim.outputs.udid }}" "$APP"
-          xcrun simctl launch "${{ steps.sim.outputs.udid }}" com.jizhan.Jizhan
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" com.iown.app
           sleep 5
           mkdir -p ../artifacts
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/01-home.png
@@ -55,13 +55,13 @@ jobs:
       - name: Build unsigned IPA (Release, device)
         run: |
           set -o pipefail
-          xcodebuild -project Jizhan.xcodeproj -scheme Jizhan \
+          xcodebuild -project iOwn.xcodeproj -scheme iOwn \
             -configuration Release -destination 'generic/platform=iOS' \
             -derivedDataPath build-device build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY=""
           mkdir -p Payload
-          cp -r build-device/Build/Products/Release-iphoneos/Jizhan.app Payload/
-          zip -qr ../artifacts/Jizhan-unsigned.ipa Payload
+          cp -r build-device/Build/Products/Release-iphoneos/iOwn.app Payload/
+          zip -qr ../artifacts/iOwn-unsigned.ipa Payload
           # Windows 端：Sideloadly + 免费 Apple ID 签名后侧载（7 天有效）
 
       - name: Upload screenshots
@@ -75,5 +75,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unsigned-ipa
-          path: artifacts/Jizhan-unsigned.ipa
+          path: artifacts/iOwn-unsigned.ipa
           if-no-files-found: error
