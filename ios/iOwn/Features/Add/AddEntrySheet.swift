@@ -22,7 +22,6 @@ struct AddEntrySheet: View {
     @Query(sort: \Account.name) private var accounts: [Account]
     var onSaved: (SavedEntryInfo, Bool) -> Void   // (结果, 是否展示成功屏)；再记=false 只入库
     var editing: Tx? = nil                        // 非 nil = 编辑该笔（B2 改账）
-    var ciAmountStage = false                     // CI 截图钩子：直接进金额页并预置 21.9（验证两位小数）
 
     @State private var stage = 0               // 0 宫格 / 1 金额
     @State private var category: CategoryDef?
@@ -69,7 +68,8 @@ struct AddEntrySheet: View {
         .background(Theme.bg)
         .onAppear {
             prefillForEditing()
-            if ciAmountStage, editing == nil {   // CI：直接落在金额页（category 预选 + 预置 21.9）
+            // CI 截图钩子（自读启动参数，避免改动 memberwise init 签名）
+            if editing == nil, ProcessInfo.processInfo.arguments.contains("-ci-open-amount") {
                 category = CategoryPresets.all.first
                 sub = category?.subs.first
                 amountStr = "21.9"
