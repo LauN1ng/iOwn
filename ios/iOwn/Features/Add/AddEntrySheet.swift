@@ -40,7 +40,9 @@ struct AddEntrySheet: View {
                 .padding(.bottom, 4)
 
             if stage == 0 { stageGrid } else { stageAmount }
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.bg)
     }
 
