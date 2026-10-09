@@ -44,12 +44,25 @@ jobs:
         run: |
           xcrun simctl boot "${{ steps.sim.outputs.udid }}" || true
           APP=build/Build/Products/Debug-iphonesimulator/iOwn.app
+          BID=com.iown.app
           xcrun simctl install "${{ steps.sim.outputs.udid }}" "$APP"
-          xcrun simctl launch "${{ steps.sim.outputs.udid }}" com.iown.app
-          sleep 5
           mkdir -p ../artifacts
+          # 1) 首页流水（注入样例数据）
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data
+          sleep 5
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/01-home.png
-          # TODO(M1): 记一笔 sheet 截图（需 UI 测试或 AppleScript 驱动）
+          # 2) 记一笔 sheet（阶段 1 宫格）
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-open-sheet
+          sleep 4
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/02-entry.png
+          # 3) 成功屏（CI 模式常驻不自动返回）
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-show-done
+          sleep 4
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/03-done.png
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
       - name: Build unsigned IPA (Release, device)

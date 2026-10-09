@@ -13,3 +13,4 @@ xcuserdata/
 # —— 本机临时 ——
 .playwright-cli/
 reports/*.tmp.*
+reports/ci-artifacts/

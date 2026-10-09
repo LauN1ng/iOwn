@@ -4,6 +4,11 @@ import SwiftUI
 /// 视觉对照物：site/prototype.html；Tab 规范见视觉基准 v1.1 §5
 struct RootTabView: View {
     @State private var selection = 0
+    @State private var showAdd = false
+    @State private var savedInfo: SavedEntryInfo?
+    @State private var showSuccess = false
+
+    private let ciArgs = ProcessInfo.processInfo.arguments
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -15,9 +20,13 @@ struct RootTabView: View {
             }
             .tint(Theme.green)
 
-            // FAB：M1 接「记一笔」sheet；资产页（selection==2）为琥珀 $ FAB
+            // FAB：线索/洞察/设置 = 绿 +（记一笔）；资产页 = 琥珀 $（M2）
             Button {
-                // TODO(M1): 打开 AddEntrySheet
+                if selection == 2 {
+                    // TODO(M2): 建户/转账
+                } else {
+                    showAdd = true
+                }
             } label: {
                 Image(systemName: selection == 2 ? "dollarsign" : "plus")
                     .font(.system(size: 24, weight: .bold))
@@ -29,6 +38,40 @@ struct RootTabView: View {
             }
             .padding(.trailing, 18)
             .padding(.bottom, 76)
+
+            // 成功屏（A4）：覆盖全屏，1.9s 自动返回（CI 截图模式常驻）
+            if showSuccess, let info = savedInfo {
+                SuccessOverlay(info: info)
+                    .transition(.opacity)
+                    .task {
+                        guard !ciArgs.contains("-ci-show-done") else { return }
+                        try? await Task.sleep(nanoseconds: 1_900_000_000)
+                        withAnimation(.easeOut(duration: 0.25)) { showSuccess = false }
+                    }
+            }
+        }
+        .sheet(isPresented: $showAdd) {
+            AddEntrySheet { info, showOverlay in
+                guard showOverlay else { return }   // 再记：sheet 保持打开
+                savedInfo = info
+                showAdd = false
+                withAnimation { showSuccess = true }
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.hidden)
+        }
+        .onAppear {
+            // CI 截图钩子：自动打开记一笔 / 直接展示成功屏
+            if ciArgs.contains("-ci-show-done") {
+                savedInfo = SavedEntryInfo(
+                    amount: 12, isOut: true, categoryName: "生活所需",
+                    subName: "三餐", mood: .normal, todayCount: 1, streak: 1
+                )
+                showSuccess = true
+            }
+            if ciArgs.contains("-ci-open-sheet") {
+                showAdd = true
+            }
         }
     }
 }
