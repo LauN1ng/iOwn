@@ -27,6 +27,66 @@ struct SheetGrabber: View {
     }
 }
 
+// MARK: - Dynamic Type 字体缩放（UI评审 v1 §3.5）
+//
+// SwiftUI 的 `Font.system(size:)` 固定字号，**不**随系统「文字大小」缩放；
+// 而带 `relativeTo:` 参数的只有 `Font.custom(_:size:relativeTo:)`，系统字体没有这个重载。
+// 因此用 `@ScaledMetric` 包一层：默认字号下取值 == 原 size（**视觉零变化**），
+// 系统调大字号时按 `.body` 曲线放大。
+//
+// 用法：把 `.font(.system(size: 15, weight: .semibold))` 换成 `.scaledFont(15, weight: .semibold)`。
+// 不要直接用 `.font(.system(size:))`，除非是刻意不缩放的图形尺寸。
+
+private struct ScaledFontModifier: ViewModifier {
+    @ScaledMetric private var size: CGFloat
+    private let weight: Font.Weight
+    private let design: Font.Design
+
+    init(size: CGFloat, weight: Font.Weight, design: Font.Design) {
+        _size = ScaledMetric(wrappedValue: size, relativeTo: .body)
+        self.weight = weight
+        self.design = design
+    }
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: size, weight: weight, design: design))
+    }
+}
+
+extension View {
+    /// 跟随 Dynamic Type 的系统字体（替代 `.font(.system(size:weight:design:))`）
+    func scaledFont(_ size: CGFloat,
+                    weight: Font.Weight = .regular,
+                    design: Font.Design = .default) -> some View {
+        modifier(ScaledFontModifier(size: size, weight: weight, design: design))
+    }
+
+    /// 视觉尺寸不变，把点击热区扩到至少 `side`×`side`（iOS HIG 44pt）
+    /// 用法：`视觉.frame(width:34,height:34).tapTarget()` —— 圆点仍是 34，命中区 44
+    func tapTarget(_ side: CGFloat = 44) -> some View {
+        frame(width: side, height: side).contentShape(Rectangle())
+    }
+}
+
+// MARK: - Dynamic Type 上限保护
+//
+// 本 App 的关键区（4 列键盘 keyH=54、净资产卡固定 190、流水行图标 42）是手调固定布局，
+// 无条件放开到 AX 超大字号会撑破版式。故整体限制在标准区间（最大 .xxxLarge）；
+// 想要支持 AX 字号需先做一轮弹性布局改造（见 UI评审 v1 §7 待办）。
+
+struct TypeSizeCap: ViewModifier {
+    var forceXXXL: Bool = false
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if forceXXXL {
+            content.dynamicTypeSize(.xxxLarge)              // CI 截图用：强制大字号验证缩放生效
+        } else {
+            content.dynamicTypeSize(.xSmall ... .xxxLarge)  // 上限保护，默认字号下无任何影响
+        }
+    }
+}
+
 // MARK: - 触觉反馈（apple-design §13）
 // 三条纪律：因果明确（绑在真正的动作上）、同帧触发、只在有意义的时刻用。
 // 复用生成器避免每次新建（新建会丢掉 Taptic Engine 的预热状态）。

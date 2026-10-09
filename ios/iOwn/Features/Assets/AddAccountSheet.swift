@@ -52,22 +52,23 @@ struct AddAccountSheet: View {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: .semibold)
                     .foregroundStyle(.secondary)
                     .padding(8)
                     .background(Theme.card)
                     .clipShape(Circle())
             }
             .buttonStyle(PressableButtonStyle(scale: 0.9))
+            .accessibilityLabel("关闭")
             Spacer()
             Text(editing == nil ? "添加账户" : "编辑账户")
-                .font(.system(size: 17, weight: .bold))
+                .scaledFont(17, weight: .bold)
             Spacer()
             Button {
                 save()
             } label: {
                 Text("保存")
-                    .font(.system(size: 14, weight: .semibold))
+                    .scaledFont(14, weight: .semibold)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16).padding(.vertical, 8)
                     .background(canSave ? Theme.green : Theme.disabled)
@@ -88,7 +89,7 @@ struct AddAccountSheet: View {
 
     private var kindGrid: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("类型").font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
+            Text("类型").scaledFont(13, weight: .semibold).foregroundStyle(.secondary)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 5), spacing: 10) {
                 ForEach([AccountKind.cash, .bankCard, .wechat, .alipay, .creditCard], id: \.rawValue) { k in
                     Button {
@@ -100,13 +101,14 @@ struct AddAccountSheet: View {
                     } label: {
                         VStack(spacing: 6) {
                             Text(k.logoChar)
-                                .font(.system(size: 17, weight: .bold))
+                                .scaledFont(17, weight: .bold)
                                 .foregroundStyle(.white)
                                 .frame(width: 40, height: 40)
                                 .background(Color(hex: k.brandColorHex))
                                 .cornerRadius(12)
+                                .accessibilityHidden(true)   // 装饰：类型名已念出
                             Text(k.defaultName)
-                                .font(.system(size: 11, weight: .medium))
+                                .scaledFont(11, weight: .medium)
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
                         }
@@ -132,20 +134,20 @@ struct AddAccountSheet: View {
         VStack(alignment: .leading, spacing: 14) {
             fieldRow(label: "名称") {
                 TextField(kind.defaultName, text: $name)
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: .semibold)
                     .multilineTextAlignment(.trailing)
             }
             fieldRow(label: "备注") {
                 TextField("工资卡 · ··1234（可空）", text: $brand)
-                    .font(.system(size: 14))
+                    .scaledFont(14)
                     .multilineTextAlignment(.trailing)
             }
             fieldRow(label: kind.isCredit ? "当前已用" : "初始余额") {
                 HStack(spacing: 4) {
-                    Text("¥").font(.system(size: 14, weight: .semibold)).foregroundStyle(.secondary)
+                    Text("¥").scaledFont(14, weight: .semibold).foregroundStyle(.secondary)
                     TextField(kind.isCredit ? "0" : "0.00", text: $balanceStr)
                         .keyboardType(.decimalPad)
-                        .font(.system(size: 15, weight: .bold))
+                        .scaledFont(15, weight: .bold)
                         .multilineTextAlignment(.trailing)
                         .monospacedDigit()
                 }
@@ -153,10 +155,10 @@ struct AddAccountSheet: View {
             if kind.isCredit {
                 fieldRow(label: "信用额度") {
                     HStack(spacing: 4) {
-                        Text("¥").font(.system(size: 14, weight: .semibold)).foregroundStyle(.secondary)
+                        Text("¥").scaledFont(14, weight: .semibold).foregroundStyle(.secondary)
                         TextField("15000", text: $limitStr)
                             .keyboardType(.decimalPad)
-                            .font(.system(size: 15, weight: .bold))
+                            .scaledFont(15, weight: .bold)
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
                     }
@@ -169,7 +171,7 @@ struct AddAccountSheet: View {
                     .tint(.primary)
                 }
                 Text("已用金额将记为负债（余额为负），剩余额度 = 额度 - 已用")
-                    .font(.system(size: 11.5))
+                    .scaledFont(11.5)
                     .foregroundStyle(.tertiary)
             }
         }
@@ -180,7 +182,7 @@ struct AddAccountSheet: View {
 
     private func fieldRow<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
         HStack {
-            Text(label).font(.system(size: 14.5, weight: .medium))
+            Text(label).scaledFont(14.5, weight: .medium)
             Spacer()
             content()
         }
@@ -200,7 +202,7 @@ struct AddAccountSheet: View {
                 }
             } label: {
                 Text("删除账户")
-                    .font(.system(size: 14.5, weight: .semibold))
+                    .scaledFont(14.5, weight: .semibold)
                     .foregroundStyle(referenced ? Theme.disabledText : Theme.red)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 13)
@@ -211,7 +213,7 @@ struct AddAccountSheet: View {
             .disabled(referenced)
             if referenced {
                 Text("该账户有关联交易，暂不能删除（B2：余额推导依赖交易关联）")
-                    .font(.system(size: 11.5))
+                    .scaledFont(11.5)
                     .foregroundStyle(.tertiary)
             }
         }

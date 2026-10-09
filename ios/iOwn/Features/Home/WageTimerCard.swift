@@ -26,7 +26,15 @@ struct WageTimerCard: View {
             }
         }
         .buttonStyle(PressableButtonStyle(scale: 0.98))
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint("打开工资计时器设置")
         .sheet(isPresented: $showSettings, onDismiss: { config = .load() }) { WageSettingsView() }
+    }
+
+    /// VoiceOver 摘要（不跟随每秒自走，避免朗读数字追着跳）
+    private var accessibilityLabel: String {
+        guard config.isConfigured else { return "工资计时器，尚未设置" }
+        return "工资计时器，本月已赚 \(Money.string(config.earnedThisMonth())) 元"
     }
 
     @ViewBuilder
@@ -36,7 +44,7 @@ struct WageTimerCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     Text("工资计时器 · 本月已赚")
-                        .font(.system(size: 12))
+                        .scaledFont(12)
                         .foregroundStyle(.secondary)
                     if config.isConfigured && config.isWorkingNow(now: now) {
                         Circle().fill(Theme.green).frame(width: 6, height: 6)   // 工作中：绿点
@@ -45,28 +53,29 @@ struct WageTimerCard: View {
 
                 if config.isConfigured {
                     Text("¥" + Money.string(earned))
-                        .font(.system(size: 30, weight: .heavy, design: .rounded))
+                        .scaledFont(30, weight: .heavy, design: .rounded)
                         .foregroundStyle(Theme.green)
                         .monospacedDigit()
                         .tracking(-0.4)
                         .contentTransition(.numericText(value: earned))
                         .animation(.easeOut(duration: 0.35), value: earned)   // 数字滚动而非硬跳
                     Text("时薪 ¥\(Money.compact(config.hourlyWage(now: now))) · 本月已走 \(config.daysTouchedThisMonth(now: now)) 个工作日")
-                        .font(.system(size: 11.5))
+                        .scaledFont(11.5)
                         .foregroundStyle(.tertiary)
                 } else {
                     Text("¥ ——")
-                        .font(.system(size: 30, weight: .heavy, design: .rounded))
+                        .scaledFont(30, weight: .heavy, design: .rounded)
                         .foregroundStyle(Theme.green.opacity(0.45))
                         .monospacedDigit()
                     Text("点这里设置月薪与工作时段 ›")
-                        .font(.system(size: 11.5, weight: .semibold))
+                        .scaledFont(11.5, weight: .semibold)
                         .foregroundStyle(Theme.green)
                 }
             }
             Spacer(minLength: 0)
             WageDoodle()
                 .frame(width: 78, height: 62)
+                .accessibilityHidden(true)   // 纯装饰插画
         }
         .padding(16)
     }

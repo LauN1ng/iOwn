@@ -24,7 +24,7 @@ struct EmptyStateCard: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            Text(icon).font(.system(size: 44))
+            Text(icon).scaledFont(44).accessibilityHidden(true)   // 装饰
             Text(title).font(.subheadline).foregroundStyle(.secondary)
             Text(hint).font(.caption).foregroundStyle(.tertiary)
         }
@@ -32,5 +32,6 @@ struct EmptyStateCard: View {
         .padding(.vertical, 40)
         .background(Theme.card)
         .cornerRadius(Radius.large)
+        .accessibilityElement(children: .combine)
     }
 }

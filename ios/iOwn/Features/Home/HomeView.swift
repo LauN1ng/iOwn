@@ -69,7 +69,7 @@ struct HomeView: View {
                 dayText(group.day)
                 Spacer()
                 Text(Self.signedMoney(group.net))
-                    .font(.system(size: 16, weight: .bold))
+                    .scaledFont(16, weight: .bold)
                     .foregroundStyle(Theme.green)
                     .monospacedDigit()
             }
@@ -95,9 +95,9 @@ struct HomeView: View {
         let dayStr = String(format: "%02d", comps.day ?? 0)
         return HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text(day.formatted(Self.monthStyle) + ".")
-                .font(.system(size: 15, weight: .bold))
+                .scaledFont(15, weight: .bold)
             Text(dayStr)
-                .font(.system(size: 24, weight: .heavy, design: .rounded))
+                .scaledFont(24, weight: .heavy, design: .rounded)
                 .monospacedDigit()
         }
         .foregroundStyle(.primary)
@@ -106,6 +106,9 @@ struct HomeView: View {
     private func txRow(_ tx: Tx) -> some View {
         let row = txRowContent(tx)
         return row
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .combine)     // 合并读作一条流水，而非逐段
+            .accessibilityHint("长按可编辑或删除")
             .contextMenu {
                 if tx.type != .transfer {
                     Button { editingTx = tx } label: {
@@ -130,24 +133,25 @@ struct HomeView: View {
             let toName = accounts.first { $0.id == tx.toAccountID }?.name ?? "?"
             HStack(spacing: 12) {
                 Text("🔄")
-                    .font(.system(size: 20))
+                    .scaledFont(20)
                     .frame(width: 42, height: 42)
                     .background(Theme.iconBg)
                     .cornerRadius(14)
+                    .accessibilityHidden(true)   // 装饰：转账语义已由「资产互转」文字承载
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("资产互转")
-                        .font(.system(size: 11))
+                        .scaledFont(11)
                         .foregroundStyle(.secondary)
                     Text("\(fromName) → \(toName)")
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(15, weight: .semibold)
                         .lineLimit(1)
                 }
 
                 Spacer(minLength: 8)
 
                 Text("¥ \(Self.money(tx.amount))")
-                    .font(.system(size: 15, weight: .bold))
+                    .scaledFont(15, weight: .bold)
                     .foregroundStyle(Theme.green)
                     .monospacedDigit()
             }
@@ -159,17 +163,18 @@ struct HomeView: View {
             let accountName = accounts.first { $0.id == tx.accountID }?.name
             HStack(spacing: 12) {
                 Text(sub?.emoji ?? cat?.emoji ?? "🏷️")
-                    .font(.system(size: 20))
+                    .scaledFont(20)
                     .frame(width: 42, height: 42)
                     .background(Theme.iconBg)
                     .cornerRadius(14)
+                    .accessibilityHidden(true)   // 装饰：分类名已在小字里念出
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(accountName.map { "\(cat?.name ?? "") · \($0)" } ?? (cat?.name ?? ""))
-                        .font(.system(size: 11))
+                        .scaledFont(11)
                         .foregroundStyle(.secondary)
                     Text(title)
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(15, weight: .semibold)
                         .lineLimit(1)
                 }
 
@@ -177,7 +182,7 @@ struct HomeView: View {
 
                 if let mood = tx.mood {
                     Text("\(mood.label) \(mood.emoji)")
-                        .font(.system(size: 11))
+                        .scaledFont(11)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 8).padding(.vertical, 2)
                         .background(Theme.bg)
@@ -185,7 +190,7 @@ struct HomeView: View {
                 }
 
                 Text("\(sign)¥ \(Self.money(tx.amount))")
-                    .font(.system(size: 15, weight: .bold))
+                    .scaledFont(15, weight: .bold)
                     .foregroundStyle(Theme.green)
                     .monospacedDigit()
             }
@@ -194,17 +199,16 @@ struct HomeView: View {
 
     // MARK: 工具
 
-    /// 千分位/两位小数金额
+    /// 千分位/两位小数金额（统一走共享 Money.string，与工资卡/资产页同口径）
     static func money(_ value: Decimal) -> String {
-        let v = NSDecimalNumber(decimal: value).doubleValue
-        return String(format: "%.2f", v)
+        Money.string(NSDecimalNumber(decimal: value).doubleValue)
     }
 
     /// 日合计：符号在 ¥ 前（-¥21.90 / +¥12.00 / ¥0.00）
     static func signedMoney(_ value: Decimal) -> String {
         let v = NSDecimalNumber(decimal: value).doubleValue
-        if v < 0 { return String(format: "-¥%.2f", -v) }
-        if v > 0 { return String(format: "+¥%.2f", v) }
+        if v < 0 { return "-¥" + Money.string(-v) }
+        if v > 0 { return "+¥" + Money.string(v) }
         return "¥ 0.00"
     }
 }

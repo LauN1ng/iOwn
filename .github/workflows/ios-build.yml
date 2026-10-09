@@ -81,6 +81,12 @@ jobs:
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-amount
           sleep 4
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/06-entry-amount.png
+          # 7) 大字号（Dynamic Type）：-ci-large-text 强制 .xxxLarge，验证缩放生效且版式不炸
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-large-text
+          sleep 4
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/07-home-large-text.png
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
       - name: Build unsigned IPA (Release, device)

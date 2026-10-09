@@ -8,6 +8,9 @@ struct AssetsView: View {
     @Query(sort: \Account.name) private var accounts: [Account]
     @Query(sort: \Tx.date, order: .reverse) private var txs: [Tx]
 
+    /// 跳转洞察页（净资产趋势）——由 RootTabView 注入切换 Tab；默认空实现保证 `AssetsView()` 仍可构造
+    var onOpenInsight: () -> Void = {}
+
     @State private var showAddAccount = false
     @State private var editingAccount: Account?
     @State private var showTransfer = false
@@ -69,16 +72,18 @@ struct AssetsView: View {
 
     private var header: some View {
         ZStack {
-            Text("资产").font(.system(size: 24, weight: .bold))
+            Text("资产").scaledFont(24, weight: .bold)
             HStack {
                 Spacer()
                 Button { Haptics.tap(); showAddAccount = true } label: {
-                    Text("💳").font(.system(size: 15))
+                    Text("💳").scaledFont(15)
                         .frame(width: 34, height: 34)
                         .background(Theme.card)
                         .clipShape(Circle())
                 }
                 .buttonStyle(PressableButtonStyle(scale: 0.9))
+                .tapTarget()                          // 命中区 44，圆点视觉仍 34
+                .accessibilityLabel("添加账户")
             }
         }
         .padding(.top, 4)
@@ -100,25 +105,33 @@ struct AssetsView: View {
                     HStack {
                         Button { Haptics.tap(); withAnimation(Motion.fade) { hidden.toggle() } } label: {
                             Image(systemName: hidden ? "eye.slash" : "eye")
-                                .font(.system(size: 14))
+                                .scaledFont(14)
                                 .foregroundStyle(.white)
                                 .frame(width: 34, height: 34)
                                 .background(Color.white.opacity(0.18))
                                 .clipShape(Circle())
                         }
                         .buttonStyle(PressableButtonStyle(scale: 0.9))
+                        .tapTarget()                          // 命中区 44
+                        .accessibilityLabel(hidden ? "显示金额" : "隐藏金额")
                         Spacer()
-                        Image(systemName: "chart.line.uptrend.xyaxis")   // 净资产趋势（M4 接洞察）
-                            .font(.system(size: 14))
-                            .foregroundStyle(.white)
-                            .frame(width: 34, height: 34)
-                            .background(Color.white.opacity(0.18))
-                            .clipShape(Circle())
+                        // 净资产趋势：原先是没有动作的 Image（看着像按钮），现接洞察页
+                        Button { Haptics.tap(); onOpenInsight() } label: {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .scaledFont(14)
+                                .foregroundStyle(.white)
+                                .frame(width: 34, height: 34)
+                                .background(Color.white.opacity(0.18))
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(PressableButtonStyle(scale: 0.9))
+                        .tapTarget()                          // 命中区 44
+                        .accessibilityLabel("查看净资产趋势")
                     }
                     Spacer()
-                    Text("净资产").font(.system(size: 13)).foregroundStyle(.white.opacity(0.85))
+                    Text("净资产").scaledFont(13).foregroundStyle(.white.opacity(0.85))
                     Text(hidden ? "¥ ****" : "¥ \(money(totals.net))")
-                        .font(.system(size: 38, weight: .heavy, design: .rounded))
+                        .scaledFont(38, weight: .heavy, design: .rounded)
                         .foregroundStyle(.white)
                         .monospacedDigit()
                         .tracking(-0.5)   // 大字收紧字距
@@ -139,8 +152,8 @@ struct AssetsView: View {
 
     private func splitCol(_ k: String, _ v: String) -> some View {
         VStack(spacing: 2) {
-            Text(k).font(.system(size: 12)).foregroundStyle(.white.opacity(0.8))
-            Text(v).font(.system(size: 17, weight: .bold)).foregroundStyle(.white).monospacedDigit()
+            Text(k).scaledFont(12).foregroundStyle(.white.opacity(0.8))
+            Text(v).scaledFont(17, weight: .bold).foregroundStyle(.white).monospacedDigit()
         }
         .frame(maxWidth: .infinity)
     }
@@ -148,11 +161,17 @@ struct AssetsView: View {
     // MARK: 趋势链接（M4 接洞察页）
 
     private var trendLink: some View {
-        Text("净资产趋势 ›")
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(Theme.blue)
-            .frame(maxWidth: .infinity)
-            .padding(.top, -2)
+        // 原先是纯 Text（看着是链接却点不动）——改为真按钮，跳洞察页；视觉尺寸保持不变
+        Button { Haptics.tap(); onOpenInsight() } label: {
+            Text("净资产趋势 ›")
+                .scaledFont(14, weight: .semibold)
+                .foregroundStyle(Theme.blue)
+                .frame(maxWidth: .infinity)
+                .padding(.top, -2)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle(scale: 0.98))
+        .accessibilityLabel("查看净资产趋势")
     }
 
     // MARK: 四指标卡（2×2）：可支配/负债/借出/借入
@@ -172,10 +191,11 @@ struct AssetsView: View {
 
     private func metric(_ k: String, _ v: String, _ color: ThemeAccent) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(k).font(.system(size: 12.5)).foregroundStyle(.secondary)
-            Text(v).font(.system(size: 19, weight: .bold)).foregroundStyle(color.color).monospacedDigit()
+            Text(k).scaledFont(12.5).foregroundStyle(.secondary)
+            Text(v).scaledFont(19, weight: .bold).foregroundStyle(color.color).monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)   // 读作「可支配 ¥38,642.55」而非两段
     }
 
     // MARK: 账户组（现金/信用）
@@ -187,15 +207,18 @@ struct AssetsView: View {
                 withAnimation(Motion.disclosure) { expanded.wrappedValue.toggle() }
             } label: {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(title).font(.system(size: 16, weight: .bold)).foregroundStyle(.primary)
+                    Text(title).scaledFont(16, weight: .bold).foregroundStyle(.primary)
                     Spacer()
                     Text(groupTotalText(title: title, list: list) + (expanded.wrappedValue ? " ⌄" : " ›"))
-                        .font(.system(size: 14, weight: .semibold))
+                        .scaledFont(14, weight: .semibold)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
             }
             .buttonStyle(PressableButtonStyle(scale: 0.98))
+            .accessibilityLabel("\(title)，合计 \(groupTotalText(title: title, list: list))")
+            .accessibilityValue(expanded.wrappedValue ? "已展开" : "已收起")
+            .accessibilityHint("双击展开或收起")
 
             if expanded.wrappedValue {
                 VStack(spacing: 0) {
@@ -227,16 +250,17 @@ struct AssetsView: View {
         } label: {
             HStack(spacing: 12) {
                 Text(acc.kind.logoChar)
-                    .font(.system(size: 17, weight: .bold))
+                    .scaledFont(17, weight: .bold)
                     .foregroundStyle(.white)
                     .frame(width: 40, height: 40)
                     .background(Color(hex: acc.kind.brandColorHex))
                     .cornerRadius(12)
+                    .accessibilityHidden(true)   // 装饰：品牌字块，账户名已在右侧念出
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(acc.name).font(.system(size: 15.5, weight: .semibold)).foregroundStyle(.primary)
+                    Text(acc.name).scaledFont(15.5, weight: .semibold).foregroundStyle(.primary)
                     Text(subLine(acc, bal: bal))
-                        .font(.system(size: 11.5))
+                        .scaledFont(11.5)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -244,7 +268,7 @@ struct AssetsView: View {
                 Spacer(minLength: 8)
 
                 Text(hidden ? "¥ ****" : (negative ? "-¥ \(money(-bal))" : "¥ \(money(bal))"))
-                    .font(.system(size: 15.5, weight: .bold))
+                    .scaledFont(15.5, weight: .bold)
                     .foregroundStyle(negative ? Theme.red : Theme.green)
                     .monospacedDigit()
             }
@@ -252,6 +276,7 @@ struct AssetsView: View {
             .padding(.vertical, 11)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.98))
+        .accessibilityHint("打开账户编辑")
     }
 
     /// 副注：现金类 = 备注或"记账自动联动"；信用类 = 剩余额度 · 账单日（B4）
@@ -273,7 +298,7 @@ struct AssetsView: View {
     private var transferPill: some View {
         Button { Haptics.tap(); showTransfer = true } label: {
             Text("转账")
-                .font(.system(size: 15.5, weight: .semibold))
+                .scaledFont(15.5, weight: .semibold)
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 44).padding(.vertical, 13)
                 .background(Theme.card)
@@ -296,14 +321,9 @@ struct AssetsView: View {
     }
 
     /// 千分位金额（资产页数值大，¥ 38,642.55）
+    /// 统一走共享 Money.string —— 原先这里另建了一个 NumberFormatter，与首页/成功屏口径漂移
     private func money(_ value: Decimal) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        formatter.groupingSeparator = ","
-        formatter.usesGroupingSeparator = true
-        return formatter.string(from: NSDecimalNumber(decimal: value)) ?? "\(value)"
+        Money.string(NSDecimalNumber(decimal: value).doubleValue)
     }
 }
 

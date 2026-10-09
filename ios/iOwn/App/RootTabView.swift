@@ -18,7 +18,7 @@ struct RootTabView: View {
             TabView(selection: $selection) {
                 HomeView().tabItem { Label("线索", systemImage: "list.bullet") }.tag(0)
                 InsightView().tabItem { Label("洞察", systemImage: "chart.bar") }.tag(1)
-                AssetsView().tabItem { Label("资产", systemImage: "creditcard") }.tag(2)
+                AssetsView(onOpenInsight: { selection = 1 }).tabItem { Label("资产", systemImage: "creditcard") }.tag(2)
                 SettingsView().tabItem { Label("设置", systemImage: "gearshape") }.tag(3)
             }
             .tint(Theme.green)
@@ -33,7 +33,7 @@ struct RootTabView: View {
                 }
             } label: {
                 Image(systemName: selection == 2 ? "dollarsign" : "plus")
-                    .font(.system(size: 24, weight: .bold))
+                    .scaledFont(24, weight: .bold)
                     .foregroundStyle(.white)
                     .frame(width: 56, height: 56)
                     .background(selection == 2 ? Theme.amber : Theme.green)
@@ -41,6 +41,8 @@ struct RootTabView: View {
                     .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
             }
             .buttonStyle(PressableButtonStyle(scale: 0.92))
+            .accessibilityLabel(selection == 2 ? "添加账户" : "记一笔")
+            .accessibilityHint(selection == 2 ? "新建账户" : "快速记一笔账")
             // 切 Tab 时 FAB 换色/换图标：让颜色渐变而非硬切
             .animation(Motion.fade, value: selection)
             .padding(.trailing, 18)
@@ -101,6 +103,9 @@ struct RootTabView: View {
                 showAddAccount = true
             }
         }
+        // Dynamic Type：默认限制在标准区间（保护键盘/净资产卡等固定版式）；
+        // -ci-large-text 时强制 .xxxLarge，供 CI 截图验证缩放确实生效
+        .modifier(TypeSizeCap(forceXXXL: ciArgs.contains("-ci-large-text")))
     }
 
     /// CI 截图钩子：launch argument "-ci-demo-data" 注入样例数据（仓库无真实数据）

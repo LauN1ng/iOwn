@@ -89,7 +89,7 @@ struct WageSettingsView: View {
                                 toggle(item.value)
                             } label: {
                                 Text(item.label)
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .scaledFont(14, weight: .semibold)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 9)
                                     .background(workdays.contains(item.value) ? Theme.green : Theme.iconBg)
@@ -97,6 +97,8 @@ struct WageSettingsView: View {
                                     .cornerRadius(Radius.small)
                             }
                             .buttonStyle(PressableButtonStyle(scale: 0.95))
+                            .accessibilityLabel("周\(item.label)")
+                            .accessibilityAddTraits(workdays.contains(item.value) ? [.isButton, .isSelected] : .isButton)
                         }
                     }
                     .padding(.vertical, 2)

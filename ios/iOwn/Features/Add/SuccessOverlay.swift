@@ -11,7 +11,7 @@ struct SuccessOverlay: View {
 
     private var amountText: String {
         let v = NSDecimalNumber(decimal: info.amount).doubleValue
-        return String(format: "%@¥%.2f", info.isOut ? "-" : "+", v)
+        return (info.isOut ? "-" : "+") + "¥" + Money.string(v)
     }
 
     var body: some View {
@@ -28,28 +28,29 @@ struct SuccessOverlay: View {
                         .frame(width: 80, height: 80)
                         .shadow(color: Theme.green.opacity(0.42), radius: 17, y: 14)
                     Image(systemName: "checkmark")
-                        .font(.system(size: 34, weight: .heavy))
+                        .scaledFont(34, weight: .heavy)
                         .foregroundStyle(.white)
+                        .accessibilityHidden(true)   // 装饰：结果由下方金额+分类文字承载
                 }
                 // 不从 0 起（emil-design-eng：没有东西会凭空出现）
                 .scaleEffect(popped ? 1 : 0.72)
                 .opacity(popped ? 1 : 0)
 
                 Text(amountText)
-                    .font(.system(size: 38, weight: .heavy, design: .rounded))
+                    .scaledFont(38, weight: .heavy, design: .rounded)
                     .foregroundStyle(Theme.green)
                     .monospacedDigit()
                     .tracking(-0.5)
                     .padding(.top, 30)
 
                 Text("\(info.categoryName) · \(info.subName) · 已入账")
-                    .font(.system(size: 14.5))
+                    .scaledFont(14.5)
                     .foregroundStyle(.secondary)
                     .padding(.top, 8)
 
                 if let mood = info.mood {
                     Text("\(mood.label) \(mood.emoji)")
-                        .font(.system(size: 14))
+                        .scaledFont(14)
                         .padding(.horizontal, 18).padding(.vertical, 9)
                         .background(Theme.card)
                         .cornerRadius(999)
@@ -60,7 +61,7 @@ struct SuccessOverlay: View {
                 Spacer(minLength: 0)
 
                 Text("今日第 \(info.todayCount) 笔 · 连续 \(info.streak) 天 · 记账日 +1")
-                    .font(.system(size: 12.5))
+                    .scaledFont(12.5)
                     .foregroundStyle(.tertiary)
                     .monospacedDigit()
                     .padding(.bottom, 48)
