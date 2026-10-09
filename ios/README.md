@@ -1,4 +1,4 @@
-# ios/ —— 记盏 iOS 工程
+# ios/ —— iOwn iOS 工程
 
 纯文本工程定义（XcodeGen），Windows 上不生成 .xcodeproj，一切构建在 GitHub Actions（见 `.github/workflows/ios-build.yml`）。
 
