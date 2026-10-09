@@ -49,43 +49,43 @@ jobs:
           mkdir -p ../artifacts
           # 1) 首页流水（注入样例数据）
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data
-          sleep 5
+          sleep 6
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/01-home.png
           # 2) 记一笔 sheet（阶段 1 宫格）
           xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
           sleep 1
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-open-sheet
-          sleep 4
+          sleep 6
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/02-entry.png
           # 3) 成功屏（CI 模式常驻不自动返回）
           xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
           sleep 1
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-show-done
-          sleep 4
+          sleep 6
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/03-done.png
           # 4) 资产页（M2：净资产卡+四指标+账户组，注入样例账户）
           xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
           sleep 1
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-assets
-          sleep 4
+          sleep 6
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/04-assets.png
           # 5) 建户半屏 sheet（验证 .fraction(0.68) detents 与表单不裁切）
           xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
           sleep 1
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-account
-          sleep 4
+          sleep 6
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/05-account.png
           # 6) 金额键盘页（验证金额两位小数显示 + 账户 chip 联动）
           xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
           sleep 1
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-amount
-          sleep 4
+          sleep 6
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/06-entry-amount.png
           # 7) 大字号（Dynamic Type）：-ci-large-text 强制 .xxxLarge，验证缩放生效且版式不炸
           xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
           sleep 1
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-large-text
-          sleep 4
+          sleep 6
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/07-home-large-text.png
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
