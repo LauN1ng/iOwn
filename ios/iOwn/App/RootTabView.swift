@@ -66,8 +66,10 @@ struct RootTabView: View {
             .presentationDetents([.fraction(0.68), .large])
             .presentationDragIndicator(.hidden)   // 自绘 grabber 已有，隐藏系统把手防双条
         }
-        .fullScreenCover(isPresented: $showAddAccount) {
+        .sheet(isPresented: $showAddAccount) {
             AddAccountSheet()
+                .presentationDetents([.fraction(0.68), .large])
+                .presentationDragIndicator(.hidden)
         }
         .onAppear {
             seedDemoDataIfRequested()
@@ -84,6 +86,11 @@ struct RootTabView: View {
             }
             if ciArgs.contains("-ci-open-sheet") {
                 showAdd = true
+            }
+            // 建户半屏 sheet 截图钩子（资产页 + 自动展开 AddAccountSheet）
+            if ciArgs.contains("-ci-open-account") {
+                selection = 2
+                showAddAccount = true
             }
         }
     }

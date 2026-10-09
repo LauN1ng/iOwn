@@ -30,8 +30,10 @@ struct HomeView: View {
             }
             .background(Theme.bg)
             .navigationTitle("线索")
-            .fullScreenCover(item: $editingTx) { tx in
+            .sheet(item: $editingTx) { tx in
                 AddEntrySheet(editing: tx) { _, _ in editingTx = nil }   // B2 改账：原地更新，不弹成功屏
+                    .presentationDetents([.fraction(0.68), .large])       // 与记一笔统一半屏
+                    .presentationDragIndicator(.hidden)
             }
         }
     }

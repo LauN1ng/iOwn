@@ -7,10 +7,9 @@ enum Theme {
     static let card   = Color.white            // 全部卡片
     static let green  = Color(hex: 0x3ABF58)   // 主绿：FAB/金额一律绿（含支出，不评判）
     static let greenSoft = Color(hex: 0xEAF7EC)
+    static let greenDeep = Color(hex: 0x2FA34A) // 净资产卡渐变终（起 #3ABF58，绿色重卡统一主色）
     static let red    = Color(hex: 0xF56358)   // 仅负债/超支/删除
     static let blue   = Color(hex: 0x4A8CF7)   // 仅跳转链接
-    static let indigo = Color(hex: 0x5661B8)   // 净资产卡渐变起（终 #47509E）
-    static let indigoDeep = Color(hex: 0x47509E)
     static let amber  = Color(hex: 0xF6B73C)   // 点缀/资产页 FAB
     static let iconBg = Color(hex: 0xEDEFEA)   // emoji 图标浅灰容器
 }

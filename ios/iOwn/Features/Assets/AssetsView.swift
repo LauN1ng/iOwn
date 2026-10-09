@@ -1,8 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// 资产页（M2-B3/B4）：深蓝净资产卡 + 四指标卡 + 现金/信用账户组 + 转账胶囊
-/// 视觉对照：site/prototype.html #assets（视觉基准 v1.1 §5——全 App 唯一深色重卡片）
+/// 资产页（M2-B3/B4）：绿色净资产卡 + 四指标卡 + 现金/信用账户组 + 转账胶囊
+/// 视觉对照：site/prototype.html #assets（视觉基准 v1.1 §5——全 App 唯一绿色重卡片）
 struct AssetsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Account.name) private var accounts: [Account]
@@ -51,11 +51,18 @@ struct AssetsView: View {
             }
             .background(Theme.bg)
         }
-        .fullScreenCover(isPresented: $showAddAccount) { AddAccountSheet() }
-        .fullScreenCover(item: $editingAccount) { acc in
+        // 半屏 sheet（与记一笔统一）：不盖主屏，保留背后资产页上下文；可上拖全屏
+        .sheet(isPresented: $showAddAccount) { AddAccountSheet() }
+            .presentationDetents([.fraction(0.68), .large])
+            .presentationDragIndicator(.hidden)   // 自绘 grabber 已有，隐藏系统把手防双条
+        .sheet(item: $editingAccount) { acc in
             AddAccountSheet(editing: acc)
+                .presentationDetents([.fraction(0.68), .large])
+                .presentationDragIndicator(.hidden)
         }
-        .fullScreenCover(isPresented: $showTransfer) { TransferSheet() }
+        .sheet(isPresented: $showTransfer) { TransferSheet() }
+            .presentationDetents([.fraction(0.68), .large])
+            .presentationDragIndicator(.hidden)
     }
 
     // MARK: 头部（居中标题 + 右上 💳 建户）
@@ -77,10 +84,10 @@ struct AssetsView: View {
         .padding(.top, 4)
     }
 
-    // MARK: 深蓝净资产卡（眼/趋势圆钮 + 波浪底 + 总资产/总负债分列）
+    // MARK: 绿色净资产卡（眼/趋势圆钮 + 波浪底 + 总资产/总负债分列）
 
     private var netCard: some View {
-        LinearGradient(colors: [Theme.indigo, Theme.indigoDeep], startPoint: .top, endPoint: .bottom)
+        LinearGradient(colors: [Theme.green, Theme.greenDeep], startPoint: .top, endPoint: .bottom)
             .overlay(alignment: .bottom) {
                 Ellipse()
                     .fill(Color.white.opacity(0.14))
