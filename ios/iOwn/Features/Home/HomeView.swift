@@ -6,8 +6,9 @@ import SwiftData
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Tx.date, order: .reverse) private var txs: [Tx]
+    @Query(sort: \Account.name) private var accounts: [Account]
 
-    private let ciArgs = ProcessInfo.processInfo.arguments
+    @State private var editingTx: Tx?
 
     var body: some View {
         NavigationStack {
@@ -29,7 +30,9 @@ struct HomeView: View {
             }
             .background(Theme.bg)
             .navigationTitle("线索")
-            .onAppear { seedDemoDataIfRequested() }
+            .fullScreenCover(item: $editingTx) { tx in
+                AddEntrySheet(editing: tx) { _, _ in editingTx = nil }   // B2 改账：原地更新，不弹成功屏
+            }
         }
     }
 
@@ -97,46 +100,97 @@ struct HomeView: View {
     }
 
     private func txRow(_ tx: Tx) -> some View {
-        let cat = CategoryPresets.category(id: tx.categoryID)
-        let sub = cat?.subs.first { $0.id == tx.subID }
-        let title = tx.note.isEmpty ? (sub?.name ?? cat?.name ?? "记录") : tx.note
-        let sign = tx.type == .out ? "" : "+"
-        return HStack(spacing: 12) {
-            Text(sub?.emoji ?? cat?.emoji ?? "🏷️")
-                .font(.system(size: 20))
-                .frame(width: 42, height: 42)
-                .background(Theme.iconBg)
-                .cornerRadius(14)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(cat?.name ?? "")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                Text(title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .lineLimit(1)
+        let row = txRowContent(tx)
+        return row
+            .contextMenu {
+                if tx.type != .transfer {
+                    Button { editingTx = tx } label: {
+                        Label("编辑", systemImage: "pencil")
+                    }
+                }
+                Button(role: .destructive) {
+                    // B2 删账：余额为推导值，删除即自动"回滚"
+                    modelContext.delete(tx)
+                    try? modelContext.save()
+                } label: {
+                    Label("删除", systemImage: "trash")
+                }
             }
+    }
 
-            Spacer(minLength: 8)
+    @ViewBuilder
+    private func txRowContent(_ tx: Tx) -> some View {
+        if tx.type == .transfer {
+            // 转账行：🔄 资产互转（不计收支，日合计已排除）
+            let fromName = accounts.first { $0.id == tx.accountID }?.name ?? "?"
+            let toName = accounts.first { $0.id == tx.toAccountID }?.name ?? "?"
+            HStack(spacing: 12) {
+                Text("🔄")
+                    .font(.system(size: 20))
+                    .frame(width: 42, height: 42)
+                    .background(Theme.iconBg)
+                    .cornerRadius(14)
 
-            if let mood = tx.mood {
-                Text("\(mood.label) \(mood.emoji)")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8).padding(.vertical, 2)
-                    .background(Theme.bg)
-                    .cornerRadius(999)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("资产互转")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text("\(fromName) → \(toName)")
+                        .font(.system(size: 15, weight: .semibold))
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                Text("¥ \(Self.money(tx.amount))")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Theme.green)
+                    .monospacedDigit()
             }
+        } else {
+            let cat = CategoryPresets.category(id: tx.categoryID)
+            let sub = cat?.subs.first { $0.id == tx.subID }
+            let title = tx.note.isEmpty ? (sub?.name ?? cat?.name ?? "记录") : tx.note
+            let sign = tx.type == .out ? "" : "+"
+            let accountName = accounts.first { $0.id == tx.accountID }?.name
+            HStack(spacing: 12) {
+                Text(sub?.emoji ?? cat?.emoji ?? "🏷️")
+                    .font(.system(size: 20))
+                    .frame(width: 42, height: 42)
+                    .background(Theme.iconBg)
+                    .cornerRadius(14)
 
-            Text("\(sign)¥ \(Self.money(tx.amount))")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(Theme.green)
-                .monospacedDigit()
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(accountName.map { "\(cat?.name ?? "") · \($0)" } ?? (cat?.name ?? ""))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text(title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                if let mood = tx.mood {
+                    Text("\(mood.label) \(mood.emoji)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8).padding(.vertical, 2)
+                        .background(Theme.bg)
+                        .cornerRadius(999)
+                }
+
+                Text("\(sign)¥ \(Self.money(tx.amount))")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Theme.green)
+                    .monospacedDigit()
+            }
         }
     }
 
     // MARK: 工具
 
+    /// 千分位/两位小数金额
     static func money(_ value: Decimal) -> String {
         let v = NSDecimalNumber(decimal: value).doubleValue
         return String(format: "%.2f", v)
@@ -148,36 +202,6 @@ struct HomeView: View {
         if v < 0 { return String(format: "-¥%.2f", -v) }
         if v > 0 { return String(format: "+¥%.2f", v) }
         return "¥ 0.00"
-    }
-
-    /// CI 截图钩子：launch argument "-ci-demo-data" 注入样例数据（仓库无真实数据）
-    private func seedDemoDataIfRequested() {
-        guard ciArgs.contains("-ci-demo-data") else { return }
-        // 工资计时器参数（仅首次未配置时注入样例）
-        if UserDefaults.standard.double(forKey: WageKeys.monthlySalary) == 0 {
-            WageConfig(monthlySalary: 8000, payday: 15, startHour: 9, startMinute: 0,
-                       endHour: 18, endMinute: 0, lunchStartHour: 12, lunchStartMinute: 0,
-                       lunchMinutes: 60, workdays: [2, 3, 4, 5, 6]).save()
-        }
-        guard txs.isEmpty else { return }
-        let calendar = Calendar.current
-        let samples: [(String, String, Int, Mood?, TimeInterval)] = [
-            ("needs", "meal", 1200, .normal, -2 * 3600),
-            ("flexible", "coffee", 990, .satisfied, -1 * 3600),
-            ("fixed", "commute", 400, nil, -26 * 3600),
-        ]
-        for (catID, subID, cents, mood, offset) in samples {
-            modelContext.insert(Tx(
-                amount: Decimal(cents) / 100,
-                type: .out,
-                categoryID: catID,
-                subID: subID,
-                note: "",
-                mood: mood,
-                date: calendar.date(byAdding: .second, value: Int(offset), to: .now) ?? .now
-            ))
-        }
-        try? modelContext.save()
     }
 }
 

@@ -14,11 +14,14 @@ struct SavedEntryInfo {
 }
 
 /// 记一笔两段式 sheet（A1）：①意图分类宫格 ②二级分类横滑 + 4 列键盘
+/// M2-B2：账户选择 chip（余额自动联动）+ editing 模式（点流水改账，原地更新）
 /// 视觉对照：site/prototype.html #entry；验收：点 FAB 到保存 ≤3 秒
 struct AddEntrySheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \Account.name) private var accounts: [Account]
     var onSaved: (SavedEntryInfo, Bool) -> Void   // (结果, 是否展示成功屏)；再记=false 只入库
+    var editing: Tx? = nil                        // 非 nil = 编辑该笔（B2 改账）
 
     @State private var stage = 0               // 0 宫格 / 1 金额
     @State private var category: CategoryDef?
@@ -28,6 +31,8 @@ struct AddEntrySheet: View {
     @State private var note = ""
     @State private var mood: Mood?
     @State private var date = Date.now
+    @State private var selectedAccountID: String?   // B2：nil = 不挂账户
+    @State private var prefilled = false
 
     /// 当前金额（分）；空串/非法 = 0
     private var amountCents: Int {
@@ -51,6 +56,25 @@ struct AddEntrySheet: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.bg)
+        .onAppear(perform: prefillForEditing)
+    }
+
+    /// B2 改账预填：直接进金额页（阶段 2），分类/金额/备注/心情/账户/日期全部带出
+    private func prefillForEditing() {
+        guard !prefilled, let tx = editing else { return }
+        prefilled = true
+        isOut = tx.type == .out
+        category = CategoryPresets.category(id: tx.categoryID)
+        sub = category?.subs.first { $0.id == tx.subID }
+        note = tx.note
+        mood = tx.mood
+        date = tx.date
+        selectedAccountID = tx.accountID
+        let v = NSDecimalNumber(decimal: tx.amount).doubleValue
+        amountStr = v == v.rounded() && v < 1_000_000
+            ? String(Int(v))
+            : String(format: "%.2f", v)
+        stage = 1
     }
 
     // MARK: 阶段 1：分类宫格
@@ -76,7 +100,7 @@ struct AddEntrySheet: View {
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
-                Image(systemName: "gearshape").foregroundStyle(.tertiary) // TODO(M1-A5) 分类管理入口
+                Image(systemName: "gearshape").foregroundStyle(.tertiary) // TODO(M3-A5) 分类管理入口
             }
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
@@ -98,7 +122,7 @@ struct AddEntrySheet: View {
                     }
                     .buttonStyle(.plain)
                 }
-                CellButton(emoji: "＋", name: "添加") {} // TODO(M1-A5) 自定义大类
+                CellButton(emoji: "＋", name: "添加") {} // TODO(M3-A5) 自定义大类
             }
 
             HStack {
@@ -130,12 +154,14 @@ struct AddEntrySheet: View {
                 Text(sub?.name ?? "")
                     .font(.system(size: 22, weight: .bold))
                 Spacer()
-                Button { saveAndContinue() } label: {
-                    Text("再记").font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Theme.green)
-                        .padding(.horizontal, 12).padding(.vertical, 7)
-                        .background(Theme.greenSoft)
-                        .cornerRadius(9)
+                if editing == nil {
+                    Button { saveAndContinue() } label: {
+                        Text("再记").font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Theme.green)
+                            .padding(.horizontal, 12).padding(.vertical, 7)
+                            .background(Theme.greenSoft)
+                            .cornerRadius(9)
+                    }
                 }
                 Button {
                     dismiss()
@@ -166,7 +192,7 @@ struct AddEntrySheet: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    ChipLabel(emoji: "＋", name: "添加")  // TODO(M1-A5) 自定义二级
+                    ChipLabel(emoji: "＋", name: "添加")  // TODO(M3-A5) 自定义二级
                     ChipLabel(emoji: "⚙", name: "设置")
                 }
                 .padding(.horizontal, Radius.pagePadding)
@@ -200,6 +226,35 @@ struct AddEntrySheet: View {
             .background(Theme.card)
             .cornerRadius(Radius.medium)
             .padding(.horizontal, Radius.pagePadding)
+
+            // B2 账户联动：选账户 → 余额自动扣减/增加
+            if !accounts.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(accounts, id: \.id) { acc in
+                            let selected = selectedAccountID == acc.id
+                            Button { selectedAccountID = selected ? nil : acc.id } label: {
+                                HStack(spacing: 6) {
+                                    Text(acc.kind.logoChar)
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundStyle(.white)
+                                        .frame(width: 18, height: 18)
+                                        .background(Color(hex: acc.kind.brandColorHex))
+                                        .cornerRadius(5)
+                                    Text(acc.name).font(.system(size: 12.5, weight: .medium))
+                                }
+                                .padding(.horizontal, 10).padding(.vertical, 7)
+                                .background(selected ? Theme.green : Theme.card)
+                                .foregroundStyle(selected ? Color.white : Color.primary)
+                                .cornerRadius(999)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, Radius.pagePadding)
+                }
+                .padding(.top, 10)
+            }
 
             keypad
                 .padding(.horizontal, Radius.pagePadding)
@@ -301,33 +356,46 @@ struct AddEntrySheet: View {
 
     // MARK: 保存
 
-    /// 入库并返回结果信息；是否弹成功屏由调用方决定
+    /// 入库（或原地更新编辑笔）并返回结果信息；是否弹成功屏由调用方决定
     @discardableResult
     private func save() -> SavedEntryInfo? {
         guard amountCents > 0, let category else { return nil }
-        let tx = Tx(
-            amount: Decimal(amountCents) / 100,
-            type: isOut ? .out : .in,
-            categoryID: category.id,
-            subID: sub?.id,
-            note: note,
-            mood: mood,
-            accountID: nil,          // M2 接账户联动
-            date: date,
-            source: .manual
-        )
-        modelContext.insert(tx)
-        try? modelContext.save()
-
-        return SavedEntryInfo(
+        let info = SavedEntryInfo(
             amount: Decimal(amountCents) / 100,
             isOut: isOut,
             categoryName: category.name,
-            subName: sub?.name ?? "支出",
+            subName: sub?.name ?? (isOut ? "支出" : "收入"),
             mood: mood,
             todayCount: Self.countToday(modelContext),
             streak: Self.streakDays(modelContext)
         )
+
+        if let tx = editing {
+            // B2 改账：原地更新字段；余额为推导值，无需手动回滚
+            tx.amount = Decimal(amountCents) / 100
+            tx.type = isOut ? .out : .in
+            tx.categoryID = category.id
+            tx.subID = sub?.id
+            tx.note = note
+            tx.mood = mood
+            tx.accountID = selectedAccountID
+            tx.date = date
+        } else {
+            let tx = Tx(
+                amount: Decimal(amountCents) / 100,
+                type: isOut ? .out : .in,
+                categoryID: category.id,
+                subID: sub?.id,
+                note: note,
+                mood: mood,
+                accountID: selectedAccountID,   // B2：挂账户 → 余额自动联动
+                date: date,
+                source: .manual
+            )
+            modelContext.insert(tx)
+        }
+        try? modelContext.save()
+        return info
     }
 
     /// ✓ 保存：入库 → 关 sheet → 成功屏（A4）

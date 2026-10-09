@@ -44,6 +44,24 @@ enum AccountKind: String, Codable {
         case .creditCard: 0x8E8E93
         }
     }
+
+    /// logo 块单字（原型 #assets：支/微/卡/信）
+    var logoChar: String {
+        switch self {
+        case .cash: "现"; case .bankCard: "卡"; case .wechat: "微"
+        case .alipay: "支"; case .creditCard: "信"
+        }
+    }
+
+    /// 建户默认名（B1：建户 <30 秒——选类型即填好）
+    var defaultName: String {
+        switch self {
+        case .cash: "现金"; case .bankCard: "银行卡"; case .wechat: "微信支付"
+        case .alipay: "支付宝"; case .creditCard: "信用卡"
+        }
+    }
+
+    var isCredit: Bool { self == .creditCard }
 }
 
 @Model
@@ -71,16 +89,61 @@ final class Tx {
 
 @Model
 final class Account {
+    var id: String               // Tx.accountID 引用此 id（改名不影响关联）
     var name: String
-    var brand: String                // 品牌/备注小字
-    var balance: Decimal             // 信用账户余额为负 → 负债
+    var brand: String                // 品牌/备注小字（如"工资卡 · ··1234"）
+    var initialBalance: Decimal      // 初始余额；展示余额 = initialBalance + Σ交易推导（BalanceEngine）
     var kind: AccountKind
-    var billDay: Int?                // 信用账户账单日；额度 = 固定字段额度 - 已用
-    var creditLimit: Decimal?        // 仅信用卡
+    var billDay: Int?                // 信用账户账单日
+    var creditLimit: Decimal?        // 仅信用卡；剩余额度 = creditLimit - |展示余额|
 
-    init(name: String, brand: String, balance: Decimal, kind: AccountKind,
+    init(id: String = UUID().uuidString, name: String, brand: String = "",
+         initialBalance: Decimal, kind: AccountKind,
          billDay: Int? = nil, creditLimit: Decimal? = nil) {
-        self.name = name; self.brand = brand; self.balance = balance
-        self.kind = kind; self.billDay = billDay; self.creditLimit = creditLimit
+        self.id = id; self.name = name; self.brand = brand
+        self.initialBalance = initialBalance; self.kind = kind
+        self.billDay = billDay; self.creditLimit = creditLimit
+    }
+}
+
+// MARK: - 余额推导（B2 核心定案，Spec §4）
+
+enum BalanceEngine {
+    /// 展示余额 = initialBalance + Σ交易影响。
+    /// 支出 -amount / 收入 +amount（挂 accountID）；转出 -amount（accountID）/ 转入 +amount（toAccountID）。
+    /// 纯推导、无存储副作用 → 改账/删账天然回滚正确（B2 by construction）。
+    static func displayBalance(of account: Account, txs: [Tx]) -> Decimal {
+        var sum = account.initialBalance
+        for tx in txs {
+            switch tx.type {
+            case .out where tx.accountID == account.id:     sum -= tx.amount
+            case .in where tx.accountID == account.id:      sum += tx.amount
+            case .transfer:
+                if tx.accountID == account.id { sum -= tx.amount }
+                if tx.toAccountID == account.id { sum += tx.amount }
+            default: break
+            }
+        }
+        return sum
+    }
+
+    struct Totals {
+        var totalAssets: Decimal      // Σ现金类余额
+        var totalDebt: Decimal        // Σ|信用类余额|
+        var net: Decimal              // 总资产 - 总负债
+        var disposable: Decimal       // 净资产 + 借入 - 借出（借出/借入预留 0）
+        var lent: Decimal             // 借出（预留）
+        var borrowed: Decimal         // 借入（预留）
+    }
+
+    static func totals(accounts: [Account], txs: [Tx]) -> Totals {
+        var assets: Decimal = 0, debt: Decimal = 0
+        for acc in accounts {
+            let bal = displayBalance(of: acc, txs: txs)
+            if acc.kind.isCredit { debt += abs(bal) } else { assets += bal }
+        }
+        let net = assets - debt
+        return Totals(totalAssets: assets, totalDebt: debt, net: net,
+                      disposable: net, lent: 0, borrowed: 0)
     }
 }

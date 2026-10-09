@@ -63,6 +63,12 @@ jobs:
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-show-done
           sleep 4
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/03-done.png
+          # 4) 资产页（M2：净资产卡+四指标+账户组，注入样例账户）
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-assets
+          sleep 4
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/04-assets.png
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
       - name: Build unsigned IPA (Release, device)
