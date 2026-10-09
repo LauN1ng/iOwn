@@ -4,11 +4,14 @@ import Foundation
 
 enum WageKeys {
     static let monthlySalary = "wage.monthlySalary"   // Double，元
-    static let payday        = "wage.payday"          // Int 1-28（账期起点，M2 资产用）
+    static let payday        = "wage.payday"          // Int 1-31（账期起点，M2 资产用）
     static let startHour     = "wage.startHour"       // Int 0-23
     static let startMinute   = "wage.startMinute"     // Int 0-59
     static let endHour       = "wage.endHour"
     static let endMinute     = "wage.endMinute"
+    static let lunchStartHour  = "wage.lunchStartHour"   // 午休开始 Int 0-23
+    static let lunchStartMinute = "wage.lunchStartMinute"
+    static let lunchMinutes  = "wage.lunchMinutes"    // 午休时长（分钟），0 = 不扣
     static let workdays      = "wage.workdays"        // CSV，1=周日 … 7=周六，如 "2,3,4,5,6"
 }
 
@@ -19,6 +22,9 @@ struct WageConfig {
     var startMinute: Int
     var endHour: Int
     var endMinute: Int
+    var lunchStartHour: Int
+    var lunchStartMinute: Int
+    var lunchMinutes: Int
     var workdays: Set<Int>
 
     // MARK: 读写
@@ -31,6 +37,9 @@ struct WageConfig {
             startMinute: defaults.object(forKey: WageKeys.startMinute) as? Int ?? 0,
             endHour: defaults.object(forKey: WageKeys.endHour) as? Int ?? 18,
             endMinute: defaults.object(forKey: WageKeys.endMinute) as? Int ?? 0,
+            lunchStartHour: defaults.object(forKey: WageKeys.lunchStartHour) as? Int ?? 12,
+            lunchStartMinute: defaults.object(forKey: WageKeys.lunchStartMinute) as? Int ?? 0,
+            lunchMinutes: defaults.object(forKey: WageKeys.lunchMinutes) as? Int ?? 0,
             workdays: parseWorkdays(defaults.string(forKey: WageKeys.workdays))
         )
     }
@@ -42,6 +51,9 @@ struct WageConfig {
         defaults.set(startMinute, forKey: WageKeys.startMinute)
         defaults.set(endHour, forKey: WageKeys.endHour)
         defaults.set(endMinute, forKey: WageKeys.endMinute)
+        defaults.set(lunchStartHour, forKey: WageKeys.lunchStartHour)
+        defaults.set(lunchStartMinute, forKey: WageKeys.lunchStartMinute)
+        defaults.set(lunchMinutes, forKey: WageKeys.lunchMinutes)
         defaults.set(workdays.sorted().map(String.init).joined(separator: ","), forKey: WageKeys.workdays)
     }
 
@@ -55,9 +67,12 @@ struct WageConfig {
 
     // MARK: 计算
 
-    var dailyHours: Double {
-        max(0, Double((endHour * 60 + endMinute) - (startHour * 60 + startMinute)) / 60)
+    /// 每日工时（分钟）= 下班 - 上班 - 午休
+    var dailyWorkMinutes: Int {
+        max(0, (endHour * 60 + endMinute) - (startHour * 60 + startMinute) - lunchMinutes)
     }
+
+    var dailyHours: Double { Double(dailyWorkMinutes) / 60 }
 
     var isConfigured: Bool {
         monthlySalary > 0 && dailyHours > 0 && !workdays.isEmpty
@@ -83,7 +98,7 @@ struct WageConfig {
         return monthlySalary / denom
     }
 
-    /// 本月已完成（含今天进行中）的工作秒数
+    /// 本月已完成（含今天进行中）的工作秒数（已扣除午休）
     func workedSecondsThisMonth(now: Date = .now, calendar: Calendar = .current) -> Double {
         guard dailyHours > 0, let interval = calendar.dateInterval(of: .month, for: now) else { return 0 }
         let dailySeconds = dailyHours * 3600
@@ -93,13 +108,23 @@ struct WageConfig {
         while day <= today {
             if workdays.contains(calendar.component(.weekday, from: day)) {
                 if day == today {
-                    // 今天：只计工作时段内已经过去的秒数（时段外为 0）
+                    // 今天：只计工作时段内已经过去的秒数（时段外为 0），再扣掉已过去的午休
                     let start = calendar.date(byAdding: .minute,
                                               value: startHour * 60 + startMinute, to: day) ?? day
                     let end = calendar.date(byAdding: .minute,
                                             value: endHour * 60 + endMinute, to: day) ?? day
                     let cursor = min(max(now, start), end)
-                    total += cursor.timeIntervalSince(start)
+                    var elapsed = cursor.timeIntervalSince(start)
+                    if lunchMinutes > 0 {
+                        let lunchStart = calendar.date(byAdding: .minute,
+                                                       value: lunchStartHour * 60 + lunchStartMinute, to: day) ?? day
+                        let lunchEnd = lunchStart.addingTimeInterval(Double(lunchMinutes) * 60)
+                        if cursor > lunchStart {
+                            let overlap = min(cursor, lunchEnd).timeIntervalSince(lunchStart)
+                            elapsed -= max(0, overlap)
+                        }
+                    }
+                    total += max(0, elapsed)
                 } else {
                     total += dailySeconds
                 }
@@ -129,12 +154,17 @@ struct WageConfig {
         return count
     }
 
-    /// 是否正在工作时段内（副注提示用）
+    /// 是否正在工作时段内（副注提示用；午休期间不算工作中）
     func isWorkingNow(now: Date = .now, calendar: Calendar = .current) -> Bool {
         let weekday = calendar.component(.weekday, from: now)
         guard workdays.contains(weekday) else { return false }
         let minutes = calendar.component(.hour, from: now) * 60 + calendar.component(.minute, from: now)
-        return minutes >= startHour * 60 + startMinute && minutes < endHour * 60 + endMinute
+        guard minutes >= startHour * 60 + startMinute, minutes < endHour * 60 + endMinute else { return false }
+        if lunchMinutes > 0 {
+            let lunchStart = lunchStartHour * 60 + lunchStartMinute
+            if minutes >= lunchStart, minutes < lunchStart + lunchMinutes { return false }
+        }
+        return true
     }
 }
 

@@ -18,11 +18,15 @@ struct PlaceholderCard: View {
 }
 
 struct EmptyStateCard: View {
+    var icon: String = "🧾"
+    var title: String = "还没有记录"
+    var hint: String = "点右下角 + 记第一笔"
+
     var body: some View {
         VStack(spacing: 10) {
-            Text("🫙").font(.system(size: 44))
-            Text("还没有记录").font(.subheadline).foregroundStyle(.secondary)
-            Text("点右下角 + 记第一笔").font(.caption).foregroundStyle(.tertiary)
+            Text(icon).font(.system(size: 44))
+            Text(title).font(.subheadline).foregroundStyle(.secondary)
+            Text(hint).font(.caption).foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)

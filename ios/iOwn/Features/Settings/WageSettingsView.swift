@@ -11,9 +11,16 @@ struct WageSettingsView: View {
     @AppStorage(WageKeys.startMinute) private var startMinute: Int = 0
     @AppStorage(WageKeys.endHour) private var endHour: Int = 18
     @AppStorage(WageKeys.endMinute) private var endMinute: Int = 0
+    @AppStorage(WageKeys.lunchStartHour) private var lunchStartHour: Int = 12
+    @AppStorage(WageKeys.lunchStartMinute) private var lunchStartMinute: Int = 0
+    @AppStorage(WageKeys.lunchMinutes) private var lunchMinutes: Int = 0
     @AppStorage(WageKeys.workdays) private var workdaysCSV: String = "2,3,4,5,6"
 
     @State private var salaryText = ""
+    // 时间选择器用的 Date（与 AppStorage 的 时/分 双向同步）
+    @State private var startDate = Date()
+    @State private var endDate = Date()
+    @State private var lunchStartDate = Date()
 
     private var workdays: Set<Int> { WageConfig.parseWorkdays(workdaysCSV) }
 
@@ -35,27 +42,43 @@ struct WageSettingsView: View {
                         Text("元").foregroundStyle(.secondary)
                     }
                     Picker("发薪日", selection: $payday) {
-                        ForEach(1...28, id: \.self) { Text("每月 \($0) 日").tag($0) }
+                        ForEach(1...31, id: \.self) { Text("每月 \($0) 日").tag($0) }
                     }
                 } header: {
                     Text("收入")
                 } footer: {
-                    Text("发薪日暂用于账期划分（M2 资产联动时启用）")
+                    Text("部分月份没有 29–31 日时，按当月最后一天处理；发薪日暂用于账期划分（M2 资产联动时启用）")
                 }
 
                 Section("工作时段") {
-                    Stepper(value: $startHour, in: 0...23) {
-                        LabeledContent("上班", value: Money.hhmm(startHour, startMinute))
+                    DatePicker("上班", selection: $startDate, displayedComponents: .hourAndMinute)
+                        .onChange(of: startDate) { _, newValue in
+                            let c = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                            startHour = c.hour ?? 9
+                            startMinute = c.minute ?? 0
+                        }
+                    DatePicker("下班", selection: $endDate, displayedComponents: .hourAndMinute)
+                        .onChange(of: endDate) { _, newValue in
+                            let c = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                            endHour = c.hour ?? 18
+                            endMinute = c.minute ?? 0
+                        }
+                }
+
+                Section {
+                    DatePicker("午休开始", selection: $lunchStartDate, displayedComponents: .hourAndMinute)
+                        .onChange(of: lunchStartDate) { _, newValue in
+                            let c = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                            lunchStartHour = c.hour ?? 12
+                            lunchStartMinute = c.minute ?? 0
+                        }
+                    Stepper(value: $lunchMinutes, in: 0...180, step: 15) {
+                        LabeledContent("午休时长", value: lunchMinutes == 0 ? "不扣除" : "\(lunchMinutes) 分钟")
                     }
-                    Stepper(value: $startMinute, in: 0...59) {
-                        LabeledContent("上班分钟", value: "\(startMinute)")
-                    }
-                    Stepper(value: $endHour, in: 0...23) {
-                        LabeledContent("下班", value: Money.hhmm(endHour, endMinute))
-                    }
-                    Stepper(value: $endMinute, in: 0...59) {
-                        LabeledContent("下班分钟", value: "\(endMinute)")
-                    }
+                } header: {
+                    Text("午休")
+                } footer: {
+                    Text("每日工时与已赚金额会自动扣除午休时间")
                 }
 
                 Section("工作日") {
@@ -80,7 +103,7 @@ struct WageSettingsView: View {
 
                 Section("时薪预览") {
                     LabeledContent("时薪", value: previewHourly)
-                    LabeledContent("每日工时", value: String(format: "%.1f 小时", previewConfig.dailyHours))
+                    LabeledContent("每日工时", value: String(format: "%.1f 小时（已扣午休）", previewConfig.dailyHours))
                     LabeledContent("本月工作日", value: "\(previewConfig.workdaysInMonth(of: .now)) 天")
                 }
             }
@@ -93,6 +116,10 @@ struct WageSettingsView: View {
             }
             .onAppear {
                 salaryText = monthlySalary > 0 ? String(format: "%.0f", monthlySalary) : ""
+                let c = Calendar.current
+                startDate = c.date(bySettingHour: startHour, minute: startMinute, second: 0, of: .now) ?? .now
+                endDate = c.date(bySettingHour: endHour, minute: endMinute, second: 0, of: .now) ?? .now
+                lunchStartDate = c.date(bySettingHour: lunchStartHour, minute: lunchStartMinute, second: 0, of: .now) ?? .now
             }
         }
     }

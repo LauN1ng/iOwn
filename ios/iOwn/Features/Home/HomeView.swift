@@ -156,7 +156,8 @@ struct HomeView: View {
         // 工资计时器参数（仅首次未配置时注入样例）
         if UserDefaults.standard.double(forKey: WageKeys.monthlySalary) == 0 {
             WageConfig(monthlySalary: 8000, payday: 15, startHour: 9, startMinute: 0,
-                       endHour: 18, endMinute: 0, workdays: [2, 3, 4, 5, 6]).save()
+                       endHour: 18, endMinute: 0, lunchStartHour: 12, lunchStartMinute: 0,
+                       lunchMinutes: 60, workdays: [2, 3, 4, 5, 6]).save()
         }
         guard txs.isEmpty else { return }
         let calendar = Calendar.current

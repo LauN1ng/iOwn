@@ -20,7 +20,7 @@ struct AssetsView: View {
                         )
 
                     // TODO(M2-B1/B2): 现金/信用账户组（SwiftData Account）
-                    EmptyStateCard()
+                    EmptyStateCard(icon: "💳", title: "还没有账户", hint: "点右下角 $ 添加第一个账户")
                 }
                 .padding(.horizontal, Radius.pagePadding)
                 .padding(.top, 8)

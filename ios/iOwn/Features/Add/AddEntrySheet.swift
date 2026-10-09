@@ -17,16 +17,23 @@ struct SavedEntryInfo {
 /// 视觉对照：site/prototype.html #entry；验收：点 FAB 到保存 ≤3 秒
 struct AddEntrySheet: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     var onSaved: (SavedEntryInfo, Bool) -> Void   // (结果, 是否展示成功屏)；再记=false 只入库
 
     @State private var stage = 0               // 0 宫格 / 1 金额
     @State private var category: CategoryDef?
     @State private var sub: CategoryDef.SubDef?
-    @State private var cents = 0               // 金额按分录入，定长两位小数
+    @State private var amountStr = ""          // 金额输入串（从个位起输，"." 后最多两位）
     @State private var isOut = true
     @State private var note = ""
     @State private var mood: Mood?
     @State private var date = Date.now
+
+    /// 当前金额（分）；空串/非法 = 0
+    private var amountCents: Int {
+        guard !amountStr.isEmpty, let v = Double(amountStr), v.isFinite, v > 0 else { return 0 }
+        return Int((v * 100).rounded())
+    }
 
     private let keyH: CGFloat = 54
     private let gap: CGFloat = 10
@@ -58,6 +65,17 @@ struct AddEntrySheet: View {
                     .foregroundStyle(!isOut ? Theme.green : Color.secondary.opacity(0.4))
                     .onTapGesture { isOut = false }
                 Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(8)
+                        .background(Theme.card)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
                 Image(systemName: "gearshape").foregroundStyle(.tertiary) // TODO(M1-A5) 分类管理入口
             }
 
@@ -119,6 +137,17 @@ struct AddEntrySheet: View {
                         .background(Theme.greenSoft)
                         .cornerRadius(9)
                 }
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(8)
+                        .background(Theme.card)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, Radius.pagePadding)
 
@@ -144,7 +173,7 @@ struct AddEntrySheet: View {
             }
             .padding(.top, 14)
 
-            Text("¥ \(Self.fmt(cents))")
+            Text("¥ \(amountStr.isEmpty ? "0" : amountStr)")
                 .font(.system(size: 42, weight: .heavy, design: .rounded))
                 .foregroundStyle(Theme.green)
                 .monospacedDigit()
@@ -192,9 +221,11 @@ struct AddEntrySheet: View {
                     keyRow([".", "0", "＋−"], colW)
                 }
                 VStack(spacing: gap) {
-                    keyButton("⌫", style: .danger, size: CGSize(width: colW, height: keyH)) { cents /= 10 }
+                    keyButton("⌫", style: .danger, size: CGSize(width: colW, height: keyH)) {
+                        if !amountStr.isEmpty { amountStr.removeLast() }
+                    }
                     keyButton("今天", style: .today, size: CGSize(width: colW, height: keyH)) { date = .now }
-                    keyButton("✓", style: .okActive(cents > 0), size: CGSize(width: colW, height: keyH * 2 + gap)) { saveAndDismiss() }
+                    keyButton("✓", style: .okActive(amountCents > 0), size: CGSize(width: colW, height: keyH * 2 + gap)) { saveAndDismiss() }
                 }
             }
             .frame(maxHeight: .infinity, alignment: .top)
@@ -247,10 +278,24 @@ struct AddEntrySheet: View {
 
     private func tap(_ k: String) {
         switch k {
-        case "＋−": isOut.toggle()
+        case "＋−":
+            isOut.toggle()
+        case ".":
+            // 进小数模式：空串视为 "0."
+            guard !amountStr.contains(".") else { return }
+            amountStr = amountStr.isEmpty ? "0." : amountStr + "."
         default:
-            guard let d = Int(k), cents < 100_000_000 else { return } // 上限 ¥1,000,000.00
-            cents = cents * 10 + d
+            guard let d = k.first, d.isNumber else { return }
+            if amountStr.contains(".") {
+                // 小数位最多两位
+                let decPart = amountStr.split(separator: ".").last
+                guard (decPart?.count ?? 0) < 2, amountStr.count < 12 else { return }
+                amountStr += k
+            } else {
+                // 整数位：首位 0 直接替换，上限 ¥1,000,000
+                if amountStr == "0" { amountStr = k }
+                else { guard amountStr.count < 7 else { return }; amountStr += k }
+            }
         }
     }
 
@@ -259,9 +304,9 @@ struct AddEntrySheet: View {
     /// 入库并返回结果信息；是否弹成功屏由调用方决定
     @discardableResult
     private func save() -> SavedEntryInfo? {
-        guard cents > 0, let category else { return nil }
+        guard amountCents > 0, let category else { return nil }
         let tx = Tx(
-            amount: Decimal(cents) / 100,
+            amount: Decimal(amountCents) / 100,
             type: isOut ? .out : .in,
             categoryID: category.id,
             subID: sub?.id,
@@ -275,7 +320,7 @@ struct AddEntrySheet: View {
         try? modelContext.save()
 
         return SavedEntryInfo(
-            amount: Decimal(cents) / 100,
+            amount: Decimal(amountCents) / 100,
             isOut: isOut,
             categoryName: category.name,
             subName: sub?.name ?? "支出",
@@ -294,15 +339,11 @@ struct AddEntrySheet: View {
     /// 再记：连续快记——入库后回到宫格，金额/备注清空，不弹成功屏
     private func saveAndContinue() {
         _ = save()
-        cents = 0; note = ""; mood = nil; date = .now
+        amountStr = ""; note = ""; mood = nil; date = .now
         withAnimation(.easeOut(duration: 0.18)) { stage = 0 }
     }
 
     // MARK: 统计
-
-    static func fmt(_ cents: Int) -> String {
-        String(format: "%d.%02d", cents / 100, cents % 100)
-    }
 
     static func countToday(_ context: ModelContext) -> Int {
         let start = Calendar.current.startOfDay(for: .now)

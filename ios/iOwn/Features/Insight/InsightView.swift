@@ -7,7 +7,7 @@ struct InsightView: View {
             ScrollView {
                 VStack(spacing: Radius.cardSpacing) {
                     PlaceholderCard(title: "洞察看板", hint: "M4 接入：12 月柱状图 / 日历热力格 / 心情账单 / 分类占比")
-                    EmptyStateCard()
+                    EmptyStateCard(icon: "📊", title: "还没有洞察数据", hint: "记几笔账后这里生成图表")
                 }
                 .padding(.horizontal, Radius.pagePadding)
                 .padding(.top, 8)
