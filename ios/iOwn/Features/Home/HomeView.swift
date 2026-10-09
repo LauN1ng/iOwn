@@ -13,8 +13,7 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: Radius.cardSpacing) {
-                    // TODO(M1-D1): 工资计时器卡（绿左边框 + Text(timerInterval:) 自走金额 + doodle）
-                    WageTimerPlaceholder
+                    WageTimerCard()   // D1 工资计时器：每秒自走（点卡片进参数设置）
 
                     if txs.isEmpty {
                         EmptyStateCard()
@@ -136,33 +135,6 @@ struct HomeView: View {
         }
     }
 
-    /// 工资计时器卡（D1 占位，M1 末接入 Text(timerInterval:) 自走金额）
-    private var WageTimerPlaceholder: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("工资计时器 · 本月已赚")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-            Text("¥ ——")
-                .font(.system(size: 30, weight: .heavy, design: .rounded))
-                .foregroundStyle(Theme.green)
-                .monospacedDigit()
-            Text("M1 末接入：时薪 × 工作时长，每秒自走")
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Theme.card)
-        .cornerRadius(Radius.large)
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(Theme.green)
-                .frame(width: 4)
-                .cornerRadius(2)
-                .padding(.vertical, 14)
-        }
-    }
-
     // MARK: 工具
 
     static func money(_ value: Decimal) -> String {
@@ -180,7 +152,13 @@ struct HomeView: View {
 
     /// CI 截图钩子：launch argument "-ci-demo-data" 注入样例数据（仓库无真实数据）
     private func seedDemoDataIfRequested() {
-        guard ciArgs.contains("-ci-demo-data"), txs.isEmpty else { return }
+        guard ciArgs.contains("-ci-demo-data") else { return }
+        // 工资计时器参数（仅首次未配置时注入样例）
+        if UserDefaults.standard.double(forKey: WageKeys.monthlySalary) == 0 {
+            WageConfig(monthlySalary: 8000, payday: 15, startHour: 9, startMinute: 0,
+                       endHour: 18, endMinute: 0, workdays: [2, 3, 4, 5, 6]).save()
+        }
+        guard txs.isEmpty else { return }
         let calendar = Calendar.current
         let samples: [(String, String, Int, Mood?, TimeInterval)] = [
             ("needs", "meal", 1200, .normal, -2 * 3600),
