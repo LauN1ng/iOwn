@@ -53,13 +53,18 @@ struct RootTabView: View {
                     }
             }
         }
-        .fullScreenCover(isPresented: $showAdd) {
+        // 半屏 sheet（用户需求：记一笔不盖住主屏，保留背后主页上下文）
+        // 0.68 = 阶段2（宫格滑走后）键盘+金额区完整放下的最小比例；可上拖全屏
+        // ⚠️ 真机验证点：iOS 26 曾 detents 不生效（当时因此退回 fullScreenCover），iOS 27 待验
+        .sheet(isPresented: $showAdd) {
             AddEntrySheet { info, showOverlay in
                 guard showOverlay else { return }   // 再记：sheet 保持打开
                 savedInfo = info
                 showAdd = false
                 withAnimation { showSuccess = true }
             }
+            .presentationDetents([.fraction(0.68), .large])
+            .presentationDragIndicator(.hidden)   // 自绘 grabber 已有，隐藏系统把手防双条
         }
         .fullScreenCover(isPresented: $showAddAccount) {
             AddAccountSheet()
