@@ -50,15 +50,13 @@ struct RootTabView: View {
                     }
             }
         }
-        .sheet(isPresented: $showAdd) {
+        .fullScreenCover(isPresented: $showAdd) {
             AddEntrySheet { info, showOverlay in
                 guard showOverlay else { return }   // 再记：sheet 保持打开
                 savedInfo = info
                 showAdd = false
                 withAnimation { showSuccess = true }
             }
-            .presentationDetents([.large])
-            .presentationDragIndicator(.hidden)
         }
         .onAppear {
             // CI 截图钩子：自动打开记一笔 / 直接展示成功屏

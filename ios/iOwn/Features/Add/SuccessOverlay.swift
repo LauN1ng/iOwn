@@ -79,16 +79,16 @@ struct SuccessOverlay: View {
                         Circle()
                             .fill(Theme.green)
                             .frame(width: 9, height: 9)
-                            .offset(y: beansFell ? 34 : -160)
+                            .offset(y: beansFell ? 20 : -180)
                             .opacity(beansFell ? 0.9 : 0)
                             .animation(.easeIn(duration: 0.34).delay(Double(i) * 0.1), value: beansFell)
                     }
                 }
                 Text("🫙")
                     .font(.system(size: 58))
-                    .offset(y: 30)
+                    .offset(y: 24)
             }
-            .frame(height: 90)
+            .frame(height: 110)
             Text("连续 \(info.streak) 天")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Theme.green)

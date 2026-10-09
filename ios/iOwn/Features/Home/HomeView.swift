@@ -64,7 +64,7 @@ struct HomeView: View {
             HStack(alignment: .firstTextBaseline) {
                 dayText(group.day)
                 Spacer()
-                Text("¥ \(Self.money(group.net))")
+                Text(Self.signedMoney(group.net))
                     .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(Theme.green)
                     .monospacedDigit()
@@ -168,6 +168,14 @@ struct HomeView: View {
     static func money(_ value: Decimal) -> String {
         let v = NSDecimalNumber(decimal: value).doubleValue
         return String(format: "%.2f", v)
+    }
+
+    /// 日合计：符号在 ¥ 前（-¥21.90 / +¥12.00 / ¥0.00）
+    static func signedMoney(_ value: Decimal) -> String {
+        let v = NSDecimalNumber(decimal: value).doubleValue
+        if v < 0 { return String(format: "-¥%.2f", -v) }
+        if v > 0 { return String(format: "+¥%.2f", v) }
+        return "¥ 0.00"
     }
 
     /// CI 截图钩子：launch argument "-ci-demo-data" 注入样例数据（仓库无真实数据）
