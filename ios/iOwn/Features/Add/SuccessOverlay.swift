@@ -1,10 +1,12 @@
 import SwiftUI
 
 /// 保存成功屏（A4）：绿勾 pop + 金额 + 分类/心情/连续天数，1.9s 自动返回
+/// v1.3：勾从 0.72 起弹（不再从 0.3 空降）；尊重减弱动效；金额大字收紧字距
 /// 视觉对照：site/prototype.html #done（罐子动效已按用户反馈移除）
 struct SuccessOverlay: View {
     let info: SavedEntryInfo
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var popped = false
 
     private var amountText: String {
@@ -29,13 +31,15 @@ struct SuccessOverlay: View {
                         .font(.system(size: 34, weight: .heavy))
                         .foregroundStyle(.white)
                 }
-                .scaleEffect(popped ? 1 : 0.3)
+                // 不从 0 起（emil-design-eng：没有东西会凭空出现）
+                .scaleEffect(popped ? 1 : 0.72)
                 .opacity(popped ? 1 : 0)
 
                 Text(amountText)
                     .font(.system(size: 38, weight: .heavy, design: .rounded))
                     .foregroundStyle(Theme.green)
                     .monospacedDigit()
+                    .tracking(-0.5)
                     .padding(.top, 30)
 
                 Text("\(info.categoryName) · \(info.subName) · 已入账")
@@ -63,7 +67,12 @@ struct SuccessOverlay: View {
             }
         }
         .onAppear {
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) { popped = true }
+            // 减弱动效：不做弹性缩放，只淡入
+            if reduceMotion {
+                withAnimation(Motion.reduceFallback) { popped = true }
+            } else {
+                withAnimation(Motion.successPop) { popped = true }
+            }
         }
     }
 }

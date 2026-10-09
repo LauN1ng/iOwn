@@ -85,6 +85,7 @@ struct WageSettingsView: View {
                     HStack(spacing: 6) {
                         ForEach(Self.weekdayOptions, id: \.value) { item in
                             Button {
+                                Haptics.tap()
                                 toggle(item.value)
                             } label: {
                                 Text(item.label)
@@ -95,7 +96,7 @@ struct WageSettingsView: View {
                                     .foregroundStyle(workdays.contains(item.value) ? Color.white : Color.primary)
                                     .cornerRadius(Radius.small)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(PressableButtonStyle(scale: 0.95))
                         }
                     }
                     .padding(.vertical, 2)

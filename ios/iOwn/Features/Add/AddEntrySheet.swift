@@ -15,10 +15,12 @@ struct SavedEntryInfo {
 
 /// 记一笔两段式 sheet（A1）：①意图分类宫格 ②二级分类横滑 + 4 列键盘
 /// M2-B2：账户选择 chip（余额自动联动）+ editing 模式（点流水改账，原地更新）
+/// v1.3 动效：宫格↔金额改为可中断的 push 位移转场；键盘/宫格/chips 全部加按下反馈 + 触觉
 /// 视觉对照：site/prototype.html #entry；验收：点 FAB 到保存 ≤3 秒
 struct AddEntrySheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \Account.name) private var accounts: [Account]
     var onSaved: (SavedEntryInfo, Bool) -> Void   // (结果, 是否展示成功屏)；再记=false 只入库
     var editing: Tx? = nil                        // 非 nil = 编辑该笔（B2 改账）
@@ -55,14 +57,17 @@ struct AddEntrySheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color(hex: 0xD9DDD6))
-                .frame(width: 40, height: 5)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
+            SheetGrabber()
 
-            if stage == 0 { stageGrid } else { stageAmount }
-            Spacer(minLength: 0)
+            // 两阶段在 ZStack 内重叠，转场期间不会互相顶开导致布局跳动
+            ZStack(alignment: .top) {
+                if stage == 0 {
+                    stageGrid.transition(reduceMotion ? AnyTransition.opacity : AnyTransition.push(from: .leading))
+                } else {
+                    stageAmount.transition(reduceMotion ? AnyTransition.opacity : AnyTransition.push(from: .trailing))
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.bg)
@@ -76,6 +81,11 @@ struct AddEntrySheet: View {
                 stage = 1
             }
         }
+    }
+
+    /// 阶段切换：带方向感知的位移转场（减弱动效时退化为短淡入，不锁输入、可被再点打断）
+    private func go(to newStage: Int) {
+        withAnimation(reduceMotion ? Motion.reduceFallback : Motion.stage) { stage = newStage }
     }
 
     /// B2 改账预填：直接进金额页（阶段 2），分类/金额/备注/心情/账户/日期全部带出
@@ -100,15 +110,18 @@ struct AddEntrySheet: View {
 
     private var stageGrid: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
+            HStack(spacing: 16) {
                 Text("支出").font(.system(size: 20, weight: .bold))
                     .foregroundStyle(isOut ? Theme.green : Color.secondary.opacity(0.4))
+                    .contentShape(Rectangle())
                     .onTapGesture { isOut = true }
                 Text("收入").font(.system(size: 20, weight: .bold))
                     .foregroundStyle(!isOut ? Theme.green : Color.secondary.opacity(0.4))
+                    .contentShape(Rectangle())
                     .onTapGesture { isOut = false }
                 Spacer()
                 Button {
+                    Haptics.tap()
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
@@ -118,16 +131,17 @@ struct AddEntrySheet: View {
                         .background(Theme.card)
                         .clipShape(Circle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressableButtonStyle(scale: 0.92))
                 Image(systemName: "gearshape").foregroundStyle(.tertiary) // TODO(M3-A5) 分类管理入口
             }
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 16) {
                 ForEach(CategoryPresets.all) { cat in
                     Button {
+                        Haptics.tap()
                         category = cat
                         sub = cat.subs.first
-                        withAnimation(.easeOut(duration: 0.18)) { stage = 1 }
+                        go(to: 1)
                     } label: {
                         VStack(spacing: 8) {
                             Text(cat.emoji).font(.system(size: 34))
@@ -139,7 +153,7 @@ struct AddEntrySheet: View {
                         .background(Theme.card)
                         .cornerRadius(Radius.medium)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PressableButtonStyle())
                 }
                 CellButton(emoji: "＋", name: "添加") {} // TODO(M3-A5) 自定义大类
             }
@@ -164,25 +178,34 @@ struct AddEntrySheet: View {
     private var stageAmount: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                Button { withAnimation(.easeOut(duration: 0.15)) { stage = 0 } } label: {
+                Button {
+                    Haptics.tap()
+                    go(to: 0)
+                } label: {
                     Image(systemName: "arrow.left").font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.primary)
                 }
+                .buttonStyle(PressableButtonStyle(scale: 0.9))
                 Text(category?.name ?? "")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
                 Text(sub?.name ?? "")
                     .font(.system(size: 22, weight: .bold))
                 Spacer()
                 if editing == nil {
-                    Button { saveAndContinue() } label: {
+                    Button {
+                        Haptics.tap()
+                        saveAndContinue()
+                    } label: {
                         Text("再记").font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(Theme.green)
                             .padding(.horizontal, 12).padding(.vertical, 7)
                             .background(Theme.greenSoft)
                             .cornerRadius(9)
                     }
+                    .buttonStyle(PressableButtonStyle(scale: 0.94))
                 }
                 Button {
+                    Haptics.tap()
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
@@ -192,14 +215,17 @@ struct AddEntrySheet: View {
                         .background(Theme.card)
                         .clipShape(Circle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressableButtonStyle(scale: 0.92))
             }
             .padding(.horizontal, Radius.pagePadding)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(category?.subs ?? []) { s in
-                        Button { sub = s } label: {
+                        Button {
+                            Haptics.tap()
+                            sub = s
+                        } label: {
                             HStack(spacing: 6) {
                                 Text(s.emoji).font(.system(size: 16))
                                 Text(s.name).font(.system(size: 13.5, weight: .medium))
@@ -209,7 +235,7 @@ struct AddEntrySheet: View {
                             .foregroundStyle(sub?.id == s.id ? Color.white : Color.primary)
                             .cornerRadius(Radius.small)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressableButtonStyle(scale: 0.94))
                     }
                     ChipLabel(emoji: "＋", name: "添加")  // TODO(M3-A5) 自定义二级
                     ChipLabel(emoji: "⚙", name: "设置")
@@ -222,6 +248,7 @@ struct AddEntrySheet: View {
                 .font(.system(size: 42, weight: .heavy, design: .rounded))
                 .foregroundStyle(Theme.green)
                 .monospacedDigit()
+                .tracking(-0.5)                       // 大字收紧字距（apple-design §15）
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 18)
 
@@ -229,6 +256,7 @@ struct AddEntrySheet: View {
                 TextField("备注", text: $note)
                     .font(.system(size: 14))
                 Button {
+                    Haptics.tap()
                     mood = mood?.next() ?? .normal   // 心情轮换（A3）：nil→😐→🥰→🤯→😤→nil
                 } label: {
                     Text(mood.map { "\($0.emoji) \($0.label)" } ?? "心情＋")
@@ -238,7 +266,7 @@ struct AddEntrySheet: View {
                         .background(Theme.bg)
                         .cornerRadius(999)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressableButtonStyle(scale: 0.94))
                 Image(systemName: "plus.circle.dashed").foregroundStyle(.tertiary) // 附件预留
             }
             .padding(12)
@@ -252,7 +280,10 @@ struct AddEntrySheet: View {
                     HStack(spacing: 8) {
                         ForEach(accounts, id: \.id) { acc in
                             let selected = selectedAccountID == acc.id
-                            Button { selectedAccountID = selected ? nil : acc.id } label: {
+                            Button {
+                                Haptics.tap()
+                                selectedAccountID = selected ? nil : acc.id
+                            } label: {
                                 HStack(spacing: 6) {
                                     Text(acc.kind.logoChar)
                                         .font(.system(size: 11, weight: .bold))
@@ -267,7 +298,7 @@ struct AddEntrySheet: View {
                                 .foregroundStyle(selected ? Color.white : Color.primary)
                                 .cornerRadius(999)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(PressableButtonStyle(scale: 0.94))
                         }
                     }
                     .padding(.horizontal, Radius.pagePadding)
@@ -296,9 +327,13 @@ struct AddEntrySheet: View {
                 }
                 VStack(spacing: gap) {
                     keyButton("⌫", style: .danger, size: CGSize(width: colW, height: keyH)) {
+                        Haptics.key()
                         if !amountStr.isEmpty { amountStr.removeLast() }
                     }
-                    keyButton("今天", style: .today, size: CGSize(width: colW, height: keyH)) { date = .now }
+                    keyButton("今天", style: .today, size: CGSize(width: colW, height: keyH)) {
+                        Haptics.tap()
+                        date = .now
+                    }
                     keyButton("✓", style: .okActive(amountCents > 0), size: CGSize(width: colW, height: keyH * 2 + gap)) { saveAndDismiss() }
                 }
             }
@@ -329,15 +364,15 @@ struct AddEntrySheet: View {
                 .foregroundStyle(foregroundColor(style))
                 .cornerRadius(Radius.medium)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableButtonStyle(scale: 0.93))
     }
 
     private func backgroundColor(_ s: KeyStyle) -> Color {
         switch s {
         case .normal: Theme.card
-        case .danger: Color(hex: 0xFDECEB)
+        case .danger: Theme.dangerSoft
         case .today: Theme.greenSoft
-        case .okActive(let active): active ? Theme.green : Color(hex: 0xE3E6E0)
+        case .okActive(let active): active ? Theme.green : Theme.disabled
         }
     }
 
@@ -346,11 +381,12 @@ struct AddEntrySheet: View {
         case .normal: .primary
         case .danger: Theme.red
         case .today: Theme.green
-        case .okActive(let active): active ? .white : Color(hex: 0xAEB4AC)
+        case .okActive(let active): active ? .white : Theme.disabledText
         }
     }
 
     private func tap(_ k: String) {
+        Haptics.key()
         switch k {
         case "＋−":
             isOut.toggle()
@@ -420,6 +456,7 @@ struct AddEntrySheet: View {
     /// ✓ 保存：入库 → 关 sheet → 成功屏（A4）
     private func saveAndDismiss() {
         guard let info = save() else { return }
+        Haptics.success()          // 与成功屏同帧触发
         onSaved(info, true)
     }
 
@@ -427,7 +464,7 @@ struct AddEntrySheet: View {
     private func saveAndContinue() {
         _ = save()
         amountStr = ""; note = ""; mood = nil; date = .now
-        withAnimation(.easeOut(duration: 0.18)) { stage = 0 }
+        go(to: 0)
     }
 
     // MARK: 统计
@@ -482,7 +519,7 @@ private struct CellButton: View {
             .background(Theme.card)
             .cornerRadius(Radius.medium)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableButtonStyle())
     }
 }
 

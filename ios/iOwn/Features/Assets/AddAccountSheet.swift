@@ -25,11 +25,7 @@ struct AddAccountSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color(hex: 0xD9DDD6))
-                .frame(width: 40, height: 5)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
+            SheetGrabber()
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
@@ -52,6 +48,7 @@ struct AddAccountSheet: View {
     private var header: some View {
         HStack {
             Button {
+                Haptics.tap()
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
@@ -61,7 +58,7 @@ struct AddAccountSheet: View {
                     .background(Theme.card)
                     .clipShape(Circle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PressableButtonStyle(scale: 0.9))
             Spacer()
             Text(editing == nil ? "添加账户" : "编辑账户")
                 .font(.system(size: 17, weight: .bold))
@@ -73,10 +70,10 @@ struct AddAccountSheet: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16).padding(.vertical, 8)
-                    .background(canSave ? Theme.green : Color(hex: 0xE3E6E0))
+                    .background(canSave ? Theme.green : Theme.disabled)
                     .cornerRadius(999)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PressableButtonStyle(scale: 0.95))
             .disabled(!canSave)
         }
         .padding(.top, 6)
@@ -95,6 +92,7 @@ struct AddAccountSheet: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 5), spacing: 10) {
                 ForEach([AccountKind.cash, .bankCard, .wechat, .alipay, .creditCard], id: \.rawValue) { k in
                     Button {
+                        Haptics.tap()
                         kind = k
                         didPickKind = true
                         if name.isEmpty || name == kind.defaultName { name = k.defaultName }
@@ -121,7 +119,7 @@ struct AddAccountSheet: View {
                         )
                         .cornerRadius(Radius.medium)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PressableButtonStyle())
                     .disabled(editing != nil)   // 编辑时类型不可改（余额推导依赖类型口径）
                 }
             }
@@ -195,6 +193,7 @@ struct AddAccountSheet: View {
         return VStack(spacing: 8) {
             Button {
                 if let acc = editing {
+                    Haptics.tap()
                     modelContext.delete(acc)
                     try? modelContext.save()
                     dismiss()
@@ -202,13 +201,13 @@ struct AddAccountSheet: View {
             } label: {
                 Text("删除账户")
                     .font(.system(size: 14.5, weight: .semibold))
-                    .foregroundStyle(referenced ? Color(hex: 0xAEB4AC) : Theme.red)
+                    .foregroundStyle(referenced ? Theme.disabledText : Theme.red)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 13)
                     .background(Theme.card)
                     .cornerRadius(Radius.medium)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PressableButtonStyle(scale: 0.97))
             .disabled(referenced)
             if referenced {
                 Text("该账户有关联交易，暂不能删除（B2：余额推导依赖交易关联）")

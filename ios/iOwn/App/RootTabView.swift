@@ -25,6 +25,7 @@ struct RootTabView: View {
 
             // FAB：线索/洞察/设置 = 绿 +（记一笔）；资产页 = 琥珀 $（建户）
             Button {
+                Haptics.tap()
                 if selection == 2 {
                     showAddAccount = true
                 } else {
@@ -39,6 +40,9 @@ struct RootTabView: View {
                     .clipShape(Circle())
                     .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
             }
+            .buttonStyle(PressableButtonStyle(scale: 0.92))
+            // 切 Tab 时 FAB 换色/换图标：让颜色渐变而非硬切
+            .animation(Motion.fade, value: selection)
             .padding(.trailing, 18)
             .padding(.bottom, 76)
 

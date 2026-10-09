@@ -47,7 +47,7 @@ struct AssetsView: View {
                 }
                 .padding(.horizontal, Radius.pagePadding)
                 .padding(.top, 8)
-                .padding(.bottom, 90)
+                .padding(.bottom, 150)   // 让开右下 FAB（底 76 + 高 56）与 TabBar，避免转账胶囊被切
             }
             .background(Theme.bg)
         }
@@ -72,13 +72,13 @@ struct AssetsView: View {
             Text("资产").font(.system(size: 24, weight: .bold))
             HStack {
                 Spacer()
-                Button { showAddAccount = true } label: {
+                Button { Haptics.tap(); showAddAccount = true } label: {
                     Text("💳").font(.system(size: 15))
                         .frame(width: 34, height: 34)
                         .background(Theme.card)
                         .clipShape(Circle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressableButtonStyle(scale: 0.9))
             }
         }
         .padding(.top, 4)
@@ -98,7 +98,7 @@ struct AssetsView: View {
             .overlay {
                 VStack(spacing: 0) {
                     HStack {
-                        Button { withAnimation { hidden.toggle() } } label: {
+                        Button { Haptics.tap(); withAnimation(Motion.fade) { hidden.toggle() } } label: {
                             Image(systemName: hidden ? "eye.slash" : "eye")
                                 .font(.system(size: 14))
                                 .foregroundStyle(.white)
@@ -106,7 +106,7 @@ struct AssetsView: View {
                                 .background(Color.white.opacity(0.18))
                                 .clipShape(Circle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PressableButtonStyle(scale: 0.9))
                         Spacer()
                         Image(systemName: "chart.line.uptrend.xyaxis")   // 净资产趋势（M4 接洞察）
                             .font(.system(size: 14))
@@ -121,6 +121,7 @@ struct AssetsView: View {
                         .font(.system(size: 38, weight: .heavy, design: .rounded))
                         .foregroundStyle(.white)
                         .monospacedDigit()
+                        .tracking(-0.5)   // 大字收紧字距
                         .padding(.top, 2)
 
                     HStack(spacing: 0) {
@@ -182,7 +183,8 @@ struct AssetsView: View {
     private func accountGroup(title: String, list: [Account], expanded: Binding<Bool>) -> some View {
         VStack(spacing: 10) {
             Button {
-                withAnimation(.easeOut(duration: 0.2)) { expanded.wrappedValue.toggle() }
+                Haptics.tap()
+                withAnimation(Motion.disclosure) { expanded.wrappedValue.toggle() }
             } label: {
                 HStack(alignment: .firstTextBaseline) {
                     Text(title).font(.system(size: 16, weight: .bold)).foregroundStyle(.primary)
@@ -193,7 +195,7 @@ struct AssetsView: View {
                         .monospacedDigit()
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PressableButtonStyle(scale: 0.98))
 
             if expanded.wrappedValue {
                 VStack(spacing: 0) {
@@ -220,6 +222,7 @@ struct AssetsView: View {
         let bal = BalanceEngine.displayBalance(of: acc, txs: txs)
         let negative = bal < 0
         return Button {
+            Haptics.tap()
             editingAccount = acc
         } label: {
             HStack(spacing: 12) {
@@ -248,7 +251,7 @@ struct AssetsView: View {
             .padding(.horizontal, 18)
             .padding(.vertical, 11)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableButtonStyle(scale: 0.98))
     }
 
     /// 副注：现金类 = 备注或"记账自动联动"；信用类 = 剩余额度 · 账单日（B4）
@@ -268,7 +271,7 @@ struct AssetsView: View {
     // MARK: 转账胶囊
 
     private var transferPill: some View {
-        Button { showTransfer = true } label: {
+        Button { Haptics.tap(); showTransfer = true } label: {
             Text("转账")
                 .font(.system(size: 15.5, weight: .semibold))
                 .foregroundStyle(.primary)
@@ -277,7 +280,7 @@ struct AssetsView: View {
                 .cornerRadius(999)
                 .shadow(color: .black.opacity(0.07), radius: 7, y: 4)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableButtonStyle(scale: 0.97))
         .padding(.top, 8)
     }
 

@@ -26,7 +26,7 @@ struct HomeView: View {
                 }
                 .padding(.horizontal, Radius.pagePadding)
                 .padding(.top, 8)
-                .padding(.bottom, 90)
+                .padding(.bottom, 140)   // 让开右下 FAB，末条流水不被遮挡
             }
             .background(Theme.bg)
             .navigationTitle("线索")
@@ -83,16 +83,18 @@ struct HomeView: View {
         .cornerRadius(Radius.large)
     }
 
+    /// 英文月份缩写（静态 FormatStyle，避免每行渲染都新建 DateFormatter）
+    private static let monthStyle = Date.FormatStyle.dateTime
+        .month(.abbreviated)
+        .locale(Locale(identifier: "en_US_POSIX"))
+
     /// HeyCost 式日期：英文月份小字 + 大号日数字（视觉基准 §3）
     private func dayText(_ day: Date) -> some View {
         let calendar = Calendar.current
-        let monthFormatter = DateFormatter()
-        monthFormatter.locale = Locale(identifier: "en_US_POSIX")
-        monthFormatter.dateFormat = "MMM"
         let comps = calendar.dateComponents([.month, .day], from: day)
         let dayStr = String(format: "%02d", comps.day ?? 0)
         return HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text(monthFormatter.string(from: day) + ".")
+            Text(day.formatted(Self.monthStyle) + ".")
                 .font(.system(size: 15, weight: .bold))
             Text(dayStr)
                 .font(.system(size: 24, weight: .heavy, design: .rounded))

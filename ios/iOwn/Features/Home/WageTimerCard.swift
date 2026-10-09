@@ -2,30 +2,36 @@ import SwiftUI
 
 /// 首页顶卡：工资计时器（D1）——本月已赚每秒自走 + 时薪副注 + doodle
 /// 实现：TimelineView(.periodic(by: 1)) 驱动重算（金额自走不能用 Text(timerInterval:)）
+/// v1.3：参数只在「进入/关闭设置」时读一次，不再每秒读 UserDefaults；整卡按下缩放反馈
 struct WageTimerCard: View {
     @State private var showSettings = false
+    @State private var config: WageConfig = .load()
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-            let config = WageConfig.load()
-            content(config: config, now: context.date)
+        Button {
+            Haptics.tap()
+            showSettings = true
+        } label: {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                content(config: config, now: context.date)
+            }
+            .background(Theme.card)
+            .cornerRadius(Radius.large)
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(Theme.green)
+                    .frame(width: 4)
+                    .cornerRadius(2)
+                    .padding(.vertical, 14)
+            }
         }
-        .background(Theme.card)
-        .cornerRadius(Radius.large)
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(Theme.green)
-                .frame(width: 4)
-                .cornerRadius(2)
-                .padding(.vertical, 14)
-        }
-        .contentShape(Rectangle())
-        .onTapGesture { showSettings = true }
-        .sheet(isPresented: $showSettings) { WageSettingsView() }
+        .buttonStyle(PressableButtonStyle(scale: 0.98))
+        .sheet(isPresented: $showSettings, onDismiss: { config = .load() }) { WageSettingsView() }
     }
 
     @ViewBuilder
     private func content(config: WageConfig, now: Date) -> some View {
+        let earned = config.earnedThisMonth(now: now)
         HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
@@ -33,16 +39,18 @@ struct WageTimerCard: View {
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                     if config.isConfigured && config.isWorkingNow(now: now) {
-                        Circle().fill(Theme.green).frame(width: 6, height: 6)   // 工作中：绿点呼吸
+                        Circle().fill(Theme.green).frame(width: 6, height: 6)   // 工作中：绿点
                     }
                 }
 
                 if config.isConfigured {
-                    Text("¥" + Money.string(config.earnedThisMonth(now: now)))
+                    Text("¥" + Money.string(earned))
                         .font(.system(size: 30, weight: .heavy, design: .rounded))
                         .foregroundStyle(Theme.green)
                         .monospacedDigit()
-                        .contentTransition(.numericText())
+                        .tracking(-0.4)
+                        .contentTransition(.numericText(value: earned))
+                        .animation(.easeOut(duration: 0.35), value: earned)   // 数字滚动而非硬跳
                     Text("时薪 ¥\(Money.compact(config.hourlyWage(now: now))) · 本月已走 \(config.daysTouchedThisMonth(now: now)) 个工作日")
                         .font(.system(size: 11.5))
                         .foregroundStyle(.tertiary)

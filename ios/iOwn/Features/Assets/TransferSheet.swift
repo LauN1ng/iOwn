@@ -27,11 +27,7 @@ struct TransferSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color(hex: 0xD9DDD6))
-                .frame(width: 40, height: 5)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
+            SheetGrabber()
 
             VStack(spacing: 18) {
                 header
@@ -56,6 +52,7 @@ struct TransferSheet: View {
                             .foregroundStyle(Theme.green)
                             .multilineTextAlignment(.center)
                             .monospacedDigit()
+                            .tracking(-0.5)
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -77,10 +74,10 @@ struct TransferSheet: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 15)
-                        .background(canSave ? Theme.green : Color(hex: 0xE3E6E0))
+                        .background(canSave ? Theme.green : Theme.disabled)
                         .cornerRadius(Radius.medium)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressableButtonStyle(scale: 0.97))
                 .disabled(!canSave)
                 .padding(.bottom, 24)
             }
@@ -97,6 +94,7 @@ struct TransferSheet: View {
     private var header: some View {
         HStack {
             Button {
+                Haptics.tap()
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
@@ -106,7 +104,7 @@ struct TransferSheet: View {
                     .background(Theme.card)
                     .clipShape(Circle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PressableButtonStyle(scale: 0.9))
             Spacer()
             Text("转账").font(.system(size: 17, weight: .bold))
             Spacer()
