@@ -1,0 +1,79 @@
+# iOS 构建闭环（构建路径定案 v1）：编译验证 + 模拟器截图回传 + 未签名 IPA
+# Windows 本地零 Xcode 依赖：工程由 XcodeGen 在 runner 上生成
+name: iOS Build
+
+on:
+  push:
+    branches: [main]
+    paths: ["ios/**", ".github/workflows/ios-build.yml"]
+  pull_request:
+    paths: ["ios/**", ".github/workflows/ios-build.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick available simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available | grep -m1 -Eo '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}')
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl list devices available | head -20
+
+      - name: Build (iOS Simulator)
+        run: |
+          set -o pipefail
+          xcodebuild -project Jizhan.xcodeproj -scheme Jizhan \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build build
+
+      - name: Run in simulator & take screenshots
+        run: |
+          xcrun simctl boot "${{ steps.sim.outputs.udid }}" || true
+          APP=build/Build/Products/Debug-iphonesimulator/Jizhan.app
+          xcrun simctl install "${{ steps.sim.outputs.udid }}" "$APP"
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" com.jizhan.Jizhan
+          sleep 5
+          mkdir -p ../artifacts
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/01-home.png
+          # TODO(M1): 记一笔 sheet 截图（需 UI 测试或 AppleScript 驱动）
+          # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
+
+      - name: Build unsigned IPA (Release, device)
+        run: |
+          set -o pipefail
+          xcodebuild -project Jizhan.xcodeproj -scheme Jizhan \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -derivedDataPath build-device build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY=""
+          mkdir -p Payload
+          cp -r build-device/Build/Products/Release-iphoneos/Jizhan.app Payload/
+          zip -qr ../artifacts/Jizhan-unsigned.ipa Payload
+          # Windows 端：Sideloadly + 免费 Apple ID 签名后侧载（7 天有效）
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: artifacts/*.png
+          if-no-files-found: error
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-ipa
+          path: artifacts/Jizhan-unsigned.ipa
+          if-no-files-found: error

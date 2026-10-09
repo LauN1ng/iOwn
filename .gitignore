@@ -1,0 +1,15 @@
+# —— 生成物（CI 上由 XcodeGen 生成，不入库）——
+ios/Jizhan.xcodeproj/
+ios/**/build/
+ios/**/build-device/
+ios/Payload/
+
+# —— macOS / Xcode ——
+.DS_Store
+*.xcuserstate
+xcuserdata/
+*.ipa
+
+# —— 本机临时 ——
+.playwright-cli/
+reports/*.tmp.*

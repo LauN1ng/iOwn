@@ -1,0 +1,6 @@
+# 跨平台一致性行尾：Swift/YAML/JSON/Shell 一律 LF（CI bash 对 CRLF 敏感）
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ipa binary

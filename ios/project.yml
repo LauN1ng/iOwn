@@ -1,0 +1,37 @@
+# XcodeGen 工程定义 —— 在 CI（macOS）上执行 `xcodegen generate` 生成 Jizhan.xcodeproj
+# Windows 本地不生成工程，只改本文件 + Swift 源码
+name: Jizhan
+options:
+  bundleIdPrefix: com.jizhan
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"          # Swift 6 编译器 + v5 语言模式，避免严格并发摩擦
+    TARGETED_DEVICE_FAMILY: "1"   # 仅 iPhone
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGNING_ALLOWED: "NO"    # 签名交给 Windows 端 Sideloadly / 后续 CI 签名阶段
+
+targets:
+  Jizhan:
+    type: application
+    platform: iOS
+    sources:
+      - path: Jizhan
+    info:
+      path: Jizhan/Info.plist
+      properties:
+        CFBundleDisplayName: 记盏
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        ITSAppUsesNonExemptEncryption: false
+
+schemes:
+  Jizhan:
+    build:
+      targets:
+        Jizhan: all
+    run:
+      config: Debug
