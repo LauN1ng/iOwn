@@ -23,7 +23,10 @@ struct SettingsView: View {
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
-            .scrollContentBackground(.visible)
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)      // v1.4：去掉系统列表底色，与其它页的卡片语言对齐
+            .listRowBackground(Theme.card)         // 行底改用全 App 统一的白色卡片
+            .listRowSeparatorTint(Theme.hairline)  // 分隔线用 hairline token，不用系统默认
             .background(Theme.bg)
             .navigationTitle("设置")
         }

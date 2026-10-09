@@ -37,7 +37,7 @@ struct TransferSheet: View {
                     accountPicker(selection: $fromID, excluding: toID, label: "转出")
                     Image(systemName: "arrow.right")
                         .scaledFont(15, weight: .bold)
-                        .foregroundStyle(Theme.green)
+                        .foregroundStyle(Theme.greenText)
                     accountPicker(selection: $toID, excluding: fromID, label: "转入")
                 }
 
@@ -45,11 +45,11 @@ struct TransferSheet: View {
                 VStack(spacing: 6) {
                     Text("金额").scaledFont(12.5).foregroundStyle(.secondary)
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text("¥").scaledFont(22, weight: .bold).foregroundStyle(Theme.green)
+                        Text("¥").scaledFont(22, weight: .bold).foregroundStyle(Theme.greenText)
                         TextField("0.00", text: $amountStr)
                             .keyboardType(.decimalPad)
                             .scaledFont(40, weight: .heavy, design: .rounded)
-                            .foregroundStyle(Theme.green)
+                            .foregroundStyle(Theme.greenText)
                             .multilineTextAlignment(.center)
                             .monospacedDigit()
                             .tracking(-0.5)

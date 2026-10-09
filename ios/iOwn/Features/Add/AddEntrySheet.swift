@@ -112,13 +112,13 @@ struct AddEntrySheet: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 16) {
                 Text("支出").scaledFont(20, weight: .bold)
-                    .foregroundStyle(isOut ? Theme.green : Color.secondary.opacity(0.4))
+                    .foregroundStyle(isOut ? Theme.greenText : Color.secondary.opacity(0.4))
                     .contentShape(Rectangle())
                     .onTapGesture { isOut = true }
                     .accessibilityAddTraits(isOut ? [.isButton, .isSelected] : .isButton)
                     .accessibilityLabel("支出")
                 Text("收入").scaledFont(20, weight: .bold)
-                    .foregroundStyle(!isOut ? Theme.green : Color.secondary.opacity(0.4))
+                    .foregroundStyle(!isOut ? Theme.greenText : Color.secondary.opacity(0.4))
                     .contentShape(Rectangle())
                     .onTapGesture { isOut = false }
                     .accessibilityAddTraits(!isOut ? [.isButton, .isSelected] : .isButton)
@@ -168,7 +168,7 @@ struct AddEntrySheet: View {
             HStack {
                 Text("⚡ 快捷分类")
                     .scaledFont(13.5, weight: .semibold)
-                    .foregroundStyle(Theme.green)
+                    .foregroundStyle(Theme.greenText)
                 Spacer()
                 Text("›").foregroundStyle(.tertiary)
             }
@@ -205,7 +205,7 @@ struct AddEntrySheet: View {
                         saveAndContinue()
                     } label: {
                         Text("再记").scaledFont(13, weight: .semibold)
-                            .foregroundStyle(Theme.green)
+                            .foregroundStyle(Theme.greenText)
                             .padding(.horizontal, 12).padding(.vertical, 7)
                             .background(Theme.greenSoft)
                             .cornerRadius(9)
@@ -259,7 +259,7 @@ struct AddEntrySheet: View {
 
             Text("¥ \(amountDisplay)")
                 .scaledFont(42, weight: .heavy, design: .rounded)
-                .foregroundStyle(Theme.green)
+                .foregroundStyle(Theme.greenText)
                 .monospacedDigit()
                 .tracking(-0.5)                       // 大字收紧字距（apple-design §15）
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -410,8 +410,8 @@ struct AddEntrySheet: View {
     private func foregroundColor(_ s: KeyStyle) -> Color {
         switch s {
         case .normal: .primary
-        case .danger: Theme.red
-        case .today: Theme.green
+        case .danger: Theme.redText
+        case .today: Theme.greenText
         case .okActive(let active): active ? .white : Theme.disabledText
         }
     }

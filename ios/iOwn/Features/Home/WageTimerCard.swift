@@ -54,7 +54,7 @@ struct WageTimerCard: View {
                 if config.isConfigured {
                     Text("¥" + Money.string(earned))
                         .scaledFont(30, weight: .heavy, design: .rounded)
-                        .foregroundStyle(Theme.green)
+                        .foregroundStyle(Theme.greenText)
                         .monospacedDigit()
                         .tracking(-0.4)
                         .contentTransition(.numericText(value: earned))
@@ -65,11 +65,11 @@ struct WageTimerCard: View {
                 } else {
                     Text("¥ ——")
                         .scaledFont(30, weight: .heavy, design: .rounded)
-                        .foregroundStyle(Theme.green.opacity(0.45))
+                        .foregroundStyle(Theme.greenText.opacity(0.45))
                         .monospacedDigit()
                     Text("点这里设置月薪与工作时段 ›")
                         .scaledFont(11.5, weight: .semibold)
-                        .foregroundStyle(Theme.green)
+                        .foregroundStyle(Theme.greenText)
                 }
             }
             Spacer(minLength: 0)

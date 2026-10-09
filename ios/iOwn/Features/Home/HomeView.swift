@@ -70,7 +70,7 @@ struct HomeView: View {
                 Spacer()
                 Text(Self.signedMoney(group.net))
                     .scaledFont(16, weight: .bold)
-                    .foregroundStyle(Theme.green)
+                    .foregroundStyle(Theme.greenText)
                     .monospacedDigit()
             }
 
@@ -152,7 +152,7 @@ struct HomeView: View {
 
                 Text("¥ \(Self.money(tx.amount))")
                     .scaledFont(15, weight: .bold)
-                    .foregroundStyle(Theme.green)
+                    .foregroundStyle(Theme.greenText)
                     .monospacedDigit()
             }
         } else {
@@ -191,7 +191,7 @@ struct HomeView: View {
 
                 Text("\(sign)¥ \(Self.money(tx.amount))")
                     .scaledFont(15, weight: .bold)
-                    .foregroundStyle(Theme.green)
+                    .foregroundStyle(Theme.greenText)
                     .monospacedDigit()
             }
         }

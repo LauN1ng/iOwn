@@ -203,7 +203,7 @@ struct AddAccountSheet: View {
             } label: {
                 Text("删除账户")
                     .scaledFont(14.5, weight: .semibold)
-                    .foregroundStyle(referenced ? Theme.disabledText : Theme.red)
+                    .foregroundStyle(referenced ? Theme.disabledText : Theme.redText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 13)
                     .background(Theme.card)

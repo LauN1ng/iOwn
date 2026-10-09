@@ -21,7 +21,7 @@ struct RootTabView: View {
                 AssetsView(onOpenInsight: { selection = 1 }).tabItem { Label("资产", systemImage: "creditcard") }.tag(2)
                 SettingsView().tabItem { Label("设置", systemImage: "gearshape") }.tag(3)
             }
-            .tint(Theme.green)
+            .tint(Theme.greenText)
 
             // FAB：线索/洞察/设置 = 绿 +（记一笔）；资产页 = 琥珀 $（建户）
             Button {

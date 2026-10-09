@@ -38,7 +38,7 @@ struct SuccessOverlay: View {
 
                 Text(amountText)
                     .scaledFont(38, weight: .heavy, design: .rounded)
-                    .foregroundStyle(Theme.green)
+                    .foregroundStyle(Theme.greenText)
                     .monospacedDigit()
                     .tracking(-0.5)
                     .padding(.top, 30)

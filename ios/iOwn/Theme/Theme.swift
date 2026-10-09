@@ -5,13 +5,22 @@ import SwiftUI
 enum Theme {
     static let bg     = Color(hex: 0xF7F7F5)   // 暖灰白底
     static let card   = Color.white            // 全部卡片
-    static let green  = Color(hex: 0x3ABF58)   // 主绿：FAB/金额一律绿（含支出，不评判）
+    static let green  = Color(hex: 0x3ABF58)   // 主绿（仅填充/图形）：FAB、净资产卡、选中态底色、按钮底
     static let greenSoft = Color(hex: 0xEAF7EC)
     static let greenDeep = Color(hex: 0x2FA34A) // 净资产卡渐变终（起 #3ABF58，绿色重卡统一主色）
-    static let red    = Color(hex: 0xF56358)   // 仅负债/超支/删除
-    static let blue   = Color(hex: 0x4A8CF7)   // 仅跳转链接
+    static let red    = Color(hex: 0xF56358)   // 红（仅填充/图形：⌫ 键底等）
+    static let blue   = Color(hex: 0x4A8CF7)   // 蓝（仅填充/图形）
     static let amber  = Color(hex: 0xF6B73C)   // 点缀/资产页 FAB
     static let iconBg = Color(hex: 0xEDEFEA)   // emoji 图标浅灰容器
+
+    // MARK: 文字档（v1.4 拆 token，见 UI评审 §3.1）
+    // 亮色 #3ABF58 当**文字**只有 2.39:1，连大字门槛 3:1 都不到（AA 正文需 4.5:1）。
+    // 所以「文字」用途一律改用下面这组同色相、加深后的色值；填充/图形继续用上面的亮色。
+    // 实测（白卡底）：greenText 5.40:1 / redText 5.44:1 / blueText 5.43:1，全部达 AA。
+    // ⚠️ 白字压在亮绿上（保存按钮/选中胶囊/净资产卡/FAB）仍是 2.39:1 —— 已定案保留，属已知取舍。
+    static let greenText = Color(hex: 0x1E7A33)
+    static let redText   = Color(hex: 0xC0392B)
+    static let blueText  = Color(hex: 0x1D64D8)
 
     // 状态/构件色（v1.3 收敛原散落在各视图里的硬编码色值）
     static let grabber     = Color(hex: 0xD9DDD6)  // sheet 自绘把手

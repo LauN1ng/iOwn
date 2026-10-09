@@ -11,7 +11,6 @@ struct AssetsView: View {
     /// 跳转洞察页（净资产趋势）——由 RootTabView 注入切换 Tab；默认空实现保证 `AssetsView()` 仍可构造
     var onOpenInsight: () -> Void = {}
 
-    @State private var showAddAccount = false
     @State private var editingAccount: Account?
     @State private var showTransfer = false
     @State private var hidden = false          // 👁 隐私遮挡
@@ -26,14 +25,13 @@ struct AssetsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: Radius.cardSpacing) {
-                    header
                     netCard
                     trendLink
                     metricCard
 
                     if accounts.isEmpty {
                         EmptyStateCard(icon: "💳", title: "还没有账户",
-                                       hint: "点右上 💳 或右下 $ 添加第一个账户")
+                                       hint: "点右下角 $ 添加第一个账户")
                     } else {
                         if !cashAccounts.isEmpty {
                             accountGroup(title: "现金账户", list: cashAccounts,
@@ -53,11 +51,11 @@ struct AssetsView: View {
                 .padding(.bottom, 150)   // 让开右下 FAB（底 76 + 高 56）与 TabBar，避免转账胶囊被切
             }
             .background(Theme.bg)
+            // v1.4 头部统一：与线索/洞察/设置一致走系统 large title，不再自绘居中标题
+            .navigationTitle("资产")
         }
         // 半屏 sheet（与记一笔统一）：不盖主屏，保留背后资产页上下文；可上拖全屏
-        .sheet(isPresented: $showAddAccount) { AddAccountSheet() }
-            .presentationDetents([.fraction(0.68), .large])
-            .presentationDragIndicator(.hidden)   // 自绘 grabber 已有，隐藏系统把手防双条
+        // 注意：建户入口已收敛为右下琥珀 $ FAB（RootTabView 持有），此处不再重复挂建户 sheet
         .sheet(item: $editingAccount) { acc in
             AddAccountSheet(editing: acc)
                 .presentationDetents([.fraction(0.68), .large])
@@ -66,27 +64,6 @@ struct AssetsView: View {
         .sheet(isPresented: $showTransfer) { TransferSheet() }
             .presentationDetents([.fraction(0.68), .large])
             .presentationDragIndicator(.hidden)
-    }
-
-    // MARK: 头部（居中标题 + 右上 💳 建户）
-
-    private var header: some View {
-        ZStack {
-            Text("资产").scaledFont(24, weight: .bold)
-            HStack {
-                Spacer()
-                Button { Haptics.tap(); showAddAccount = true } label: {
-                    Text("💳").scaledFont(15)
-                        .frame(width: 34, height: 34)
-                        .background(Theme.card)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(PressableButtonStyle(scale: 0.9))
-                .tapTarget()                          // 命中区 44，圆点视觉仍 34
-                .accessibilityLabel("添加账户")
-            }
-        }
-        .padding(.top, 4)
     }
 
     // MARK: 绿色净资产卡（眼/趋势圆钮 + 波浪底 + 总资产/总负债分列）
@@ -165,7 +142,7 @@ struct AssetsView: View {
         Button { Haptics.tap(); onOpenInsight() } label: {
             Text("净资产趋势 ›")
                 .scaledFont(14, weight: .semibold)
-                .foregroundStyle(Theme.blue)
+                .foregroundStyle(Theme.blueText)
                 .frame(maxWidth: .infinity)
                 .padding(.top, -2)
                 .contentShape(Rectangle())
@@ -269,7 +246,7 @@ struct AssetsView: View {
 
                 Text(hidden ? "¥ ****" : (negative ? "-¥ \(money(-bal))" : "¥ \(money(bal))"))
                     .scaledFont(15.5, weight: .bold)
-                    .foregroundStyle(negative ? Theme.red : Theme.green)
+                    .foregroundStyle(negative ? Theme.redText : Theme.greenText)
                     .monospacedDigit()
             }
             .padding(.horizontal, 18)
@@ -315,7 +292,7 @@ struct AssetsView: View {
         case green, red, blue
         var color: Color {
             switch self {
-            case .green: Theme.green; case .red: Theme.red; case .blue: Theme.blue
+            case .green: Theme.greenText; case .red: Theme.redText; case .blue: Theme.blueText
             }
         }
     }
