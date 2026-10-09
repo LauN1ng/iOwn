@@ -22,6 +22,7 @@ struct AddEntrySheet: View {
     @Query(sort: \Account.name) private var accounts: [Account]
     var onSaved: (SavedEntryInfo, Bool) -> Void   // (结果, 是否展示成功屏)；再记=false 只入库
     var editing: Tx? = nil                        // 非 nil = 编辑该笔（B2 改账）
+    var ciAmountStage = false                     // CI 截图钩子：直接进金额页并预置 21.9（验证两位小数）
 
     @State private var stage = 0               // 0 宫格 / 1 金额
     @State private var category: CategoryDef?
@@ -40,6 +41,16 @@ struct AddEntrySheet: View {
         return Int((v * 100).rounded())
     }
 
+    /// 金额显示串：始终两位小数（视觉基准 §4.2「金额大字绿 ¥0.00」）
+    /// 空 → 0.00；整数输入 50 → 50.00；小数位输入中 21.9 → 21.90
+    private var amountDisplay: String {
+        guard !amountStr.isEmpty else { return "0.00" }
+        guard let dot = amountStr.firstIndex(of: ".") else { return amountStr + ".00" }
+        let intPart = String(amountStr[amountStr.startIndex..<dot])
+        let decPart = String(amountStr[amountStr.index(after: dot)...])
+        return intPart + "." + decPart.padding(toLength: 2, withPad: "0", startingAt: 0)
+    }
+
     private let keyH: CGFloat = 54
     private let gap: CGFloat = 10
 
@@ -56,7 +67,15 @@ struct AddEntrySheet: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.bg)
-        .onAppear(perform: prefillForEditing)
+        .onAppear {
+            prefillForEditing()
+            if ciAmountStage, editing == nil {   // CI：直接落在金额页（category 预选 + 预置 21.9）
+                category = CategoryPresets.all.first
+                sub = category?.subs.first
+                amountStr = "21.9"
+                stage = 1
+            }
+        }
     }
 
     /// B2 改账预填：直接进金额页（阶段 2），分类/金额/备注/心情/账户/日期全部带出
@@ -199,7 +218,7 @@ struct AddEntrySheet: View {
             }
             .padding(.top, 14)
 
-            Text("¥ \(amountStr.isEmpty ? "0" : amountStr)")
+            Text("¥ \(amountDisplay)")
                 .font(.system(size: 42, weight: .heavy, design: .rounded))
                 .foregroundStyle(Theme.green)
                 .monospacedDigit()

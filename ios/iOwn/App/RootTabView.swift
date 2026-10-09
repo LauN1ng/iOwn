@@ -57,7 +57,7 @@ struct RootTabView: View {
         // 0.68 = 阶段2（宫格滑走后）键盘+金额区完整放下的最小比例；可上拖全屏
         // ⚠️ 真机验证点：iOS 26 曾 detents 不生效（当时因此退回 fullScreenCover），iOS 27 待验
         .sheet(isPresented: $showAdd) {
-            AddEntrySheet { info, showOverlay in
+            AddEntrySheet(ciAmountStage: ciArgs.contains("-ci-open-amount")) { info, showOverlay in
                 guard showOverlay else { return }   // 再记：sheet 保持打开
                 savedInfo = info
                 showAdd = false
@@ -85,6 +85,10 @@ struct RootTabView: View {
                 showSuccess = true
             }
             if ciArgs.contains("-ci-open-sheet") {
+                showAdd = true
+            }
+            // 金额页截图钩子：直接进 stage 1（验证金额两位小数 + 账户 chip）
+            if ciArgs.contains("-ci-open-amount") {
                 showAdd = true
             }
             // 建户半屏 sheet 截图钩子（资产页 + 自动展开 AddAccountSheet）
