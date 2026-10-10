@@ -15,6 +15,9 @@ struct RootTabView: View {
     @State private var showCatManager = false
     // 工资设置页（CI 截图钩子用；首页卡片自身也有入口）
     @State private var showWageSettings = false
+    // 负债模块 CI 钩子
+    @State private var showAddLiability = false
+    @State private var showSettle = false
 
     private let ciArgs = ProcessInfo.processInfo.arguments
 
@@ -23,31 +26,32 @@ struct RootTabView: View {
             TabView(selection: $selection) {
                 HomeView().tabItem { Label("线索", systemImage: "list.bullet") }.tag(0)
                 InsightView().tabItem { Label("洞察", systemImage: "chart.bar") }.tag(1)
-                AssetsView(onOpenInsight: { selection = 1 }).tabItem { Label("资产", systemImage: "creditcard") }.tag(2)
-                SettingsView().tabItem { Label("设置", systemImage: "gearshape") }.tag(3)
+                DebtView().tabItem { Label("负债", systemImage: "creditcard") }.tag(2)
+                AssetsView(onOpenInsight: { selection = 1 }).tabItem { Label("资产", systemImage: "banknote") }.tag(3)
+                SettingsView().tabItem { Label("设置", systemImage: "gearshape") }.tag(4)
             }
             .tint(Theme.greenText)
 
-            // FAB：线索/洞察/设置 = 绿 +（记一笔）；资产页 = 琥珀 $（建户）
+            // FAB：线索/洞察/负债/设置 = 绿 +（记一笔）；资产页 = 琥珀 $（建户）
             Button {
                 Haptics.tap()
-                if selection == 2 {
+                if selection == 3 {
                     showAddAccount = true
                 } else {
                     showAdd = true
                 }
             } label: {
-                Image(systemName: selection == 2 ? "dollarsign" : "plus")
+                Image(systemName: selection == 3 ? "dollarsign" : "plus")
                     .scaledFont(24, weight: .bold)
                     .foregroundStyle(.white)
                     .frame(width: 56, height: 56)
-                    .background(selection == 2 ? Theme.amber : Theme.green)
+                    .background(selection == 3 ? Theme.amber : Theme.green)
                     .clipShape(Circle())
                     .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
             }
             .buttonStyle(PressableButtonStyle(scale: 0.92))
-            .accessibilityLabel(selection == 2 ? "添加账户" : "记一笔")
-            .accessibilityHint(selection == 2 ? "新建账户" : "快速记一笔账")
+            .accessibilityLabel(selection == 3 ? "添加账户" : "记一笔")
+            .accessibilityHint(selection == 3 ? "新建账户" : "快速记一笔账")
             // 切 Tab 时 FAB 换色/换图标：让颜色渐变而非硬切
             .animation(Motion.fade, value: selection)
             .padding(.trailing, 18)
@@ -89,6 +93,15 @@ struct RootTabView: View {
         .sheet(isPresented: $showWageSettings) {
             WageSettingsView()
         }
+        // 负债模块 CI 钩子 sheet
+        .sheet(isPresented: $showAddLiability) {
+            AddLiabilitySheet()
+                .presentationDetents([.fraction(0.68), .large])
+                .presentationDragIndicator(.hidden)
+        }
+        .sheet(isPresented: $showSettle) {
+            SettleView()
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 // 回前台：此处预留自动记账队列消费位（当前自动记账已搁置，待调研后重启）
@@ -100,6 +113,14 @@ struct RootTabView: View {
             Task { await HolidayStore.shared.syncIfNeeded() }
             // CI 截图钩子：自动打开记一笔 / 直接展示成功屏 / 直达资产页
             if ciArgs.contains("-ci-tab-assets") {
+                selection = 3
+            }
+            // 负债页截图钩子（按项目）
+            if ciArgs.contains("-ci-tab-debt") {
+                selection = 2
+            }
+            // 负债页「按月份」档截图钩子
+            if ciArgs.contains("-ci-tab-month") {
                 selection = 2
             }
             // 洞察页截图钩子
@@ -126,12 +147,22 @@ struct RootTabView: View {
             }
             // 建户半屏 sheet 截图钩子（资产页 + 自动展开 AddAccountSheet）
             if ciArgs.contains("-ci-open-account") {
-                selection = 2
+                selection = 3
                 showAddAccount = true
             }
             // 工资设置页截图钩子（到手薪资 + 调休节）
             if ciArgs.contains("-ci-open-wage") {
                 showWageSettings = true
+            }
+            // 负债建档页截图钩子（半屏，验证分期换算 + 两个日期）
+            if ciArgs.contains("-ci-open-liability") {
+                selection = 2
+                showAddLiability = true
+            }
+            // 发薪日结算页截图钩子
+            if ciArgs.contains("-ci-open-settle") {
+                selection = 2
+                showSettle = true
             }
         }
         // Dynamic Type：默认限制在标准区间（保护键盘/净资产卡等固定版式）；
@@ -166,6 +197,24 @@ struct RootTabView: View {
             for (name, brand, balance, kind, billDay, limit) in demoAccounts {
                 modelContext.insert(Account(name: name, brand: brand, initialBalance: balance,
                                             kind: kind, billDay: billDay, creditLimit: limit))
+            }
+        }
+
+        // 负债样例（负债与可支配）：信用卡/花呗/白条/房租，与原型 #debt 演示数字一致
+        let liabilityCount = (try? modelContext.fetchCount(FetchDescriptor<Liability>())) ?? 0
+        if liabilityCount == 0 {
+            let demoLiabilities: [(String, LiabilityKind, LiabilityCategory, Decimal, Int, Int, FeeMode, Decimal, Int, Int, String, UInt32)] = [
+                ("信用卡", .installment, .credit, 8000, 12, 4, .totalRate, 8.8, 2, 22, "信", 0xD4537E),
+                ("花呗",   .installment, .credit, 18000, 12, 4, .totalRate, 8.8, 1, 25, "花", 0x7F77DD),
+                ("京东白条", .installment, .credit, 5000, 9, 2, .totalRate, 4.5, 1, 25, "白", 0xE24B4A),
+                ("房租",   .fixed, .fixedExpense, 1230.50, 0, 0, .none, 0, 1, 1, "房", 0x4A8CF7),
+            ]
+            for (i, d) in demoLiabilities.enumerated() {
+                let (name, kind, cat, principal, tp, pp, fm, fv, bd, dd, ic, ih) = d
+                modelContext.insert(Liability(name: name, kind: kind, category: cat,
+                                              principal: principal, totalPeriods: tp, paidPeriods: pp,
+                                              feeMode: fm, feeValue: fv, billDay: bd, dueDay: dd,
+                                              startMonth: "", iconChar: ic, iconHex: ih, sortOrder: i))
             }
         }
 

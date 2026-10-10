@@ -24,6 +24,7 @@ enum CategoryPresets {
             .init(id: "utility", emoji: "💡", name: "水电费"),
             .init(id: "subscription", emoji: "📺", name: "订阅会员"),
             .init(id: "commute", emoji: "🚇", name: "通勤"),
+            .init(id: "repay", emoji: "💳", name: "还款"),   // 负债模块确认还款自动记此类
         ]),
         CategoryDef(id: "needs", emoji: "🍞", name: "生活所需", subs: [
             .init(id: "grocery", emoji: "🛒", name: "买菜"),

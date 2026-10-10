@@ -18,6 +18,13 @@ struct SettingsView: View {
                     }
                     // TODO(M1-E2): 导出 CSV
                 }
+                Section("负债") {
+                    NavigationLink {
+                        DebtView()
+                    } label: {
+                        Label("负债与可支配", systemImage: "creditcard")
+                    }
+                }
                 Section("开发中") {
                     LabeledContent("版本", value: "M2 骨架 0.2.0")
                 }

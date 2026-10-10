@@ -131,6 +131,30 @@ jobs:
           APP_DATA=$(xcrun simctl get_app_container "${{ steps.sim.outputs.udid }}" "$BID" data 2>/dev/null || true)
           echo "container: $APP_DATA"
           plutil -p "$APP_DATA/Library/Preferences/$BID.plist" 2>/dev/null | grep -i holiday || echo "  (no holiday keys)"
+          # 14) 负债页（按项目）——负债与可支配
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-debt
+          sleep 6
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/13-debt.png
+          # 15) 负债页（按月份 · 未来 12 个月预测）
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-month
+          sleep 6
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/14-debt-month.png
+          # 16) 建档页（半屏：分期换算 + 两个关键日期）
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-liability
+          sleep 6
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/15-liability-add.png
+          # 17) 首页（压缩版「本月可支配」卡）
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data
+          sleep 6
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/16-home-disposable.png
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
       - name: Build unsigned IPA (Release, device)

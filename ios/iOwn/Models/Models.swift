@@ -106,6 +106,189 @@ final class Account {
     }
 }
 
+// MARK: - 负债与可支配（负债与可支配-方案-v1）
+// 用户核心习惯：发薪日把花呗/信用卡/白条/房租全扣除，剩下的才是本月能花的钱。
+// 建模三形态（D4）：
+//   .installment  分期      —— 花呗/白条/信用卡分期：本金 × 总费率 → 每期固定金额
+//   .currentBill  当期账单  —— 信用卡未分期部分：每月浮动、靠记账累加，无进度条
+//   .fixed        固定金额  —— 房租等：每月固定扣，无期数
+// 归类（D5）：.credit 信用负债（会还完）/ .fixedExpense 固定支出（持续发生）
+// ⚠️ 手续费按原始本金计、不随已还递减 → 名义总费率 ≠ 实际年化（见 DebtEngine.apr）
+
+enum LiabilityCategory: String, Codable {
+    case credit        // 信用负债：信用卡 / 花呗 / 白条
+    case fixedExpense  // 固定支出：房租 / 订阅
+
+    var label: String { self == .credit ? "信用类" : "固定支出" }
+}
+
+enum LiabilityKind: String, Codable {
+    case installment   // 分期：期数 + 每期固定
+    case currentBill   // 当期账单：每月浮动
+    case fixed         // 固定金额
+
+    var label: String {
+        switch self {
+        case .installment: "分期"; case .currentBill: "当期账单"; case .fixed: "固定"
+        }
+    }
+}
+
+/// 手续费输入模式（D10）：给三种，App 自动换算每期金额
+enum FeeMode: String, Codable {
+    case none          // 免息
+    case totalRate     // 填总费率（如 8.8%）—— 最贴近平台展示
+    case apr           // 直接填年化利率
+
+    var label: String {
+        switch self {
+        case .none: "免息"; case .totalRate: "总费率"; case .apr: "年化利率"
+        }
+    }
+}
+
+@Model
+final class Liability {
+    var id: String
+    var name: String                 // 花呗 / 信用卡 / 房租
+    var kindRaw: String              // LiabilityKind.rawValue
+    var categoryRaw: String          // LiabilityCategory.rawValue
+    var principal: Decimal           // 本金 / 当前欠款
+    var totalPeriods: Int            // 分期总期数（.fixed 时 = 0）
+    var paidPeriods: Int             // 已还期数
+    var feeModeRaw: String           // FeeMode.rawValue
+    var feeValue: Decimal            // 费率数值（totalRate=8.8 表示 8.8%；apr=15.86；none=0）
+    var billDay: Int                 // 账单日（1-31）
+    var dueDay: Int                  // 还款日（1-31）
+    var startMonth: String           // 起始月 "yyyy-MM"
+    var iconChar: String             // 图标字块单字（花/信/白/房）
+    var iconHex: UInt32              // 图标底色
+    var linkedAccountID: String?     // 关联信用账户（记账联动）
+    var sortOrder: Int
+
+    init(id: String = UUID().uuidString, name: String, kind: LiabilityKind,
+         category: LiabilityCategory, principal: Decimal, totalPeriods: Int = 0,
+         paidPeriods: Int = 0, feeMode: FeeMode = .none, feeValue: Decimal = 0,
+         billDay: Int = 1, dueDay: Int = 25, startMonth: String = "",
+         iconChar: String = "债", iconHex: UInt32 = 0x8E8E93,
+         linkedAccountID: String? = nil, sortOrder: Int = 0) {
+        self.id = id; self.name = name
+        self.kindRaw = kind.rawValue; self.categoryRaw = category.rawValue
+        self.principal = principal
+        self.totalPeriods = totalPeriods; self.paidPeriods = paidPeriods
+        self.feeModeRaw = feeMode.rawValue; self.feeValue = feeValue
+        self.billDay = billDay; self.dueDay = dueDay
+        self.startMonth = startMonth
+        self.iconChar = iconChar; self.iconHex = iconHex
+        self.linkedAccountID = linkedAccountID; self.sortOrder = sortOrder
+    }
+
+    var kind: LiabilityKind { LiabilityKind(rawValue: kindRaw) ?? .fixed }
+    var category: LiabilityCategory { LiabilityCategory(rawValue: categoryRaw) ?? .credit }
+    var feeMode: FeeMode { FeeMode(rawValue: feeModeRaw) ?? .none }
+}
+
+// MARK: - 负债推算引擎（纯函数，无存储副作用 → 改/删天然正确）
+
+enum DebtEngine {
+    /// 总手续费 = 本金 × 总费率（按原始本金计，不随已还递减）
+    static func totalFee(_ l: Liability) -> Decimal {
+        switch l.feeMode {
+        case .none: return 0
+        case .totalRate: return l.principal * l.feeValue / 100
+        case .apr:
+            // 由年化反推总费率：总费率 ≈ apr × (n+1) / (24 × 100) × n
+            // 依据 年利率 = 月费率 × n × 24 ÷ (n+1)，月费率 = 总费率 / n
+            guard l.totalPeriods > 0 else { return 0 }
+            let n = Decimal(l.totalPeriods)
+            return l.principal * (l.feeValue / 100) * (n + 1) / 24
+        }
+    }
+
+    /// 每期应还 = (本金 + 总手续费) / 期数
+    static func perPeriod(_ l: Liability) -> Decimal {
+        guard l.kind == .installment, l.totalPeriods > 0 else { return l.principal }
+        return (l.principal + totalFee(l)) / Decimal(l.totalPeriods)
+    }
+
+    /// 实际年化利率（名义总费率 ≠ 实际）：apr ≈ 总费率% × 24 / (n+1) × n/100
+    /// 公式来自查证：年利率 = 月费率 × n × 24 ÷ (n+1)，月费率 = 总费率 / n
+    static func apr(_ l: Liability) -> Decimal {
+        guard l.kind == .installment, l.totalPeriods > 1 else { return 0 }
+        switch l.feeMode {
+        case .none: return 0
+        case .totalRate:
+            let n = Decimal(l.totalPeriods)
+            return l.feeValue * 24 / (n + 1)
+        case .apr: return l.feeValue
+        }
+    }
+
+    /// 剩余待还总额 = 本金 + 总手续费 − 已还期数 × 每期
+    static func remaining(_ l: Liability) -> Decimal {
+        switch l.kind {
+        case .installment:
+            let left = Decimal(max(l.totalPeriods - l.paidPeriods, 0))
+            return perPeriod(l) * left
+        case .currentBill, .fixed:
+            return l.principal
+        }
+    }
+
+    /// 剩余期数
+    static func remainingPeriods(_ l: Liability) -> Int {
+        guard l.kind == .installment else { return 0 }
+        return max(l.totalPeriods - l.paidPeriods, 0)
+    }
+
+    /// 本月应还（本项目中最简口径：分期=每期固定；当期账单=本金；固定=本金）
+    static func dueThisMonth(_ l: Liability) -> Decimal {
+        switch l.kind {
+        case .installment: return remainingPeriods(l) > 0 ? perPeriod(l) : 0
+        case .currentBill, .fixed: return l.principal
+        }
+    }
+
+    /// 整体进度 0…1（分期才有意义）
+    static func progress(_ l: Liability) -> Double {
+        guard l.kind == .installment, l.totalPeriods > 0 else { return 0 }
+        return min(max(Double(l.paidPeriods) / Double(l.totalPeriods), 0), 1)
+    }
+
+    /// 可支配 = 到手薪资 − Σ本月应还
+    static func disposable(takeHomePay: Decimal, liabilities: [Liability]) -> Decimal {
+        let due = liabilities.reduce(Decimal(0)) { $0 + dueThisMonth($1) }
+        return takeHomePay - due
+    }
+
+    /// 全部待还合计
+    static func totalRemaining(_ list: [Liability]) -> Decimal {
+        list.reduce(Decimal(0)) { $0 + remaining($1) }
+    }
+
+    /// 未来 N 个月每月可支配（预测感，对应 Excel 表）
+    /// 简化模型：每过一月，分期 paidPeriods +1；债务还完后该月应还归零。
+    /// 返回 [(月偏移, 当月可支配, 当月应还)]
+    static func forecast(takeHomePay: Decimal, liabilities: [Liability], months: Int = 12) -> [(Int, Decimal, Decimal)] {
+        var out: [(Int, Decimal, Decimal)] = []
+        for m in 0..<months {
+            var due: Decimal = 0
+            for l in liabilities {
+                switch l.kind {
+                case .installment:
+                    if m < remainingPeriods(l) { due += perPeriod(l) }
+                case .currentBill:
+                    due += l.principal   // 当月账单持续（示例：按当前值平推）
+                case .fixed:
+                    due += l.principal
+                }
+            }
+            out.append((m, takeHomePay - due, due))
+        }
+        return out
+    }
+}
+
 // MARK: - 余额推导（B2 核心定案，Spec §4）
 
 enum BalanceEngine {

@@ -7,14 +7,28 @@ struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Tx.date, order: .reverse) private var txs: [Tx]
     @Query(sort: \Account.name) private var accounts: [Account]
+    @Query(sort: \Liability.sortOrder) private var liabilities: [Liability]
 
     @State private var editingTx: Tx?
+
+    /// 本月可支配 = 到手薪资 − 本月应还（负债与可支配-方案-v1 D1）
+    private var disposable: Decimal {
+        let pay = Decimal(WageConfig.load().takeHomePay)
+        return DebtEngine.disposable(takeHomePay: pay, liabilities: liabilities)
+    }
+    private var dueThisMonth: Decimal {
+        liabilities.reduce(Decimal(0)) { $0 + DebtEngine.dueThisMonth($1) }
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: Radius.cardSpacing) {
                     WageTimerCard()   // D1 工资计时器：每秒自走（点卡片进参数设置）
+
+                    if !liabilities.isEmpty {
+                        disposableCard   // D1：压缩版「本月可支配」，不铺明细
+                    }
 
                     if txs.isEmpty {
                         EmptyStateCard()
@@ -37,6 +51,35 @@ struct HomeView: View {
             }
         }
     }
+
+    // MARK: 本月可支配（压缩版，不铺明细——保护记账流可读性）
+
+    private var disposableCard: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("本月可支配").scaledFont(11.5).foregroundStyle(.secondary)
+                Text("¥ \(Money.string(dec(disposable)))")
+                    .scaledFont(26, weight: .heavy, design: .rounded)
+                    .foregroundStyle(Theme.greenText).monospacedDigit()
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 3) {
+                Text("已还负债").scaledFont(11).foregroundStyle(.secondary)
+                Text("¥ \(Money.string(dec(dueThisMonth)))")
+                    .scaledFont(13, weight: .semibold).monospacedDigit()
+                Text("拆分预算 ›").scaledFont(11).foregroundStyle(Theme.blueText)
+            }
+        }
+        .padding(15)
+        .background(Theme.card)
+        .cornerRadius(Radius.large)
+        .overlay(RoundedRectangle(cornerRadius: Radius.large)
+            .stroke(Color(hex: 0xD6EDDC), lineWidth: 1))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("本月可支配 ¥\(Money.string(dec(disposable)))，已还负债 ¥\(Money.string(dec(dueThisMonth)))")
+    }
+
+    private func dec(_ d: Decimal) -> Double { NSDecimalNumber(decimal: d).doubleValue }
 
     // MARK: 按日分组
 
