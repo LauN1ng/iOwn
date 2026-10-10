@@ -8,7 +8,7 @@ struct CategoryDef: Identifiable {
     let name: String
     let subs: [SubDef]
 
-    struct SubDef: Identifiable {
+    struct SubDef: Identifiable, Codable, Equatable {
         let id: String
         let emoji: String
         let name: String
@@ -16,8 +16,9 @@ struct CategoryDef: Identifiable {
 }
 
 /// 六大消费意图（视觉基准 v1.1 §4）：固定支出🔒/生活所需🍞/弹性支出🎀/个人提升📖/旅行🗺️/大物件💎
+/// A5：`all` 为计算属性，把 CustomSubStore 的自定义子类合并进各大类尾部
 enum CategoryPresets {
-    static let all: [CategoryDef] = [
+    private static let base: [CategoryDef] = [
         CategoryDef(id: "fixed", emoji: "🔒", name: "固定支出", subs: [
             .init(id: "rent", emoji: "🏠", name: "房租"),
             .init(id: "utility", emoji: "💡", name: "水电费"),
@@ -51,6 +52,15 @@ enum CategoryPresets {
             .init(id: "home", emoji: "🛋️", name: "家居"),
         ]),
     ]
+
+    /// A5：预设 + 自定义子类合并（每次访问现算，量小无压力；记一笔宫格与确认卡共用）
+    static var all: [CategoryDef] {
+        let customs = CustomSubStore.all()
+        return base.map { cat in
+            guard let extra = customs[cat.id], !extra.isEmpty else { return cat }
+            return CategoryDef(id: cat.id, emoji: cat.emoji, name: cat.name, subs: cat.subs + extra)
+        }
+    }
 
     static func category(id: String) -> CategoryDef? { all.first { $0.id == id } }
 

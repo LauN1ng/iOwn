@@ -11,12 +11,20 @@ struct SettingsView: View {
                     } label: {
                         Label("工资计时器", systemImage: "timer")
                     }
-                    // TODO(M3-E5): 分类管理
-                    // TODO(M3-E4): 自动记账引导（iOS 27 通知自动化）
+                    NavigationLink {
+                        AutoGuideView()
+                    } label: {
+                        Label("自动记账", systemImage: "bolt.badge.clock")
+                    }
+                    NavigationLink {
+                        CategoryManagerView()
+                    } label: {
+                        Label("分类管理", systemImage: "square.grid.2x2")
+                    }
                     // TODO(M1-E2): 导出 CSV
                 }
                 Section("开发中") {
-                    LabeledContent("版本", value: "M1 骨架 0.2.0")
+                    LabeledContent("版本", value: "M3 骨架 0.3.0")
                 }
                 Section {
                     Text("数据只存在这台手机上。导出即备份。")

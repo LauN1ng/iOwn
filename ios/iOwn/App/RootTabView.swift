@@ -5,11 +5,17 @@ import SwiftData
 /// 视觉对照物：site/prototype.html；Tab 规范见视觉基准 v1.1 §5
 struct RootTabView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selection = 0
     @State private var showAdd = false
     @State private var showAddAccount = false      // M2：资产页 $ FAB → 建户
     @State private var savedInfo: SavedEntryInfo?
     @State private var showSuccess = false
+    // M3 自动记账：待确认卡 / E4 引导 / E5 分类管理（sheet）
+    @State private var pendingBill: PendingBill?
+    @State private var refineDraft: PendingBill?      // 待确认卡「改细节」→ AddEntrySheet 草稿预填
+    @State private var showAutoGuide = false
+    @State private var showCatManager = false
 
     private let ciArgs = ProcessInfo.processInfo.arguments
 
@@ -63,7 +69,7 @@ struct RootTabView: View {
         // 0.68 = 阶段2（宫格滑走后）键盘+金额区完整放下的最小比例；可上拖全屏
         // ⚠️ 真机验证点：iOS 26 曾 detents 不生效（当时因此退回 fullScreenCover），iOS 27 待验
         .sheet(isPresented: $showAdd) {
-            AddEntrySheet { info, showOverlay in
+            AddEntrySheet(editing: nil, draft: refineDraft) { info, showOverlay in
                 guard showOverlay else { return }   // 再记：sheet 保持打开
                 savedInfo = info
                 showAdd = false
@@ -71,17 +77,66 @@ struct RootTabView: View {
             }
             .presentationDetents([.fraction(0.68), .large])
             .presentationDragIndicator(.hidden)   // 自绘 grabber 已有，隐藏系统把手防双条
+            .onDisappear { refineDraft = nil }
         }
         .sheet(isPresented: $showAddAccount) {
             AddAccountSheet()
                 .presentationDetents([.fraction(0.68), .large])
                 .presentationDragIndicator(.hidden)
         }
+        // M3-C1 待确认卡：item 驱动（队列消费一条弹一张）
+        .sheet(item: $pendingBill) { bill in
+            AutoConfirmSheet(bill: bill,
+                             onSaved: { info in
+                                 savedInfo = info
+                                 withAnimation { showSuccess = true }
+                             },
+                             onRefine: { draft in
+                                 // 「改细节」：带草稿进记一笔
+                                 refineDraft = draft
+                                 showAdd = true
+                             })
+                .presentationDetents([.fraction(0.68), .large])
+                .presentationDragIndicator(.hidden)
+        }
+        .sheet(isPresented: $showAutoGuide) {
+            NavigationStack { AutoGuideView() }
+                .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showCatManager) {
+            NavigationStack { CategoryManagerView() }
+                .presentationDetents([.large])
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .autoTestBill)) { _ in
+            consumePendingBills()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // 回前台消费自动记账队列（Intent 已提前入队）
+            if phase == .active {
+                consumePendingBills()
+            }
+        }
         .onAppear {
             seedDemoDataIfRequested()
             // CI 截图钩子：自动打开记一笔 / 直接展示成功屏 / 直达资产页
             if ciArgs.contains("-ci-tab-assets") {
                 selection = 2
+            }
+            // M3 CI 钩子：待确认卡 / E4 引导 / E5 分类管理
+            if ciArgs.contains("-ci-open-confirm") {
+                if let bill = BillParser.parse("微信支付\n付款成功\n¥21.90\n收款方：瑞幸咖啡") {
+                    pendingBill = bill
+                }
+            }
+            if ciArgs.contains("-ci-open-guide") {
+                showAutoGuide = true
+            }
+            if ciArgs.contains("-ci-open-catman") {
+                showCatManager = true
+            }
+            // 无文本触发（背面/操作按钮 Intent 已置标记）→ 直接弹记一笔
+            if PendingBillStore.consumeOpenAdd() {
+                showAdd = true
             }
             if ciArgs.contains("-ci-show-done") {
                 savedInfo = SavedEntryInfo(
@@ -106,6 +161,12 @@ struct RootTabView: View {
         // Dynamic Type：默认限制在标准区间（保护键盘/净资产卡等固定版式）；
         // -ci-large-text 时强制 .xxxLarge，供 CI 截图验证缩放确实生效
         .modifier(TypeSizeCap(forceXXXL: ciArgs.contains("-ci-large-text")))
+    }
+
+    /// M3：消费自动记账队列（回前台 / E4 测试通知触发）；取到一条弹一张待确认卡
+    private func consumePendingBills() {
+        guard pendingBill == nil else { return }
+        pendingBill = PendingBillStore.popFirst()
     }
 
     /// CI 截图钩子：launch argument "-ci-demo-data" 注入样例数据（仓库无真实数据）

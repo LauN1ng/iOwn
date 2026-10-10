@@ -24,6 +24,7 @@ struct AddEntrySheet: View {
     @Query(sort: \Account.name) private var accounts: [Account]
     var onSaved: (SavedEntryInfo, Bool) -> Void   // (结果, 是否展示成功屏)；再记=false 只入库
     var editing: Tx? = nil                        // 非 nil = 编辑该笔（B2 改账）
+    var draft: PendingBill? = nil                 // 非 nil = 自动记账「改细节」草稿（M3-C1）
 
     @State private var stage = 0               // 0 宫格 / 1 金额
     @State private var category: CategoryDef?
@@ -73,6 +74,7 @@ struct AddEntrySheet: View {
         .background(Theme.bg)
         .onAppear {
             prefillForEditing()
+            prefillForDraft()
             // CI 截图钩子（自读启动参数，避免改动 memberwise init 签名）
             if editing == nil, ProcessInfo.processInfo.arguments.contains("-ci-open-amount") {
                 category = CategoryPresets.all.first
@@ -103,6 +105,20 @@ struct AddEntrySheet: View {
         amountStr = v == v.rounded() && v < 1_000_000
             ? String(Int(v))
             : String(format: "%.2f", v)
+        stage = 1
+    }
+
+    /// M3-C1「改细节」草稿预填：金额/分类/商家进备注/账户，直接进金额页
+    private func prefillForDraft() {
+        guard !prefilled, let bill = draft else { return }
+        prefilled = true
+        isOut = true
+        category = CategoryPresets.category(id: bill.suggestedCategoryID) ?? CategoryPresets.all[1]
+        sub = category?.subs.first { $0.id == bill.suggestedSubID } ?? category?.subs.first
+        note = bill.merchant
+        date = bill.date
+        let v = Double(bill.amountCents) / 100
+        amountStr = v == v.rounded() ? String(Int(v)) : String(format: "%.2f", v)
         stage = 1
     }
 
