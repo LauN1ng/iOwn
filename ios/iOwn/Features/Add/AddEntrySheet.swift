@@ -26,6 +26,14 @@ struct AddEntrySheet: View {
     var editing: Tx? = nil                        // 非 nil = 编辑该笔（B2 改账）
     var draft: PendingBill? = nil                 // 非 nil = 自动记账「改细节」草稿（M3-C1）
 
+    /// 显式 init：@Query 等包装属性会被 memberwise init 暴露成 `_accounts` 参数，屏蔽掉
+    init(editing: Tx? = nil, draft: PendingBill? = nil,
+         onSaved: @escaping (SavedEntryInfo, Bool) -> Void) {
+        self.editing = editing
+        self.draft = draft
+        self.onSaved = onSaved
+    }
+
     @State private var stage = 0               // 0 宫格 / 1 金额
     @State private var category: CategoryDef?
     @State private var sub: CategoryDef.SubDef?
