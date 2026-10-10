@@ -451,10 +451,10 @@ struct AddEntrySheet: View {
             amountStr = amountStr.isEmpty ? "0." : amountStr + "."
         default:
             guard let d = k.first, d.isNumber else { return }
-            if amountStr.contains(".") {
-                // 小数位最多两位
-                let decPart = amountStr.split(separator: ".").last
-                guard (decPart?.count ?? 0) < 2, amountStr.count < 12 else { return }
+            if let dot = amountStr.firstIndex(of: ".") {
+                // 小数位最多两位（注意：split 会丢空子串，"21." 的空小数部会误判为 2 位）
+                let decCount = amountStr.distance(from: amountStr.index(after: dot), to: amountStr.endIndex)
+                guard decCount < 2, amountStr.count < 12 else { return }
                 amountStr += k
             } else {
                 // 整数位：首位 0 直接替换，上限 ¥1,000,000
