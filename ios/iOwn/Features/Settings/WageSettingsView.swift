@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// 工资计时器参数设置（E3）——月薪 / 发薪日 / 工作时段 / 工作日
+/// 工资计时器参数设置（E3，v1.6 重构）——到手薪资 / 发薪日 / 工作时段 / 工作日 / 调休
 /// 存 UserDefaults（WageConfig），首页顶卡与洞察页共用
+///
+/// v1.6：口径由「月薪」改为「到手薪资」（不含五险一金/个税计算）；新增「调休」手动标记节
 struct WageSettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage(WageKeys.monthlySalary) private var monthlySalary: Double = 0
+    @AppStorage(WageKeys.takeHomePay) private var takeHomePay: Double = 0
     @AppStorage(WageKeys.payday) private var payday: Int = 15
     @AppStorage(WageKeys.startHour) private var startHour: Int = 9
     @AppStorage(WageKeys.startMinute) private var startMinute: Int = 0
@@ -15,21 +17,27 @@ struct WageSettingsView: View {
     @AppStorage(WageKeys.lunchStartMinute) private var lunchStartMinute: Int = 0
     @AppStorage(WageKeys.lunchMinutes) private var lunchMinutes: Int = 0
     @AppStorage(WageKeys.workdays) private var workdaysCSV: String = "2,3,4,5,6"
+    @AppStorage(WageKeys.makeupWorkdays) private var makeupCSV: String = ""
+    @AppStorage(WageKeys.extraOffDays) private var offCSV: String = ""
 
     @State private var salaryText = ""
     // 时间选择器用的 Date（与 AppStorage 的 时/分 双向同步）
     @State private var startDate = Date()
     @State private var endDate = Date()
     @State private var lunchStartDate = Date()
+    // 新增调休的日期草稿
+    @State private var newDate = Date()
 
     private var workdays: Set<Int> { WageConfig.parseWorkdays(workdaysCSV) }
+    private var makeup: Set<String> { WageConfig.parseDateSet(makeupCSV) }
+    private var extraOff: Set<String> { WageConfig.parseDateSet(offCSV) }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     HStack {
-                        Text("月薪")
+                        Text("到手薪资")
                         Spacer()
                         TextField("0", text: $salaryText)
                             .keyboardType(.numberPad)
@@ -37,7 +45,7 @@ struct WageSettingsView: View {
                             .monospacedDigit()
                             .frame(maxWidth: 140)
                             .onChange(of: salaryText) { _, newValue in
-                                monthlySalary = Double(newValue.filter(\.isNumber)) ?? 0
+                                takeHomePay = Double(newValue.filter(\.isNumber)) ?? 0
                             }
                         Text("元").foregroundStyle(.secondary)
                     }
@@ -47,7 +55,7 @@ struct WageSettingsView: View {
                 } header: {
                     Text("收入")
                 } footer: {
-                    Text("部分月份没有 29–31 日时，按当月最后一天处理；发薪日暂用于账期划分（M2 资产联动时启用）")
+                    Text("填每月实际到手的金额（已扣五险一金与个税后）。本版不自动计算社保/个税，避免因各地政策差异算不准；发薪日用于账期划分（M2 资产联动时启用）")
                 }
 
                 Section("工作时段") {
@@ -81,7 +89,7 @@ struct WageSettingsView: View {
                     Text("每日工时与已赚金额会自动扣除午休时间")
                 }
 
-                Section("工作日") {
+                Section {
                     HStack(spacing: 6) {
                         ForEach(Self.weekdayOptions, id: \.value) { item in
                             Button {
@@ -102,10 +110,45 @@ struct WageSettingsView: View {
                         }
                     }
                     .padding(.vertical, 2)
+                } header: {
+                    Text("工作日")
+                }
+
+                // 调休（v1.6 新增）：公司不按国家调休时的兜底
+                Section {
+                    HStack {
+                        DatePicker("选择日期", selection: $newDate, displayedComponents: .date)
+                            .labelsHidden()
+                        Spacer()
+                        Button {
+                            Haptics.tap()
+                            makeupCSV = adding(newDate, to: makeupCSV)
+                        } label: {
+                            Label("补班", systemImage: "plus.circle.fill")
+                        }
+                        .buttonStyle(.borderless)
+                        Button {
+                            Haptics.tap()
+                            offCSV = adding(newDate, to: offCSV)
+                        } label: {
+                            Label("放假", systemImage: "minus.circle.fill")
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                    ForEach(makeup.sorted(), id: \.self) { key in
+                        dayRow(key, badge: "补班", badgeColor: Theme.blue) { makeupCSV = removing(key, from: makeupCSV) }
+                    }
+                    ForEach(extraOff.sorted(), id: \.self) { key in
+                        dayRow(key, badge: "放假", badgeColor: Theme.amber) { offCSV = removing(key, from: offCSV) }
+                    }
+                } header: {
+                    Text("调休")
+                } footer: {
+                    Text("识别时间时会自动参考国家法定节假日与调休；若你公司不按国家调休，可在此手动指定「补班」或「放假」，手动标记优先级最高")
                 }
 
                 Section("时薪预览") {
-                    LabeledContent("时薪", value: previewHourly)
+                    LabeledContent("到手时薪", value: previewHourly)
                     LabeledContent("每日工时", value: String(format: "%.1f 小时（已扣午休）", previewConfig.dailyHours))
                     LabeledContent("本月工作日", value: "\(previewConfig.workdaysInMonth(of: .now)) 天")
                 }
@@ -118,7 +161,7 @@ struct WageSettingsView: View {
                 }
             }
             .onAppear {
-                salaryText = monthlySalary > 0 ? String(format: "%.0f", monthlySalary) : ""
+                salaryText = takeHomePay > 0 ? String(format: "%.0f", takeHomePay) : ""
                 let c = Calendar.current
                 startDate = c.date(bySettingHour: startHour, minute: startMinute, second: 0, of: .now) ?? .now
                 endDate = c.date(bySettingHour: endHour, minute: endMinute, second: 0, of: .now) ?? .now
@@ -127,20 +170,56 @@ struct WageSettingsView: View {
         }
     }
 
-    private var previewConfig: WageConfig {
-        WageConfig.load()
+    // MARK: 子视图
+
+    private func dayRow(_ key: String, badge: String, badgeColor: Color, onDelete: @escaping () -> Void) -> some View {
+        HStack {
+            Text(key)
+                .scaledFont(15)
+                .monospacedDigit()
+            Text(badge)
+                .scaledFont(11, weight: .semibold)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8).padding(.vertical, 2)
+                .background(badgeColor)
+                .cornerRadius(999)
+            Spacer()
+            Button(role: .destructive, action: onDelete) {
+                Image(systemName: "trash")
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("删除 \(key) \(badge)")
+        }
     }
+
+    private var previewConfig: WageConfig { WageConfig.load() }
 
     private var previewHourly: String {
         let h = previewConfig.hourlyWage()
-        return h > 0 ? "¥\(Money.compact(h))" : "—— 先填月薪"
+        return h > 0 ? "¥\(Money.compact(h))" : "—— 先填到手薪资"
     }
+
+    // MARK: 操作
 
     private func toggle(_ weekday: Int) {
         var set = workdays
         if set.contains(weekday) { set.remove(weekday) } else { set.insert(weekday) }
         guard !set.isEmpty else { return }   // 至少保留一天
         workdaysCSV = set.sorted().map(String.init).joined(separator: ",")
+    }
+
+    /// 追加一个日期（返回新 CSV，避免对 @AppStorage 用 inout）
+    private func adding(_ date: Date, to csv: String) -> String {
+        var set = WageConfig.parseDateSet(csv)
+        set.insert(WageConfig.dateKey(date))
+        return set.sorted().joined(separator: ",")
+    }
+
+    /// 移除一个日期（返回新 CSV）
+    private func removing(_ key: String, from csv: String) -> String {
+        var set = WageConfig.parseDateSet(csv)
+        set.remove(key)
+        return set.sorted().joined(separator: ",")
     }
 
     /// 周一 → 周日（weekday: 1=周日）

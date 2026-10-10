@@ -105,6 +105,12 @@ jobs:
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-insight -ci-insight-bottom
           sleep 6
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/10-insight-bottom.png
+          # 11) 工资设置页（v1.6：到手薪资 + 调休节）
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-wage
+          sleep 6
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/11-wage-settings.png
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
       - name: Build unsigned IPA (Release, device)

@@ -13,6 +13,8 @@ struct RootTabView: View {
     @State private var showSuccess = false
     // E5 分类管理（sheet）
     @State private var showCatManager = false
+    // 工资设置页（CI 截图钩子用；首页卡片自身也有入口）
+    @State private var showWageSettings = false
 
     private let ciArgs = ProcessInfo.processInfo.arguments
 
@@ -84,6 +86,9 @@ struct RootTabView: View {
             NavigationStack { CategoryManagerView() }
                 .presentationDetents([.large])
         }
+        .sheet(isPresented: $showWageSettings) {
+            WageSettingsView()
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 // 回前台：此处预留自动记账队列消费位（当前自动记账已搁置，待调研后重启）
@@ -91,6 +96,8 @@ struct RootTabView: View {
         }
         .onAppear {
             seedDemoDataIfRequested()
+            // 节假日/调休数据静默同步（holiday-cn）：失败静默，不阻塞 UI
+            Task { await HolidayStore.shared.syncIfNeeded() }
             // CI 截图钩子：自动打开记一笔 / 直接展示成功屏 / 直达资产页
             if ciArgs.contains("-ci-tab-assets") {
                 selection = 2
@@ -122,6 +129,10 @@ struct RootTabView: View {
                 selection = 2
                 showAddAccount = true
             }
+            // 工资设置页截图钩子（到手薪资 + 调休节）
+            if ciArgs.contains("-ci-open-wage") {
+                showWageSettings = true
+            }
         }
         // Dynamic Type：默认限制在标准区间（保护键盘/净资产卡等固定版式）；
         // -ci-large-text 时强制 .xxxLarge，供 CI 截图验证缩放确实生效
@@ -133,10 +144,11 @@ struct RootTabView: View {
     private func seedDemoDataIfRequested() {
         guard ciArgs.contains("-ci-demo-data") else { return }
         // 工资计时器参数（仅首次未配置时注入样例）
-        if UserDefaults.standard.double(forKey: WageKeys.monthlySalary) == 0 {
-            WageConfig(monthlySalary: 8000, payday: 15, startHour: 9, startMinute: 0,
+        if UserDefaults.standard.double(forKey: WageKeys.takeHomePay) == 0 {
+            WageConfig(takeHomePay: 8000, payday: 15, startHour: 9, startMinute: 0,
                        endHour: 18, endMinute: 0, lunchStartHour: 12, lunchStartMinute: 0,
-                       lunchMinutes: 60, workdays: [2, 3, 4, 5, 6]).save()
+                       lunchMinutes: 60, workdays: [2, 3, 4, 5, 6],
+                       makeupWorkdays: [], extraOffDays: []).save()
         }
         let txCount = (try? modelContext.fetchCount(FetchDescriptor<Tx>())) ?? 0
         guard txCount == 0 else { return }
