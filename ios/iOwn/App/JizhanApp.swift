@@ -7,6 +7,6 @@ struct JizhanApp: App {
         WindowGroup {
             RootTabView()
         }
-        .modelContainer(for: [Tx.self, Account.self])
+        .modelContainer(for: [Tx.self, Account.self, Liability.self])
     }
 }
