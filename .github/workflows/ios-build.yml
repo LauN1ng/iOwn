@@ -87,24 +87,12 @@ jobs:
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-large-text
           sleep 6
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/07-home-large-text.png
-          # 8) 自动记账待确认卡（M3-C1：解析结果预填 + 分类/账户 chip）
-          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
-          sleep 1
-          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-confirm
-          sleep 6
-          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/08-auto-confirm.png
-          # 9) 自动记账引导页（M3-E4：四路触发 + 白名单）
-          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
-          sleep 1
-          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-guide
-          sleep 6
-          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/09-auto-guide.png
-          # 10) 分类管理页（M3-E5/A5：预设只读 + 自定义子类增删）
+          # 8) 分类管理页（E5/A5：预设只读 + 自定义子类增删）
           xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
           sleep 1
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-catman
           sleep 6
-          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/10-category.png
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/08-category.png
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
       - name: Build unsigned IPA (Release, device)

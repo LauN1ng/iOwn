@@ -24,13 +24,11 @@ struct AddEntrySheet: View {
     @Query(sort: \Account.name) private var accounts: [Account]
     var onSaved: (SavedEntryInfo, Bool) -> Void   // (结果, 是否展示成功屏)；再记=false 只入库
     var editing: Tx? = nil                        // 非 nil = 编辑该笔（B2 改账）
-    var draft: PendingBill? = nil                 // 非 nil = 自动记账「改细节」草稿（M3-C1）
 
     /// 显式 init：@Query 等包装属性会被 memberwise init 暴露成 `_accounts` 参数，屏蔽掉
-    init(editing: Tx? = nil, draft: PendingBill? = nil,
+    init(editing: Tx? = nil,
          onSaved: @escaping (SavedEntryInfo, Bool) -> Void) {
         self.editing = editing
-        self.draft = draft
         self.onSaved = onSaved
     }
 
@@ -82,7 +80,6 @@ struct AddEntrySheet: View {
         .background(Theme.bg)
         .onAppear {
             prefillForEditing()
-            prefillForDraft()
             // CI 截图钩子（自读启动参数，避免改动 memberwise init 签名）
             if editing == nil, ProcessInfo.processInfo.arguments.contains("-ci-open-amount") {
                 category = CategoryPresets.all.first

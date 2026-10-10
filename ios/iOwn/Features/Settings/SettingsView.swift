@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 设置页骨架 —— M3（E1-E5）：外观 / 导出 CSV / 工资计时器参数 / 自动记账引导 / 分类管理
+/// 设置页骨架 —— 外观 / 导出 CSV / 工资计时器参数 / 分类管理
 struct SettingsView: View {
     var body: some View {
         NavigationStack {
@@ -12,11 +12,6 @@ struct SettingsView: View {
                         Label("工资计时器", systemImage: "timer")
                     }
                     NavigationLink {
-                        AutoGuideView()
-                    } label: {
-                        Label("自动记账", systemImage: "bolt.badge.clock")
-                    }
-                    NavigationLink {
                         CategoryManagerView()
                     } label: {
                         Label("分类管理", systemImage: "square.grid.2x2")
@@ -24,7 +19,7 @@ struct SettingsView: View {
                     // TODO(M1-E2): 导出 CSV
                 }
                 Section("开发中") {
-                    LabeledContent("版本", value: "M3 骨架 0.3.0")
+                    LabeledContent("版本", value: "M2 骨架 0.2.0")
                 }
                 Section {
                     Text("数据只存在这台手机上。导出即备份。")

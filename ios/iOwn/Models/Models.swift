@@ -26,9 +26,9 @@ enum Mood: String, Codable, CaseIterable {
 
 enum Source: String, Codable {
     case manual             // 手动记
-    case autoNotification   // iOS 27 通知自动化（主链路）
-    case backTap            // 轻点背面
-    case actionButton       // 操作按钮 / 辅助触控
+    case autoNotification   // 自动记账（预留：搁置中，待调研后重启）
+    case backTap            // 轻点背面（预留）
+    case actionButton       // 操作按钮 / 辅助触控（预留）
 }
 
 enum AccountKind: String, Codable {
