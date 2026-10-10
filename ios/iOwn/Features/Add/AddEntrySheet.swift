@@ -515,7 +515,7 @@ struct AddEntrySheet: View {
 
     static func streakDays(_ context: ModelContext) -> Int {
         let all = (try? context.fetch(FetchDescriptor<Tx>())) ?? []
-        var days = Set(all.map { Calendar.current.startOfDay(for: $0.date) })
+        let days = Set(all.map { Calendar.current.startOfDay(for: $0.date) })
         guard !days.isEmpty else { return 0 }
         var streak = 0
         var day = Calendar.current.startOfDay(for: .now)

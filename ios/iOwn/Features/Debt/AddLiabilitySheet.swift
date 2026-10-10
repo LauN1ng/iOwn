@@ -30,7 +30,9 @@ struct AddLiabilitySheet: View {
     @State private var iconHex: UInt32 = 0x7F77DD
     @State private var linkedAccountID: String?
 
-    private var principal: Decimal { Decimal(principalStr.isEmpty ? "0" : principalStr) ?? 0 }
+    // 注意：Decimal 没有字符串构造器重载，必须用 Decimal(string:)，否则编译报
+    // "no exact matches in call to initializer"（CI 已在 Codemagic 上踩到过）
+    private var principal: Decimal { Decimal(string: principalStr) ?? 0 }
 
     /// 临时构造一个 Liability 供引擎试算
     private var draft: Liability {
