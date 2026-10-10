@@ -14,3 +14,34 @@ xcuserdata/
 .playwright-cli/
 reports/*.tmp.*
 reports/ci-artifacts/
+
+# ============================================================
+# —— 脱敏隔离区（仓库已转为公开，以下内容永不入库）——
+# 本仓库只保留 ios/ 源码 + 构建配置。以下目录仅存在于本地。
+# ============================================================
+
+# 开发过程文档 / 产品思路 / 真实财务数据 —— 绝不公开
+docs/
+site/
+generated-images/
+
+# 本地记忆与工作日志（含个人偏好、财务数字、开发记录）
+.workbuddy/
+
+# 本地报告与 CI 辅助脚本（含个人账号信息）
+reports/
+
+# —— 敏感文件类型兜底（防误提交）——
+*.p12
+*.mobileprovision
+*.cer
+*.pem
+*.key
+*.keystore
+*.jks
+.env
+.env.*
+*_secret*
+*_credential*
+credentials.json
+secrets.json

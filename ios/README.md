@@ -18,7 +18,7 @@ iOwn/
 ## 日常闭环
 
 1. 改 `project.yml` 或 Swift 源码 → push 到 main
-2. Actions 跑完 → 下载 artifacts：`screenshots`（视觉核对，对照 `site/prototype.html`）和 `unsigned-ipa`
+2. CI 跑完 → 下载 artifacts：截图（视觉核对）和 `unsigned-ipa`
 3. 真机：Sideloadly + 免费 Apple ID 签名 unsigned-ipa → USB 装机（7 天重签）
 
 Bundle ID：`com.iown.app`（免费 Apple ID 每天限 2 个 App ID，改包名会消耗额度）
