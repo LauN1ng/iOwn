@@ -26,7 +26,7 @@ struct InsightView: View {
                 }
                 .padding(.horizontal, Radius.pagePadding)
                 .padding(.top, 8)
-                .padding(.bottom, 90)   // 给 FAB 留位
+                .padding(.bottom, 110)   // 避开悬浮 TabBar(~49) + FAB(伸出 76) 的遮挡
             }
             .background(Theme.bg)
             .navigationTitle("洞察")
