@@ -22,6 +22,7 @@ struct AddEntrySheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \Account.name) private var accounts: [Account]
+    @Query private var liabilities: [Liability]
     var onSaved: (SavedEntryInfo, Bool) -> Void   // (结果, 是否展示成功屏)；再记=false 只入库
     var editing: Tx? = nil                        // 非 nil = 编辑该笔（B2 改账）
 
@@ -42,6 +43,9 @@ struct AddEntrySheet: View {
     @State private var date = Date.now
     @State private var selectedAccountID: String?   // B2：nil = 不挂账户
     @State private var prefilled = false
+    // D18：信用支付时选「全额下期 / 分期 N 期」
+    @State private var payFull = true              // true = 全额下期；false = 分期
+    @State private var installmentPeriods = 12
 
     /// 当前金额（分）；空串/非法 = 0
     private var amountCents: Int {
@@ -61,6 +65,51 @@ struct AddEntrySheet: View {
 
     private let keyH: CGFloat = 54
     private let gap: CGFloat = 10
+
+    // MARK: 信用支付联动（D18）
+
+    private var selectedAccount: Account? { accounts.first { $0.id == selectedAccountID } }
+    private var isCreditSelected: Bool { selectedAccount?.kind.isCredit == true }
+
+    /// 花呗标准档总费率（与负债模块同一套口径）
+    private func standardRate(_ n: Int) -> Double {
+        switch n {
+        case 3: 2.5; case 6: 4.5; case 9: 6.5; case 12: 8.8; case 24: 15.6
+        default: 8.8
+        }
+    }
+
+    private var installmentHint: String {
+        let amount = Decimal(amountCents) / 100
+        let rate = Decimal(standardRate(installmentPeriods))
+        let total = amount + amount * rate / 100
+        let per = total / Decimal(max(installmentPeriods, 1))
+        let apr = DebtEngine.aprFromTotalRate(ratePercent: rate, periods: installmentPeriods)
+        return "每期 ¥\(Money.string(dec(per))) · 实际年化 \(String(format: "%.2f", dec(apr)))%"
+    }
+
+    /// 本次记一笔的付款方式
+    private var paymentMethod: PayMethod {
+        guard isOut, isCreditSelected else { return .normal }
+        return payFull ? .creditFull : .creditInstallment
+    }
+
+    /// 落地负债：只有「分期」才新建计划；全额下期靠账户余额自动进当期欠款。
+    /// 编辑已有分期笔时同步本金，避免与 Tx 金额漂移。
+    private func syncLiability(for tx: Tx) {
+        guard let acc = selectedAccount, acc.kind.isCredit else { return }
+        guard tx.payMethod == .creditInstallment else { return }
+        if let id = tx.liabilityID, let existing = liabilities.first(where: { $0.id == id }) {
+            existing.principal = tx.amount
+            if !tx.note.isEmpty { existing.name = tx.note }
+        } else {
+            _ = LiabilityLinker.apply(tx: tx, account: acc, periods: installmentPeriods,
+                                      feeRate: Decimal(standardRate(installmentPeriods)),
+                                      context: modelContext)
+        }
+    }
+
+    private func dec(_ d: Decimal) -> Double { NSDecimalNumber(decimal: d).doubleValue }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -106,6 +155,12 @@ struct AddEntrySheet: View {
         mood = tx.mood
         date = tx.date
         selectedAccountID = tx.accountID
+        // D18：回填付款方式（分期笔的期数从关联负载取）
+        payFull = tx.payMethod != .creditInstallment
+        if let id = tx.liabilityID,
+           let plan = liabilities.first(where: { $0.id == id }), plan.totalPeriods > 1 {
+            installmentPeriods = plan.totalPeriods
+        }
         let v = NSDecimalNumber(decimal: tx.amount).doubleValue
         amountStr = v == v.rounded() && v < 1_000_000
             ? String(Int(v))
@@ -332,11 +387,53 @@ struct AddEntrySheet: View {
                 .padding(.top, 10)
             }
 
+            // D18：选了「信用类账户」才出现付款方式 —— 全额下期不建负债；
+            // 选分期则保存时自动在该账户名下生成一笔分期计划
+            if isCreditSelected && isOut {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("付款方式").scaledFont(11.5).foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        payChip("全额下期", on: payFull) { payFull = true }
+                        ForEach([3, 6, 12, 24], id: \.self) { n in
+                            payChip("\(n) 期", on: !payFull && installmentPeriods == n) {
+                                payFull = false
+                                installmentPeriods = n
+                            }
+                        }
+                    }
+                    if !payFull {
+                        Text(installmentHint)
+                            .scaledFont(11).foregroundStyle(Theme.blueText)
+                    }
+                }
+                .padding(.horizontal, Radius.pagePadding)
+                .padding(.top, 12)
+            }
+
             keypad
                 .padding(.horizontal, Radius.pagePadding)
                 .padding(.top, 14)
                 .padding(.bottom, 20)
         }
+    }
+
+    // MARK: 付款方式 chip（信用账户专用）
+
+    private func payChip(_ t: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.tap()
+            action()
+        } label: {
+            Text(t).scaledFont(12.5)
+                .foregroundStyle(on ? Theme.greenText : .secondary)
+                .padding(.horizontal, 13).padding(.vertical, 8)
+                .background(on ? Theme.greenSoft : Theme.card)
+                .cornerRadius(9)
+                .overlay(RoundedRectangle(cornerRadius: 9)
+                    .stroke(on ? Theme.green : Theme.hairline, lineWidth: 1))
+        }
+        .buttonStyle(PressableButtonStyle(scale: 0.96))
+        .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
     }
 
     // MARK: 4 列键盘：白键 / 红⌫ / 今天 / ✓（灰→绿）
@@ -463,6 +560,7 @@ struct AddEntrySheet: View {
             streak: Self.streakDays(modelContext)
         )
 
+        let method = paymentMethod
         if let tx = editing {
             // B2 改账：原地更新字段；余额为推导值，无需手动回滚
             tx.amount = Decimal(amountCents) / 100
@@ -473,6 +571,8 @@ struct AddEntrySheet: View {
             tx.mood = mood
             tx.accountID = selectedAccountID
             tx.date = date
+            tx.payMethodRaw = method.rawValue      // D18
+            syncLiability(for: tx)
         } else {
             let tx = Tx(
                 amount: Decimal(amountCents) / 100,
@@ -483,9 +583,11 @@ struct AddEntrySheet: View {
                 mood: mood,
                 accountID: selectedAccountID,   // B2：挂账户 → 余额自动联动
                 date: date,
-                source: .manual
+                source: .manual,
+                payMethod: method               // D18：信用支付 / 分期
             )
             modelContext.insert(tx)
+            syncLiability(for: tx)              // 分期时自动在账户名下建一笔计划
         }
         try? modelContext.save()
         return info

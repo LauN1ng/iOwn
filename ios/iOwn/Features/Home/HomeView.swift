@@ -222,7 +222,7 @@ struct HomeView: View {
                     .accessibilityHidden(true)   // 装饰：分类名已在小字里念出
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(accountName.map { "\(cat?.name ?? "") · \($0)" } ?? (cat?.name ?? ""))
+                    Text(metaLine(cat: cat, accountName: accountName, tx: tx))
                         .scaledFont(11)
                         .foregroundStyle(.secondary)
                     Text(title)
@@ -260,6 +260,25 @@ struct HomeView: View {
     }
 
     // MARK: 工具
+
+    /// 流水行副注：大类 · 账户 ·（分期 N 期）
+    private func metaLine(cat: CategoryDef?, accountName: String?, tx: Tx) -> String {
+        var parts: [String] = []
+        if let cat { parts.append(cat.name) }
+        if let accountName { parts.append(accountName) }
+        if tx.payMethod == .creditInstallment {
+            let p = installmentPeriods(of: tx)
+            parts.append(p > 1 ? "分期 \(p) 期" : "分期")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// 分期笔的期数（D18 联动后可从关联负载读出）
+    private func installmentPeriods(of tx: Tx) -> Int {
+        guard let id = tx.liabilityID,
+              let plan = liabilities.first(where: { $0.id == id }) else { return 0 }
+        return plan.totalPeriods
+    }
 
     /// 千分位/两位小数金额（统一走共享 Money.string，与工资卡/资产页同口径）
     static func money(_ value: Decimal) -> String {

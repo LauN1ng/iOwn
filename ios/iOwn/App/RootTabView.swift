@@ -17,9 +17,8 @@ struct RootTabView: View {
     @State private var showCatManager = false
     // 工资设置页（CI 截图钩子用；首页卡片自身也有入口）
     @State private var showWageSettings = false
-    // 负债模块 CI 钩子
-    @State private var showAddLiability = false
-    @State private var showSettle = false
+    // 添加分期 sheet（CI 截图钩子用；正常入口在信用账户详情页右上角 ＋）
+    @State private var showAddInstallment = false
 
     private let ciArgs = ProcessInfo.processInfo.arguments
 
@@ -94,14 +93,11 @@ struct RootTabView: View {
         .sheet(isPresented: $showWageSettings) {
             WageSettingsView()
         }
-        // 负债模块 CI 钩子 sheet
-        .sheet(isPresented: $showAddLiability) {
-            AddLiabilitySheet()
+        // 添加分期 sheet（截图为半屏，验证两种输入模式换算）
+        .sheet(isPresented: $showAddInstallment) {
+            AddInstallmentSheet()
                 .presentationDetents([.fraction(0.68), .large])
                 .presentationDragIndicator(.hidden)
-        }
-        .sheet(isPresented: $showSettle) {
-            SettleView()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
@@ -155,15 +151,10 @@ struct RootTabView: View {
             if ciArgs.contains("-ci-open-wage") {
                 showWageSettings = true
             }
-            // 负债建档页截图钩子（半屏，验证分期换算 + 两个日期）
-            if ciArgs.contains("-ci-open-liability") {
+            // 添加分期页截图钩子（半屏，验证分期换算 + 两种输入模式）
+            if ciArgs.contains("-ci-open-installment") {
                 selection = 2
-                showAddLiability = true
-            }
-            // 发薪日结算页截图钩子
-            if ciArgs.contains("-ci-open-settle") {
-                selection = 2
-                showSettle = true
+                showAddInstallment = true
             }
         }
         // Dynamic Type：默认限制在标准区间（保护键盘/净资产卡等固定版式）；

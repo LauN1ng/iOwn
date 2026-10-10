@@ -32,6 +32,17 @@ enum Source: String, Codable {
     case repayment          // 还款自动生成（负债确认还款时写入；不计入消费统计）
 }
 
+/// 付款方式（2026-10-10 D18：记账 → 负债 的唯一联动入口）
+///
+/// 关键口径：**全额下期不需要建任何负债** —— 那笔钱已经通过 `Tx.accountID`
+/// 扣减了信用账户余额，而「当期欠款 = max(|账户余额| − Σ分期剩余本金, 0)」
+/// 会自动把它算进去。只有「分期」才需要在账户名下新建一条 `Liability`。
+enum PayMethod: String, Codable {
+    case normal             // 现金 / 储蓄卡 / 第三方余额：不产生负债
+    case creditFull         // 信用支付，全额下期还（进当期欠款）
+    case creditInstallment  // 信用支付，分期 N 期（自动建一笔分期并回链）
+}
+
 enum AccountKind: String, Codable {
     case cash, bankCard, wechat, alipay, creditCard
     // 2026-10-10（D14）：花呗 / 白条 / 其他信用，与信用卡同为「信用类」——
@@ -95,15 +106,21 @@ final class Tx {
     var toAccountID: String?         // 转账目标账户
     var date: Date
     var source: Source
+    var payMethodRaw: String = PayMethod.normal.rawValue   // 付款方式
+    var liabilityID: String?                               // 分期时关联的负债项 id
 
     init(amount: Decimal, type: TxType, categoryID: String, subID: String? = nil,
          note: String = "", mood: Mood? = nil, accountID: String? = nil,
-         toAccountID: String? = nil, date: Date = .now, source: Source = .manual) {
+         toAccountID: String? = nil, date: Date = .now, source: Source = .manual,
+         payMethod: PayMethod = .normal, liabilityID: String? = nil) {
         self.amount = amount; self.type = type; self.categoryID = categoryID
         self.subID = subID; self.note = note; self.mood = mood
         self.accountID = accountID; self.toAccountID = toAccountID
         self.date = date; self.source = source
+        self.payMethodRaw = payMethod.rawValue; self.liabilityID = liabilityID
     }
+
+    var payMethod: PayMethod { PayMethod(rawValue: payMethodRaw) ?? .normal }
 }
 
 @Model
@@ -447,6 +464,33 @@ enum DebtEngine {
         return takeHomePay
             - monthlyDueAll(accounts: accounts, liabilities: liabilities, txs: txs)
             - fixed
+    }
+}
+
+// MARK: - 记账 → 负债 联动（D18）
+
+enum LiabilityLinker {
+    /// 记账保存后按付款方式落地负债。
+    /// - `.normal` / `.creditFull`：**不新建负债** —— 全额下期那笔已经通过
+    ///   `Tx.accountID` 扣减了账户余额，会被 `DebtEngine.currentBill` 自动算进当期欠款
+    /// - `.creditInstallment`：在该信用账户名下新建一笔分期，并回链 `tx.liabilityID`
+    @discardableResult
+    static func apply(tx: Tx, account: Account?, periods: Int, feeRate: Decimal,
+                      context: ModelContext) -> Liability? {
+        guard let account, account.kind.isCredit else { return nil }
+        guard tx.payMethod == .creditInstallment, periods > 1, tx.amount > 0 else { return nil }
+        let order = (try? context.fetchCount(FetchDescriptor<Liability>())) ?? 0
+        let plan = Liability(
+            name: tx.note.isEmpty ? "分期" : tx.note,
+            kind: .installment, category: .credit,
+            principal: tx.amount, totalPeriods: periods, paidPeriods: 0,
+            feeMode: feeRate > 0 ? .totalRate : .none, feeValue: feeRate,
+            billDay: 1, dueDay: 25, startMonth: "",
+            iconChar: "分", iconHex: 0x8E8E93,
+            linkedAccountID: account.id, sortOrder: order)
+        context.insert(plan)
+        tx.liabilityID = plan.id
+        return plan
     }
 }
 
