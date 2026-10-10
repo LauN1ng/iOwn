@@ -16,6 +16,7 @@ struct AddAccountSheet: View {
     @State private var balanceStr = ""    // 现金类：余额；信用卡：当前已用（正数，存为负）
     @State private var limitStr = ""
     @State private var billDay = 5
+    @State private var dueDay = 25
     @State private var didPickKind = false
 
     private var balanceValue: Decimal {
@@ -91,7 +92,7 @@ struct AddAccountSheet: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("类型").scaledFont(13, weight: .semibold).foregroundStyle(.secondary)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 5), spacing: 10) {
-                ForEach([AccountKind.cash, .bankCard, .wechat, .alipay, .creditCard], id: \.rawValue) { k in
+                ForEach(AccountKind.pickerOrder, id: \.rawValue) { k in
                     Button {
                         Haptics.tap()
                         kind = k
@@ -170,7 +171,14 @@ struct AddAccountSheet: View {
                     .pickerStyle(.menu)
                     .tint(.primary)
                 }
-                Text("已用金额将记为负债（余额为负），剩余额度 = 额度 - 已用")
+                fieldRow(label: "还款日") {
+                    Picker("", selection: $dueDay) {
+                        ForEach(1...28, id: \.self) { Text("\($0) 日").tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(.primary)
+                }
+                Text("已用金额将记为负债（余额为负），剩余额度 = 额度 - 已用；账单日与还款日分开记录")
                     .scaledFont(11.5)
                     .foregroundStyle(.tertiary)
             }
@@ -230,6 +238,7 @@ struct AddAccountSheet: View {
         name = acc.name
         brand = acc.brand
         billDay = acc.billDay ?? 5
+        dueDay = acc.dueDay ?? 25
         let bal = NSDecimalNumber(decimal: acc.initialBalance).doubleValue
         balanceStr = bal == 0 ? "" : String(format: "%.2f", abs(bal))
         if let limit = acc.creditLimit {
@@ -249,12 +258,14 @@ struct AddAccountSheet: View {
             acc.kind = kind
             acc.creditLimit = limit
             acc.billDay = kind.isCredit ? billDay : nil
+            acc.dueDay = kind.isCredit ? dueDay : nil
             // 编辑不改 initialBalance（改余额请用转账/调整交易，保持推导口径干净）
         } else {
             // 信用卡：已用为正数输入，存为负向负债（B4）
             let initial = kind.isCredit ? -balanceValue : balanceValue
             let acc = Account(name: trimmed, brand: brand, initialBalance: initial,
                               kind: kind, billDay: kind.isCredit ? billDay : nil,
+                              dueDay: kind.isCredit ? dueDay : nil,
                               creditLimit: limit)
             modelContext.insert(acc)
         }

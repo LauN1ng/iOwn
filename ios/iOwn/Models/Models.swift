@@ -34,6 +34,9 @@ enum Source: String, Codable {
 
 enum AccountKind: String, Codable {
     case cash, bankCard, wechat, alipay, creditCard
+    // 2026-10-10（D14）：花呗 / 白条 / 其他信用，与信用卡同为「信用类」——
+    // 用户心智里它们都是"每月要还多少钱的信用平台"，不再区分对待
+    case huabei, baitiao, creditOther
 
     /// 品牌色 logo 块（视觉基准 v1.1 §4）
     var brandColorHex: UInt32 {
@@ -43,14 +46,18 @@ enum AccountKind: String, Codable {
         case .wechat: 0x2AAE67
         case .alipay: 0x1677FF
         case .creditCard: 0x8E8E93
+        case .huabei: 0x7F77DD
+        case .baitiao: 0xE24B4A
+        case .creditOther: 0x5F5E5A
         }
     }
 
-    /// logo 块单字（原型 #assets：支/微/卡/信）
+    /// logo 块单字（原型 #assets：支/微/卡/信/花/白）
     var logoChar: String {
         switch self {
         case .cash: "现"; case .bankCard: "卡"; case .wechat: "微"
         case .alipay: "支"; case .creditCard: "信"
+        case .huabei: "花"; case .baitiao: "白"; case .creditOther: "信"
         }
     }
 
@@ -59,10 +66,21 @@ enum AccountKind: String, Codable {
         switch self {
         case .cash: "现金"; case .bankCard: "银行卡"; case .wechat: "微信支付"
         case .alipay: "支付宝"; case .creditCard: "信用卡"
+        case .huabei: "花呗"; case .baitiao: "京东白条"; case .creditOther: "信用账户"
         }
     }
 
-    var isCredit: Bool { self == .creditCard }
+    /// 信用类：会累积欠款、有额度与账单日/还款日，负债即其"另一个视角"
+    var isCredit: Bool {
+        switch self {
+        case .creditCard, .huabei, .baitiao, .creditOther: return true
+        case .cash, .bankCard, .wechat, .alipay: return false
+        }
+    }
+
+    /// 建户宫格顺序（含信用类）
+    static let pickerOrder: [AccountKind] =
+        [.cash, .bankCard, .wechat, .alipay, .creditCard, .huabei, .baitiao, .creditOther]
 }
 
 @Model
@@ -96,14 +114,15 @@ final class Account {
     var initialBalance: Decimal      // 初始余额；展示余额 = initialBalance + Σ交易推导（BalanceEngine）
     var kind: AccountKind
     var billDay: Int?                // 信用账户账单日
+    var dueDay: Int?                 // 信用账户还款日（2026-10-10 新增，D8：账单日/还款日分开）
     var creditLimit: Decimal?        // 仅信用卡；剩余额度 = creditLimit - |展示余额|
 
     init(id: String = UUID().uuidString, name: String, brand: String = "",
          initialBalance: Decimal, kind: AccountKind,
-         billDay: Int? = nil, creditLimit: Decimal? = nil) {
+         billDay: Int? = nil, dueDay: Int? = nil, creditLimit: Decimal? = nil) {
         self.id = id; self.name = name; self.brand = brand
         self.initialBalance = initialBalance; self.kind = kind
-        self.billDay = billDay; self.creditLimit = creditLimit
+        self.billDay = billDay; self.dueDay = dueDay; self.creditLimit = creditLimit
     }
 }
 
@@ -187,6 +206,27 @@ final class Liability {
     var kind: LiabilityKind { LiabilityKind(rawValue: kindRaw) ?? .fixed }
     var category: LiabilityCategory { LiabilityCategory(rawValue: categoryRaw) ?? .credit }
     var feeMode: FeeMode { FeeMode(rawValue: feeModeRaw) ?? .none }
+}
+
+// MARK: - 固定支出 / 订阅（2026-10-10 新增，D17）
+//
+// 房租、会员这类「每月固定扣、永远不结束」的支出 —— 它**不是负债**，独立成模块。
+// 不进"待还总额"、不会还完，但会扣掉本月可支配。
+
+@Model
+final class FixedExpense {
+    var id: String
+    var name: String            // 房租 / 视频会员
+    var amount: Decimal         // 每月金额
+    var dueDay: Int             // 每月扣款日（1-31）
+    var emoji: String           // 图标
+    var sortOrder: Int
+
+    init(id: String = UUID().uuidString, name: String, amount: Decimal,
+         dueDay: Int = 1, emoji: String = "🏠", sortOrder: Int = 0) {
+        self.id = id; self.name = name; self.amount = amount
+        self.dueDay = dueDay; self.emoji = emoji; self.sortOrder = sortOrder
+    }
 }
 
 // MARK: - 负债推算引擎（纯函数，无存储副作用 → 改/删天然正确）
@@ -327,6 +367,86 @@ enum DebtEngine {
             out.append((m, takeHomePay - due, due))
         }
         return out
+    }
+
+    // MARK: - 账户级聚合（2026-10-10 v4：负债并入信用账户）
+    //
+    // 核心口径：负债 = 信用账户的"另一个视角"。
+    //   |账户余额|        = 该账户总欠款（含未还完的分期本金）
+    //   分期剩余本金       = Σ 各笔分期尚未偿还的**本金**部分
+    //   当期欠款（未分期）  = max(|余额| − Σ分期剩余本金, 0)   ← 由记账派生，只读
+    //   本月应还          = 当期欠款 + Σ各笔分期的每期金额
+    // 用「本金」而非「本金+手续费」相减，避免手续费造成口径漂移。
+
+    /// 一笔分期尚未偿还的本金（不含手续费）
+    static func remainingPrincipal(_ l: Liability) -> Decimal {
+        switch l.kind {
+        case .installment:
+            guard l.totalPeriods > 0 else { return l.principal }
+            let left = Decimal(max(l.totalPeriods - l.paidPeriods, 0))
+            return l.principal / Decimal(l.totalPeriods) * left
+        case .currentBill, .fixed:
+            return l.principal
+        }
+    }
+
+    /// 挂在某账户下的全部还款计划
+    static func bills(of accountID: String, liabilities: [Liability]) -> [Liability] {
+        liabilities.filter { $0.linkedAccountID == accountID }
+    }
+
+    /// 某信用账户的「当期欠款」= 未分期部分（只读，由记账派生）
+    static func currentBill(account: Account, liabilities: [Liability], txs: [Tx]) -> Decimal {
+        let total = abs(BalanceEngine.displayBalance(of: account, txs: txs))
+        let planned = bills(of: account.id, liabilities: liabilities)
+            .filter { $0.kind == .installment }
+            .reduce(Decimal(0)) { $0 + remainingPrincipal($1) }
+        let raw = total - planned
+        return raw > 0 ? raw : 0
+    }
+
+    /// 某信用账户下、本月要还的分期月供
+    static func installmentDue(accountID: String, liabilities: [Liability]) -> Decimal {
+        bills(of: accountID, liabilities: liabilities)
+            .filter { $0.kind == .installment }
+            .reduce(Decimal(0)) { $0 + dueThisMonth($1) }
+    }
+
+    /// 某信用账户本月应还 = 当期欠款 + 分期月供
+    static func monthlyDue(account: Account, liabilities: [Liability], txs: [Tx]) -> Decimal {
+        currentBill(account: account, liabilities: liabilities, txs: txs)
+            + installmentDue(accountID: account.id, liabilities: liabilities)
+    }
+
+    /// 全部信用账户本月应还合计
+    static func monthlyDueAll(accounts: [Account], liabilities: [Liability], txs: [Tx]) -> Decimal {
+        accounts.filter { $0.kind.isCredit }
+            .reduce(Decimal(0)) { $0 + monthlyDue(account: $1, liabilities: liabilities, txs: txs) }
+    }
+
+    /// 全部信用账户待还总额 = Σ|信用账户余额| + Σ未挂账户的分期剩余
+    /// （已挂账户的分期本金已含在账户余额里，不重复计）
+    static func totalRemainingAll(accounts: [Account], liabilities: [Liability], txs: [Tx]) -> Decimal {
+        let accountIDs = Set(accounts.map(\.id))
+        let balance = accounts.filter { $0.kind.isCredit }
+            .reduce(Decimal(0)) { $0 + abs(BalanceEngine.displayBalance(of: $1, txs: txs)) }
+        let orphan = liabilities.filter { l in
+            guard let sid = l.linkedAccountID else { return true }
+            return !accountIDs.contains(sid)
+        }.reduce(Decimal(0)) { $0 + remaining($1) }
+        return balance + orphan
+    }
+
+    /// 可支配 = 到手薪资 − Σ信用账户本月应还 − Σ固定支出
+    static func disposable(takeHomePay: Decimal,
+                           accounts: [Account],
+                           liabilities: [Liability],
+                           txs: [Tx],
+                           fixedExpenses: [FixedExpense]) -> Decimal {
+        let fixed = fixedExpenses.reduce(Decimal(0)) { $0 + $1.amount }
+        return takeHomePay
+            - monthlyDueAll(accounts: accounts, liabilities: liabilities, txs: txs)
+            - fixed
     }
 }
 

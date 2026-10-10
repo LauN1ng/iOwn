@@ -185,36 +185,59 @@ struct RootTabView: View {
         guard txCount == 0 else { return }
         let calendar = Calendar.current
 
-        // M2-B3：样例账户（与原型 #assets 演示数字一致，便于截图比对）
+        // M2-B3 样例账户（2026-10-10 v4：花呗 / 白条与信用卡同为「信用账户」）
         let accountCount = (try? modelContext.fetchCount(FetchDescriptor<Account>())) ?? 0
         if accountCount == 0 {
-            let demoAccounts: [(String, String, Decimal, AccountKind, Int?, Decimal?)] = [
-                ("支付宝", "默认 · 记账自动联动", 12368.20, .alipay, nil, nil),
-                ("微信支付", "默认 · 记账自动联动", 3274.35, .wechat, nil, nil),
-                ("招商银行", "工资卡 · ··1234", 24500.00, .bankCard, nil, nil),
-                ("信用卡", "账单日 5 日", -1500.00, .creditCard, 5, 15000),
+            let demoAccounts: [(String, String, Decimal, AccountKind, Int?, Int?, Decimal?)] = [
+                ("支付宝", "默认 · 记账自动联动", 12368.20, .alipay, nil, nil, nil),
+                ("微信支付", "默认 · 记账自动联动", 3274.35, .wechat, nil, nil, nil),
+                ("招商银行", "工资卡 · ··1234", 24500.00, .bankCard, nil, nil, nil),
+                ("信用卡", "账单日 2 日", -3600.00, .creditCard, 2, 22, 15000),
+                ("花呗", "账单日 1 日", -7000.00, .huabei, 1, 25, 20000),
+                ("京东白条", "账单日 1 日", -1800.00, .baitiao, 1, 25, 5000),
             ]
-            for (name, brand, balance, kind, billDay, limit) in demoAccounts {
+            for (name, brand, balance, kind, billDay, dueDay, limit) in demoAccounts {
                 modelContext.insert(Account(name: name, brand: brand, initialBalance: balance,
-                                            kind: kind, billDay: billDay, creditLimit: limit))
+                                            kind: kind, billDay: billDay, dueDay: dueDay,
+                                            creditLimit: limit))
             }
         }
 
-        // 负债样例（负债与可支配）：信用卡/花呗/白条/房租，与原型 #debt 演示数字一致
+        // 分期样例：挂到对应信用账户（金额自洽：Σ分期剩余本金 ≤ |账户余额|）
         let liabilityCount = (try? modelContext.fetchCount(FetchDescriptor<Liability>())) ?? 0
         if liabilityCount == 0 {
-            let demoLiabilities: [(String, LiabilityKind, LiabilityCategory, Decimal, Int, Int, FeeMode, Decimal, Int, Int, String, UInt32)] = [
-                ("信用卡", .installment, .credit, 8000, 12, 4, .totalRate, 8.8, 2, 22, "信", 0xD4537E),
-                ("花呗",   .installment, .credit, 18000, 12, 4, .totalRate, 8.8, 1, 25, "花", 0x7F77DD),
-                ("京东白条", .installment, .credit, 5000, 9, 2, .totalRate, 4.5, 1, 25, "白", 0xE24B4A),
-                ("房租",   .fixed, .fixedExpense, 1230.50, 0, 0, .none, 0, 1, 1, "房", 0x4A8CF7),
+            let accountsNow = (try? modelContext.fetch(FetchDescriptor<Account>())) ?? []
+            func accountID(_ k: AccountKind) -> String? { accountsNow.first { $0.kind == k }?.id }
+            // (名称, 归属账户类型, 本金, 总期数, 已还期数, 每期费率%, 账单日, 还款日, 图标字, 底色)
+            let demoPlans: [(String, AccountKind, Decimal, Int, Int, Decimal, Int, Int, String, UInt32)] = [
+                ("信用卡分期", .creditCard, 5310, 12, 5, 0, 2, 22, "信", 0x8E8E93),
+                ("手机分期", .huabei, 6000, 12, 3, 0, 1, 25, "机", 0x7F77DD),
+                ("耳机分期", .huabei, 1600, 8, 2, 0, 1, 25, "耳", 0x5DCAA5),
+                ("会员分期", .huabei, 480, 12, 1, 0, 1, 25, "会", 0xF59E0B),
+                ("白条分期", .baitiao, 2400, 6, 2, 0, 1, 25, "白", 0xE24B4A),
             ]
-            for (i, d) in demoLiabilities.enumerated() {
-                let (name, kind, cat, principal, tp, pp, fm, fv, bd, dd, ic, ih) = d
-                modelContext.insert(Liability(name: name, kind: kind, category: cat,
-                                              principal: principal, totalPeriods: tp, paidPeriods: pp,
-                                              feeMode: fm, feeValue: fv, billDay: bd, dueDay: dd,
-                                              startMonth: "", iconChar: ic, iconHex: ih, sortOrder: i))
+            for (i, d) in demoPlans.enumerated() {
+                let (name, accKind, principal, tp, pp, rate, bd, dd, ic, ih) = d
+                modelContext.insert(Liability(
+                    name: name, kind: .installment, category: .credit,
+                    principal: principal, totalPeriods: tp, paidPeriods: pp,
+                    feeMode: rate > 0 ? .totalRate : .none, feeValue: rate,
+                    billDay: bd, dueDay: dd, startMonth: "",
+                    iconChar: ic, iconHex: ih,
+                    linkedAccountID: accountID(accKind), sortOrder: i))
+            }
+        }
+
+        // 固定支出样例（独立模块 —— 不是负债、不进「待还」）
+        let fixedCount = (try? modelContext.fetchCount(FetchDescriptor<FixedExpense>())) ?? 0
+        if fixedCount == 0 {
+            let demoFixed: [(String, Decimal, Int, String)] = [
+                ("房租", 1230.50, 1, "🏠"),
+                ("视频会员", 25.00, 12, "📺"),
+            ]
+            for (i, d) in demoFixed.enumerated() {
+                modelContext.insert(FixedExpense(name: d.0, amount: d.1,
+                                                 dueDay: d.2, emoji: d.3, sortOrder: i))
             }
         }
 
