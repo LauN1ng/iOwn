@@ -29,6 +29,7 @@ enum Source: String, Codable {
     case autoNotification   // 自动记账（预留：搁置中，待调研后重启）
     case backTap            // 轻点背面（预留）
     case actionButton       // 操作按钮 / 辅助触控（预留）
+    case repayment          // 还款自动生成（负债确认还款时写入；不计入消费统计）
 }
 
 enum AccountKind: String, Codable {
@@ -196,12 +197,55 @@ enum DebtEngine {
         switch l.feeMode {
         case .none: return 0
         case .totalRate: return l.principal * l.feeValue / 100
-        case .apr:
-            // 由年化反推总费率：总费率 ≈ apr × (n+1) / (24 × 100) × n
-            // 依据 年利率 = 月费率 × n × 24 ÷ (n+1)，月费率 = 总费率 / n
-            guard l.totalPeriods > 0 else { return 0 }
-            let n = Decimal(l.totalPeriods)
-            return l.principal * (l.feeValue / 100) * (n + 1) / 24
+        case .apr: return l.principal * nominalRate(l) / 100
+        }
+    }
+
+    // MARK: 名义总费率 ⇄ 实际年化（IRR 口径，2026-10-10 统一）
+    //
+    // 花呗/白条类分期收的是「手续费」，按原始本金计、不随已还递减，
+    // 所以「名义总费率」≠「实际年化」。精确换算只能解 IRR：
+    //   本金按 1 计，每期还款 = (1 + R) / n（R = 总费率，n = 期数），
+    //   求月利率 i 使 Σ_{k=1..n} 每期 / (1+i)^k = 1，再 ×12 年化。
+    // 验证：R = 8.8%、n = 12 → i ≈ 1.32%/月 → 年化 ≈ 15.86%
+    //   （旧的近似式「总费率 × 24 / (n+1)」会给出 16.25%，偏高，已弃用）
+
+    /// 由名义总费率（%）与实际期数求实际年化（%）
+    static func aprFromTotalRate(ratePercent: Decimal, periods: Int) -> Decimal {
+        guard periods > 1, ratePercent > 0 else { return 0 }
+        let r = NSDecimalNumber(decimal: ratePercent / 100).doubleValue
+        let n = periods
+        let payment = (1 + r) / Double(n)
+        var lo = 0.0, hi = 0.4          // 月利率上界 40%，远超任何真实场景
+        for _ in 0..<40 {
+            let mid = (lo + hi) / 2
+            var pv = 0.0
+            for k in 1...n { pv += payment / pow(1 + mid, Double(k)) }
+            if pv > 1 { lo = mid } else { hi = mid }   // 现值随利率单调递减
+        }
+        return Decimal(((lo + hi) / 2) * 12 * 100)
+    }
+
+    /// 由目标实际年化（%）反求名义总费率（%）—— 上面函数的数值逆
+    static func totalRateFromApr(aprPercent: Decimal, periods: Int) -> Decimal {
+        guard periods > 1, aprPercent > 0 else { return 0 }
+        let target = NSDecimalNumber(decimal: aprPercent).doubleValue
+        var lo = 0.0, hi = 300.0        // 总费率上界 300%
+        for _ in 0..<40 {
+            let mid = (lo + hi) / 2
+            let v = NSDecimalNumber(decimal: aprFromTotalRate(ratePercent: Decimal(mid),
+                                                              periods: periods)).doubleValue
+            if v > target { hi = mid } else { lo = mid }
+        }
+        return Decimal((lo + hi) / 2)
+    }
+
+    /// 名义总费率（展示用）：填总费率时就是它；填年化时折算回它
+    static func nominalRate(_ l: Liability) -> Decimal {
+        switch l.feeMode {
+        case .none: return 0
+        case .totalRate: return l.feeValue
+        case .apr: return totalRateFromApr(aprPercent: l.feeValue, periods: l.totalPeriods)
         }
     }
 
@@ -211,15 +255,12 @@ enum DebtEngine {
         return (l.principal + totalFee(l)) / Decimal(l.totalPeriods)
     }
 
-    /// 实际年化利率（名义总费率 ≠ 实际）：apr ≈ 总费率% × 24 / (n+1) × n/100
-    /// 公式来自查证：年利率 = 月费率 × n × 24 ÷ (n+1)，月费率 = 总费率 / n
+    /// 实际年化利率（名义总费率 ≠ 实际）：统一走 IRR
     static func apr(_ l: Liability) -> Decimal {
         guard l.kind == .installment, l.totalPeriods > 1 else { return 0 }
         switch l.feeMode {
         case .none: return 0
-        case .totalRate:
-            let n = Decimal(l.totalPeriods)
-            return l.feeValue * 24 / (n + 1)
+        case .totalRate: return aprFromTotalRate(ratePercent: l.feeValue, periods: l.totalPeriods)
         case .apr: return l.feeValue
         }
     }

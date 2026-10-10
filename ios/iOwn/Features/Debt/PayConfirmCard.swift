@@ -71,7 +71,7 @@ struct PayConfirmCard: View {
             }
             .padding(.top, 20)
 
-            Text("确认后：进度 +1 期 · 自动记一笔还款支出")
+            Text("确认后：进度 +1 期 · 自动记一笔还款流水（不计入消费统计）")
                 .scaledFont(11).foregroundStyle(.secondary)
                 .padding(.top, 12)
         }
@@ -96,7 +96,7 @@ struct PayConfirmCard: View {
         let tx = Tx(amount: due, type: .out,
                     categoryID: "fixed", subID: "repay",
                     note: "还款 · \(liability.name)",
-                    date: .now, source: .manual)
+                    date: .now, source: .repayment)
         tx.accountID = liability.linkedAccountID
         modelContext.insert(tx)
         try? modelContext.save()
@@ -223,7 +223,7 @@ struct SettleView: View {
             }
             let tx = Tx(amount: due, type: .out,
                         categoryID: "fixed", subID: "repay",
-                        note: "还款 · \(l.name)", date: .now, source: .manual)
+                        note: "还款 · \(l.name)", date: .now, source: .repayment)
             tx.accountID = l.linkedAccountID
             modelContext.insert(tx)
         }

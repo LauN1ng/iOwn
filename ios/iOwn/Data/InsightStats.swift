@@ -9,8 +9,10 @@ enum InsightStats {
     // MARK: - 通用过滤
 
     /// 支出笔（洞察各口径共用）
+    /// 排除还款流水（source == .repayment）：它是负债的偿还动作，不是消费。
+    /// 否则「花呗买东西记一笔 + 到期还款再记一笔」会把同一笔消费统计两次。
     static func expenseTxs(_ txs: [Tx]) -> [Tx] {
-        txs.filter { $0.type == .out }
+        txs.filter { $0.type == .out && $0.source != .repayment }
     }
 
     /// 某天（startOfDay）的支出合计

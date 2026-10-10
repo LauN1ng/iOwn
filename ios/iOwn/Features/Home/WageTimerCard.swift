@@ -86,6 +86,10 @@ struct WageTimerCard: View {
                     .foregroundStyle(Theme.greenText)
             }
         }
+        // bug 修复：未设置分支里没有 Spacer / 未撑满宽度 → 卡片缩到内容宽，
+        // 又被外层 ScrollView 的 VStack 默认居中对齐，于是"卡片居中显示"。
+        // 这里强制撑满整宽 + 左对齐，两种状态宽度一致。
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
     }
 }

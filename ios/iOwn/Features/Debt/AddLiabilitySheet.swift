@@ -70,13 +70,15 @@ struct AddLiabilitySheet: View {
                 }
 
                 field(kind == .fixed ? "每月金额" : "本金 / 当前欠款") {
-                    textInput($principalStr, placeholder: "1800.00", keyboard: .decimalPad)
+                    textInput($principalStr,
+                              placeholder: kind == .fixed ? "如 1230.50" : "如 1800（必填）",
+                              keyboard: .decimalPad)
                 }
 
+                // D15：只有分期才有期数概念；当期账单 / 固定金额不再显示「已还期数」
+                // （原实现为 `else { field("已还期数") }`，属于复用分期字段的误收分支）
                 if kind == .installment {
                     divisorSection
-                } else {
-                    field("已还期数") { numberStepper($paidPeriods) }
                 }
 
                 dateSection
@@ -156,21 +158,34 @@ struct AddLiabilitySheet: View {
                 }
             }
 
-            field("手续费率 · 按平台标准自动带出，可改") {
-                HStack {
-                    Text(feeMode == .none ? "免息" : "\(feeMode.label)")
+            field("手续费率 · 按平台标准自动带出，也可直接改") {
+                HStack(spacing: 6) {
+                    Text(feeMode == .none ? "免息" : feeMode.label)
                         .scaledFont(13).foregroundStyle(.secondary)
                     Spacer()
-                    Text(feeMode == .none ? "0%" : String(format: "%.2f%%", feeValue))
-                        .scaledFont(14, weight: .semibold).monospacedDigit()
+                    if feeMode == .none {
+                        Text("0%").scaledFont(14, weight: .semibold)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        TextField("0", value: $feeValue,
+                                  format: .number.precision(.fractionLength(0...2)))
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .scaledFont(14, weight: .semibold)
+                            .frame(width: 76)
+                            .accessibilityLabel("费率数值")
+                        Text("%")
+                            .scaledFont(14, weight: .semibold)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .padding(.horizontal, 13).padding(.vertical, 12)
                 .background(Theme.card).cornerRadius(11)
 
                 HStack(spacing: 7) {
                     feeChip("免息", .none, 0)
-                    feeChip("12 期 8.8%", .totalRate, 8.8)
-                    feeChip("年化 15.86%", .apr, 15.86)
+                    feeChip("标准档 \(rateText(periods))%", .totalRate, standardRate(periods))
+                    feeChip("年化 \(aprText(periods))%", .apr, standardRateApr(periods))
                 }
                 .padding(.top, 8)
             }
@@ -188,7 +203,7 @@ struct AddLiabilitySheet: View {
                 Text("免息分期，每期应还 (本金)÷\(periods) = ")
                 + Text("¥\(Money.string(dec(per)))").bold()
             } else {
-                Text("本金 ¥\(Money.string(dec(principal))) × \(String(format: "%.2f", feeValue))% = 手续费 ")
+                Text("本金 ¥\(Money.string(dec(principal))) × \(String(format: "%.2f", dec(DebtEngine.nominalRate(draft))))% = 手续费 ")
                 + Text("¥\(Money.string(dec(fee)))").bold()
                 Text("每期应还 (本金+手续费)÷\(periods) = ")
                 + Text("¥\(Money.string(dec(per)))").bold().foregroundColor(Theme.greenText)
@@ -338,7 +353,7 @@ struct AddLiabilitySheet: View {
             Haptics.tap()
             periods = n
             if feeMode == .totalRate { feeValue = standardRate(n) }
-            else if feeMode == .apr { feeValue = standardRate(n) * 24 / Double(n + 1) }
+            else if feeMode == .apr { feeValue = standardRateApr(n) }
         } label: {
             Text("\(n)").scaledFont(13, weight: .medium)
                 .foregroundStyle(on ? Theme.greenText : .secondary)
@@ -366,13 +381,23 @@ struct AddLiabilitySheet: View {
         .buttonStyle(PressableButtonStyle(scale: 0.95))
     }
 
-    /// 花呗标准档：3期2.5% / 6期4.5% / 9期6.5% / 12期8.8%
+    /// 花呗标准档：3期2.5% / 6期4.5% / 9期6.5% / 12期8.8% / 24期15.6%
     private func standardRate(_ n: Int) -> Double {
         switch n {
         case 3: 2.5; case 6: 4.5; case 9: 6.5; case 12: 8.8; case 24: 15.6
         default: 8.8
         }
     }
+
+    /// 标准档总费率文案（两位小数）
+    private func rateText(_ n: Int) -> String { String(format: "%.2f", standardRate(n)) }
+
+    /// 标准档对应的实际年化（IRR 口径，与试算卡同源 —— 三处只有一个数）
+    private func standardRateApr(_ n: Int) -> Double {
+        dec(DebtEngine.aprFromTotalRate(ratePercent: Decimal(standardRate(n)), periods: n))
+    }
+
+    private func aprText(_ n: Int) -> String { String(format: "%.2f", standardRateApr(n)) }
 
     private func numberStepper(_ v: Binding<Int>) -> some View {
         HStack {

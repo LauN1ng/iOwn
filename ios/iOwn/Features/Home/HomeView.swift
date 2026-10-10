@@ -232,6 +232,16 @@ struct HomeView: View {
                         .cornerRadius(999)
                 }
 
+                // 还款流水标注：它不是消费，洞察统计已排除（Source.repayment）
+                if tx.source == .repayment {
+                    Text("还款")
+                        .scaledFont(10, weight: .medium)
+                        .foregroundStyle(Theme.blueText)
+                        .padding(.horizontal, 6).padding(.vertical, 1.5)
+                        .background(Color(hex: 0xEAF1FE))
+                        .cornerRadius(6)
+                }
+
                 Text("\(sign)¥ \(Self.money(tx.amount))")
                     .scaledFont(15, weight: .bold)
                     .foregroundStyle(Theme.greenText)
