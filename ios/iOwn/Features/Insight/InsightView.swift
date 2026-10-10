@@ -15,18 +15,26 @@ struct InsightView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: Radius.cardSpacing) {
-                    monthCard
-                    HStack(alignment: .top, spacing: Radius.cardSpacing) {
-                        calendarCard
-                        moodCard
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: Radius.cardSpacing) {
+                        monthCard
+                        HStack(alignment: .top, spacing: Radius.cardSpacing) {
+                            calendarCard
+                            moodCard
+                        }
+                        categoryCard.id("insight-bottom")
                     }
-                    categoryCard
+                    .padding(.horizontal, Radius.pagePadding)
+                    .padding(.top, 8)
+                    .padding(.bottom, 110)   // 避开悬浮 TabBar(~49) + FAB(伸出 76) 的遮挡
                 }
-                .padding(.horizontal, Radius.pagePadding)
-                .padding(.top, 8)
-                .padding(.bottom, 110)   // 避开悬浮 TabBar(~49) + FAB(伸出 76) 的遮挡
+                .onAppear {
+                    // CI 截图钩子：滚到底部，验证分类占比卡不被 TabBar/FAB 遮挡
+                    if ProcessInfo.processInfo.arguments.contains("-ci-insight-bottom") {
+                        proxy.scrollTo("insight-bottom", anchor: .bottom)
+                    }
+                }
             }
             .background(Theme.bg)
             .navigationTitle("洞察")

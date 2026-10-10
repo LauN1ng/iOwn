@@ -99,6 +99,12 @@ jobs:
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-insight
           sleep 6
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/09-insight.png
+          # 10) 洞察页滚到底（验证分类占比卡不被悬浮 TabBar + FAB 遮挡）
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-insight -ci-insight-bottom
+          sleep 6
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/10-insight-bottom.png
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
       - name: Build unsigned IPA (Release, device)
