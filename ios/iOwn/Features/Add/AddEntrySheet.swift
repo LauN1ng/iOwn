@@ -113,20 +113,6 @@ struct AddEntrySheet: View {
         stage = 1
     }
 
-    /// M3-C1「改细节」草稿预填：金额/分类/商家进备注/账户，直接进金额页
-    private func prefillForDraft() {
-        guard !prefilled, let bill = draft else { return }
-        prefilled = true
-        isOut = true
-        category = CategoryPresets.category(id: bill.suggestedCategoryID) ?? CategoryPresets.all[1]
-        sub = category?.subs.first { $0.id == bill.suggestedSubID } ?? category?.subs.first
-        note = bill.merchant
-        date = bill.date
-        let v = Double(bill.amountCents) / 100
-        amountStr = v == v.rounded() ? String(Int(v)) : String(format: "%.2f", v)
-        stage = 1
-    }
-
     // MARK: 阶段 1：分类宫格
 
     private var stageGrid: some View {
