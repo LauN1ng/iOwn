@@ -37,6 +37,7 @@ struct WageSettingsView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { proxy in
             Form {
                 Section {
                     HStack {
@@ -174,9 +175,11 @@ struct WageSettingsView: View {
                             .scaledFont(12)
                             .foregroundStyle(msg.hasPrefix("已同步") ? Theme.greenText : Theme.redText)
                     }
+                    LabeledContent("本地数据", value: HolidayStore.shared.cachedYear == 0 ? "未同步" : "\(HolidayStore.shared.cachedYear) 年")
                 } header: {
                     Text("节假日数据")
                 }
+                .id("holidaySection")
 
                 Section("时薪预览") {
                     LabeledContent("到手时薪", value: previewHourly)
@@ -197,6 +200,13 @@ struct WageSettingsView: View {
                 startDate = c.date(bySettingHour: startHour, minute: startMinute, second: 0, of: .now) ?? .now
                 endDate = c.date(bySettingHour: endHour, minute: endMinute, second: 0, of: .now) ?? .now
                 lunchStartDate = c.date(bySettingHour: lunchStartHour, minute: lunchStartMinute, second: 0, of: .now) ?? .now
+                // CI 截图钩子：滚到「节假日数据」节，便于核对调休同步结果
+                if ProcessInfo.processInfo.arguments.contains("-ci-wage-bottom") {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        withAnimation { proxy.scrollTo("holidaySection", anchor: .center) }
+                    }
+                }
+            }
             }
         }
     }

@@ -42,6 +42,15 @@ jobs:
 
       - name: Run in simulator & take screenshots
         run: |
+          # 诊断：runner 网络能否访问 holiday-cn 各源（不阻断构建）
+          echo "== holiday-cn reachability =="
+          for u in \
+            "https://cdn.jsdelivr.net/gh/NateScarlet/holiday-cn@master/2026.json" \
+            "https://fastly.jsdelivr.net/gh/NateScarlet/holiday-cn@master/2026.json" \
+            "https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/2026.json" ; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 12 "$u" || echo "ERR")
+            echo "  $code  $u"
+          done
           xcrun simctl boot "${{ steps.sim.outputs.udid }}" || true
           APP=build/Build/Products/Debug-iphonesimulator/iOwn.app
           BID=com.iown.app
@@ -111,6 +120,12 @@ jobs:
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-wage
           sleep 6
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/11-wage-settings.png
+          # 12) 工资设置页滚到「节假日数据」（核对 holiday-cn 同步结果 + 调休节渲染）
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-wage -ci-wage-bottom
+          sleep 8
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/12-wage-holiday.png
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
       - name: Build unsigned IPA (Release, device)
