@@ -1,0 +1,145 @@
+# Codemagic 构建配置 —— 与 .github/workflows/ios-build.yml 等价
+# 背景：GitHub Actions 账户账单卡点期间的过渡方案（无 Mac、Windows 端侧载）
+# 目标：编译验证 + 模拟器截图回传 + 未签名 IPA
+#
+# 使用前提：仓库根目录存在本文件时，Codemagic 会忽略「添加应用」向导里的项目类型，
+# 直接用本配置构建（向导页选 Set type manually → iOS App 即可）。
+#
+# 注意：本工作流全程不签名（CODE_SIGNING_ALLOWED=NO），
+# 产出的 IPA 由 Windows 端用 Sideloadly + 免费 Apple ID 侧载（7 天续签）。
+
+workflows:
+  ios-unsigned:
+    name: iOwn iOS（编译 + 截图 + 未签名 IPA）
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    # 免费额度友好：仅在 main 分支推送 ios/ 相关改动时触发
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+      cancel_previous_builds: true
+    environment:
+      xcode: latest
+      vars:
+        BUNDLE_ID: "com.iown.app"
+        XCODE_PROJECT: "iOwn.xcodeproj"
+        XCODE_SCHEME: "iOwn"
+    scripts:
+      - name: 安装 XcodeGen
+        script: |
+          set -e
+          brew install xcodegen || brew upgrade xcodegen || true
+          xcodegen --version
+
+      - name: 生成 Xcode 工程
+        script: |
+          set -e
+          cd ios
+          xcodegen generate
+          ls -la
+
+      - name: 挑选可用模拟器
+        script: |
+          set -e
+          UDID=$(xcrun simctl list devices available | grep -m1 -Eo '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}')
+          echo "UDID=$UDID" >> "$CM_ENV"
+          xcrun simctl list devices available | head -20
+
+      - name: 编译（iOS Simulator）
+        script: |
+          set -e
+          cd ios
+          xcodebuild -project iOwn.xcodeproj -scheme iOwn \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            -derivedDataPath build build
+
+      - name: 在模拟器中运行并截图
+        script: |
+          set -e
+          cd ios
+          # holiday-cn 各源可达性诊断（不阻断构建）
+          echo "== holiday-cn reachability =="
+          for u in \
+            "https://cdn.jsdelivr.net/gh/NateScarlet/holiday-cn@master/2026.json" \
+            "https://fastly.jsdelivr.net/gh/NateScarlet/holiday-cn@master/2026.json" \
+            "https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/2026.json" ; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 12 "$u" || echo "ERR")
+            echo "  $code  $u"
+          done
+
+          xcrun simctl boot "$UDID" || true
+          APP=build/Build/Products/Debug-iphonesimulator/iOwn.app
+          BID=$BUNDLE_ID
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p ../artifacts
+
+          # 依次启动并截屏；每屏前重置状态，args 钩子由 App 内 ProcessInfo 自读
+          shot() {  # shot <输出文件名> <等待秒数> <launch args...>
+            OUT=$1; WAIT=$2; shift 2
+            xcrun simctl terminate "$UDID" "$BID" || true
+            sleep 1
+            xcrun simctl launch "$UDID" "$BID" "$@"
+            sleep "$WAIT"
+            xcrun simctl io "$UDID" screenshot "../artifacts/$OUT"
+            echo "  -> $OUT"
+          }
+
+          # 01 首页流水（注入样例数据）
+          shot 01-home.png 6 -ci-demo-data
+          # 02 记一笔 sheet（阶段 1 宫格）
+          shot 02-entry.png 6 -ci-open-sheet
+          # 03 成功屏（CI 模式常驻）
+          shot 03-done.png 6 -ci-show-done
+          # 04 资产页（净资产卡 + 四指标 + 账户组）
+          shot 04-assets.png 6 -ci-demo-data -ci-tab-assets
+          # 05 建户半屏 sheet（验证 detents 与表单不裁切）
+          shot 05-account.png 6 -ci-demo-data -ci-open-account
+          # 06 金额键盘页（两位小数 + 账户 chip 联动）
+          shot 06-entry-amount.png 6 -ci-demo-data -ci-open-amount
+          # 07 大字号（Dynamic Type .xxxLarge）
+          shot 07-home-large-text.png 6 -ci-demo-data -ci-large-text
+          # 08 分类管理页（预设只读 + 自定义子类）
+          shot 08-category.png 6 -ci-demo-data -ci-open-catman
+          # 09 洞察页（月份卡 + 热力格 + 占比）
+          shot 09-insight.png 6 -ci-demo-data -ci-tab-insight
+          # 10 洞察页滚到底（验证不被 TabBar/FAB 遮挡）
+          shot 10-insight-bottom.png 6 -ci-demo-data -ci-tab-insight -ci-insight-bottom
+          # 11 工资设置页
+          shot 11-wage-settings.png 6 -ci-demo-data -ci-open-wage
+          # 12 工资设置页滚到节假日数据
+          shot 12-wage-holiday.png 8 -ci-demo-data -ci-open-wage -ci-wage-bottom
+          # 13 负债页（按项目）
+          shot 13-debt.png 6 -ci-demo-data -ci-tab-debt
+          # 14 负债页（按月份 · 未来 12 个月预测）
+          shot 14-debt-month.png 6 -ci-demo-data -ci-tab-month
+          # 15 建档页（半屏：分期换算 + 两个关键日期）
+          shot 15-liability-add.png 6 -ci-demo-data -ci-open-liability
+          # 16 首页（压缩版「本月可支配」卡）
+          shot 16-home-disposable.png 6 -ci-demo-data
+
+          # 诊断：读 app UserDefaults，确认 holiday-cn 是否写入缓存
+          echo "== app UserDefaults (holiday) =="
+          APP_DATA=$(xcrun simctl get_app_container "$UDID" "$BID" data 2>/dev/null || true)
+          echo "container: $APP_DATA"
+          plutil -p "$APP_DATA/Library/Preferences/$BID.plist" 2>/dev/null | grep -i holiday || echo "  (no holiday keys)"
+
+      - name: 构建未签名 IPA（Release, device）
+        script: |
+          set -e
+          cd ios
+          xcodebuild -project iOwn.xcodeproj -scheme iOwn \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -derivedDataPath build-device build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY=""
+          mkdir -p Payload
+          cp -r build-device/Build/Products/Release-iphoneos/iOwn.app Payload/
+          zip -qr ../artifacts/iOwn-unsigned.ipa Payload
+          echo "IPA 已生成：artifacts/iOwn-unsigned.ipa"
+
+    artifacts:
+      - artifacts/*.png
+      - artifacts/*.ipa
+      - /tmp/xcodebuild_logs/*.log
