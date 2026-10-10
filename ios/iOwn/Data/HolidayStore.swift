@@ -82,22 +82,43 @@ final class HolidayStore: @unchecked Sendable {
     }
 
     /// 强制重新拉取（设置页「同步节假日」按钮用）
+    ///
+    /// ⚠️ 数据源可用性：`raw.githubusercontent.com` 在中国大陆网络常被拦截（实测 502），
+    /// 故按顺序尝试多个镜像，任一成功即缓存；全部失败静默回退默认规则。
     @discardableResult
     func fetch(year: Int) async -> Bool {
-        // holiday-cn：GitHub 原始 JSON（每年更新；也可替换为镜像）
-        guard let url = URL(string: "https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/\(year).json") else { return false }
+        for url in Self.sourceURLs(year: year) {
+            if let parsed = await fetchJSON(url) {
+                saveCache(parsed.map, year: year)
+                return true
+            }
+        }
+        return false   // 静默失败：保留旧缓存 / 回退默认规则
+    }
+
+    /// 单个 URL 拉取 + 解析（失败返回 nil，不抛错）
+    private func fetchJSON(_ url: URL) async -> Parsed? {
         do {
             var request = URLRequest(url: url)
-            request.timeoutInterval = 10
+            request.timeoutInterval = 12
             request.cachePolicy = .reloadIgnoringLocalCacheData
             let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return false }
-            guard let parsed = Self.parse(data) else { return false }
-            saveCache(parsed.map, year: year)
-            return true
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
+            return Self.parse(data)
         } catch {
-            return false   // 静默失败：保留旧缓存 / 回退默认规则
+            return nil
         }
+    }
+
+    /// 多源候选（按可达性优先）：jsDelivr 国内可访问，raw 作为兜底
+    static func sourceURLs(year: Int) -> [URL] {
+        let raw = "https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/\(year).json"
+        let candidates = [
+            "https://cdn.jsdelivr.net/gh/NateScarlet/holiday-cn@master/\(year).json",
+            "https://fastly.jsdelivr.net/gh/NateScarlet/holiday-cn@master/\(year).json",
+            raw,
+        ]
+        return candidates.compactMap { URL(string: $0) }
     }
 
     // MARK: - 解析（纯函数，可测）

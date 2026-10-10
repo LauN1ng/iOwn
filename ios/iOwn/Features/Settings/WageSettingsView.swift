@@ -27,6 +27,9 @@ struct WageSettingsView: View {
     @State private var lunchStartDate = Date()
     // 新增调休的日期草稿
     @State private var newDate = Date()
+    // 节假日同步状态
+    @State private var syncing = false
+    @State private var syncResult: String?
 
     private var workdays: Set<Int> { WageConfig.parseWorkdays(workdaysCSV) }
     private var makeup: Set<String> { WageConfig.parseDateSet(makeupCSV) }
@@ -40,12 +43,15 @@ struct WageSettingsView: View {
                         Text("到手薪资")
                         Spacer()
                         TextField("0", text: $salaryText)
-                            .keyboardType(.numberPad)
+                            .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
                             .frame(maxWidth: 140)
                             .onChange(of: salaryText) { _, newValue in
-                                takeHomePay = Double(newValue.filter(\.isNumber)) ?? 0
+                                // 允许数字与一个小数点（最多两位小数）
+                                let cleaned = Self.sanitizeAmount(newValue)
+                                if cleaned != newValue { salaryText = cleaned }
+                                takeHomePay = Double(cleaned) ?? 0
                             }
                         Text("元").foregroundStyle(.secondary)
                     }
@@ -55,7 +61,7 @@ struct WageSettingsView: View {
                 } header: {
                     Text("收入")
                 } footer: {
-                    Text("填每月实际到手的金额（已扣五险一金与个税后）。本版不自动计算社保/个税，避免因各地政策差异算不准；发薪日用于账期划分（M2 资产联动时启用）")
+                    Text("填每月实际到手的金额（已扣五险一金与个税后，可填小数如 6475.88）。本版不自动计算社保/个税，避免因各地政策差异算不准；发薪日用于账期划分（M2 资产联动时启用）")
                 }
 
                 Section("工作时段") {
@@ -144,7 +150,32 @@ struct WageSettingsView: View {
                 } header: {
                     Text("调休")
                 } footer: {
-                    Text("识别时间时会自动参考国家法定节假日与调休；若你公司不按国家调休，可在此手动指定「补班」或「放假」，手动标记优先级最高")
+                    Text("识别时间时会自动参考国家法定节假日与调休（来源 holiday-cn，启动时静默更新）。若你公司不按国家调休，可在此手动指定「补班」或「放假」，手动标记优先级最高")
+                }
+
+                Section {
+                    Button {
+                        Haptics.tap()
+                        Task {
+                            syncing = true
+                            let ok = await HolidayStore.shared.fetch(year: Calendar.current.component(.year, from: .now))
+                            syncResult = ok ? "已同步 \(Calendar.current.component(.year, from: .now)) 年节假日数据" : "同步失败，请检查网络后重试"
+                            syncing = false
+                        }
+                    } label: {
+                        HStack {
+                            Label("同步节假日数据", systemImage: "arrow.triangle.2.circlepath")
+                            Spacer()
+                            if syncing { ProgressView() }
+                        }
+                    }
+                    if let msg = syncResult {
+                        Text(msg)
+                            .scaledFont(12)
+                            .foregroundStyle(msg.hasPrefix("已同步") ? Theme.greenText : Theme.redText)
+                    }
+                } header: {
+                    Text("节假日数据")
                 }
 
                 Section("时薪预览") {
@@ -161,7 +192,7 @@ struct WageSettingsView: View {
                 }
             }
             .onAppear {
-                salaryText = takeHomePay > 0 ? String(format: "%.0f", takeHomePay) : ""
+                salaryText = takeHomePay > 0 ? Self.formatAmount(takeHomePay) : ""
                 let c = Calendar.current
                 startDate = c.date(bySettingHour: startHour, minute: startMinute, second: 0, of: .now) ?? .now
                 endDate = c.date(bySettingHour: endHour, minute: endMinute, second: 0, of: .now) ?? .now
@@ -226,6 +257,35 @@ struct WageSettingsView: View {
     private static let weekdayOptions: [(label: String, value: Int)] = [
         ("一", 2), ("二", 3), ("三", 4), ("四", 5), ("五", 6), ("六", 7), ("日", 1),
     ]
+
+    // MARK: 金额文本处理
+
+    /// 清洗输入：只保留数字与一个小数点，小数最多两位
+    static func sanitizeAmount(_ raw: String) -> String {
+        var result = ""
+        var hasDot = false
+        var decimals = 0
+        for ch in raw {
+            if ch.isNumber {
+                if hasDot {
+                    if decimals >= 2 { continue }
+                    decimals += 1
+                }
+                result.append(ch)
+            } else if ch == ".", !hasDot {
+                hasDot = true
+                if result.isEmpty { result = "0" }   // ".5" → "0.5"
+                result.append(".")
+            }
+        }
+        return result
+    }
+
+    /// 展示：去掉无意义的小数（8000 → "8000"，6475.88 → "6475.88"）
+    static func formatAmount(_ value: Double) -> String {
+        if value == value.rounded() { return String(format: "%.0f", value) }
+        return String(format: "%.2f", value)
+    }
 }
 
 #Preview { WageSettingsView() }

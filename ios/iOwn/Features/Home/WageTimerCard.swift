@@ -43,42 +43,38 @@ struct WageTimerCard: View {
     private func content(config: WageConfig, now: Date) -> some View {
         let earned = config.earnedThisMonth(now: now)
         let state = config.todayStatus(now: now)
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("到手薪资 · 本月已赚")
-                    .scaledFont(12)
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-                if config.isConfigured {
-                    StatusPill(state: state, now: now, config: config)
-                }
-            }
+        VStack(alignment: .leading, spacing: 6) {
+            Text("到手薪资 · 本月已赚")
+                .scaledFont(12)
+                .foregroundStyle(.secondary)
 
             if config.isConfigured {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("¥" + Money.string(earned))
-                        .scaledFont(30, weight: .heavy, design: .rounded)
-                        .foregroundStyle(Theme.greenText)
-                        .monospacedDigit()
-                        .tracking(-0.4)
-                        .contentTransition(.numericText(value: earned))
-                        .animation(.easeOut(duration: 0.35), value: earned)   // 数字滚动而非硬跳
-                    if !state.isWorkingDay {
-                        Text("今天休息")
-                            .scaledFont(11, weight: .semibold)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 8).padding(.vertical, 2)
-                            .background(Theme.iconBg)
-                            .cornerRadius(999)
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text("¥" + Money.string(earned))
+                                .scaledFont(30, weight: .heavy, design: .rounded)
+                                .foregroundStyle(Theme.greenText)
+                                .monospacedDigit()
+                                .tracking(-0.4)
+                                .contentTransition(.numericText(value: earned))
+                                .animation(.easeOut(duration: 0.35), value: earned)   // 数字滚动而非硬跳
+                            if !state.isWorkingDay {
+                                Text("今天休息")
+                                    .scaledFont(11, weight: .semibold)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 8).padding(.vertical, 2)
+                                    .background(Theme.iconBg)
+                                    .cornerRadius(999)
+                            }
+                        }
+                        Text("时薪 ¥\(Money.compact(config.hourlyWage(now: now))) · 本月已走 \(config.daysTouchedThisMonth(now: now)) 个工作日")
+                            .scaledFont(11.5)
+                            .foregroundStyle(.tertiary)
                     }
-                }
-                HStack(alignment: .firstTextBaseline, spacing: 0) {
-                    Text("时薪 ¥\(Money.compact(config.hourlyWage(now: now)))")
-                        .scaledFont(11.5)
-                        .foregroundStyle(.tertiary)
-                    Text(" · 本月已走 \(config.daysTouchedThisMonth(now: now)) 个工作日")
-                        .scaledFont(11.5)
-                        .foregroundStyle(.tertiary)
+                    Spacer(minLength: 0)
+                    // 状态区置于金额行右侧（原 doodle 位置），不额外撑高卡片
+                    StatusPill(state: state, now: now, config: config)
                 }
             } else {
                 Text("¥ ——")
@@ -104,7 +100,7 @@ private struct StatusPill: View {
     let config: WageConfig
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 5) {
+        VStack(alignment: .trailing, spacing: 4) {
             // 状态胶囊
             Text("● " + state.label)
                 .scaledFont(11, weight: .semibold)
@@ -126,6 +122,7 @@ private struct StatusPill: View {
                 }
             }
         }
+        .fixedSize()                 // 不被金额行压缩换行
         .accessibilityHidden(true)   // 状态已由整卡 accessibilityLabel 承载
     }
 
