@@ -93,6 +93,12 @@ jobs:
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-catman
           sleep 6
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/08-category.png
+          # 9) 洞察页（D2：月份卡+12月柱状图 / 日历热力格+心情账单 / 分类占比）
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-insight
+          sleep 6
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/09-insight.png
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
       - name: Build unsigned IPA (Release, device)

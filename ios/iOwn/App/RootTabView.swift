@@ -95,6 +95,10 @@ struct RootTabView: View {
             if ciArgs.contains("-ci-tab-assets") {
                 selection = 2
             }
+            // 洞察页截图钩子
+            if ciArgs.contains("-ci-tab-insight") {
+                selection = 1
+            }
             // E5 分类管理页截图钩子
             if ciArgs.contains("-ci-open-catman") {
                 showCatManager = true
@@ -157,6 +161,16 @@ struct RootTabView: View {
             ("needs", "meal", 1200, .normal, -2 * 3600),
             ("flexible", "coffee", 990, .satisfied, -1 * 3600),
             ("fixed", "commute", 400, nil, -26 * 3600),
+            // 洞察页样例：当月更多天（热力格 / 心情 / 占比有内容）
+            ("needs", "grocery", 6800, .satisfied, -2 * 86400),
+            ("needs", "daily", 2350, .normal, -3 * 86400),
+            ("needs", "meal", 1800, .impulsive, -3 * 86400),
+            ("flexible", "fun", 4500, .satisfied, -4 * 86400),
+            ("flexible", "snack", 1580, .normal, -5 * 86400),
+            ("needs", "medical", 3200, .lesson, -6 * 86400),
+            ("fixed", "utility", 12800, .normal, -7 * 86400),
+            ("growth", "book", 5900, .satisfied, -8 * 86400),
+            ("needs", "meal", 2200, .normal, -9 * 86400),
         ]
         for (catID, subID, cents, mood, offset) in samples {
             modelContext.insert(Tx(
@@ -166,6 +180,30 @@ struct RootTabView: View {
                 subID: subID,
                 note: "",
                 mood: mood,
+                date: calendar.date(byAdding: .second, value: Int(offset), to: .now) ?? .now
+            ))
+        }
+
+        // 洞察页样例：跨月历史（12 月柱状图 / 今年总支出有内容；仅 CI 演示数据）
+        let histories: [(String, String, Int, TimeInterval)] = [
+            ("needs", "meal", 186000, -30 * 86400),
+            ("fixed", "rent", 320000, -45 * 86400),
+            ("flexible", "fun", 98000, -62 * 86400),
+            ("needs", "grocery", 142000, -78 * 86400),
+            ("travel", "transport", 268000, -95 * 86400),
+            ("needs", "meal", 121000, -110 * 86400),
+            ("flexible", "coffee", 76000, -128 * 86400),
+            ("fixed", "subscription", 45000, -145 * 86400),
+            ("bigitem", "digital", 399000, -168 * 86400),
+            ("needs", "meal", 134000, -190 * 86400),
+        ]
+        for (catID, subID, cents, offset) in histories {
+            modelContext.insert(Tx(
+                amount: Decimal(cents) / 100,
+                type: .out,
+                categoryID: catID,
+                subID: subID,
+                note: "",
                 date: calendar.date(byAdding: .second, value: Int(offset), to: .now) ?? .now
             ))
         }
