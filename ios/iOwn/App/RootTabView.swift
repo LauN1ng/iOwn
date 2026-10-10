@@ -1,8 +1,10 @@
 import SwiftUI
 import SwiftData
 
-/// 4 Tab 骨架：线索 / 洞察 / 资产 / 设置 + 绿 FAB（资产页琥珀 $ FAB → 建户）
-/// 视觉对照物：site/prototype.html；Tab 规范见视觉基准 v1.1 §5
+/// 4 Tab 骨架：线索 / 洞察 / 资产 / 设置 + 绿 FAB（记一笔；资产页变琥珀 $ 建户）
+/// 2026-10-10 v4：负债不再是独立 Tab —— 它并入资产页的「信用账户」，
+/// 点进任一信用账户 = 原来的负债页（当期欠款 + 分期 + 还款）。
+/// 视觉对照物：site/prototype-v3.html
 struct RootTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
@@ -26,32 +28,31 @@ struct RootTabView: View {
             TabView(selection: $selection) {
                 HomeView().tabItem { Label("线索", systemImage: "list.bullet") }.tag(0)
                 InsightView().tabItem { Label("洞察", systemImage: "chart.bar") }.tag(1)
-                DebtView().tabItem { Label("负债", systemImage: "creditcard") }.tag(2)
-                AssetsView(onOpenInsight: { selection = 1 }).tabItem { Label("资产", systemImage: "banknote") }.tag(3)
-                SettingsView().tabItem { Label("设置", systemImage: "gearshape") }.tag(4)
+                AssetsView(onOpenInsight: { selection = 1 }).tabItem { Label("资产", systemImage: "banknote") }.tag(2)
+                SettingsView().tabItem { Label("设置", systemImage: "gearshape") }.tag(3)
             }
             .tint(Theme.greenText)
 
-            // FAB：线索/洞察/负债/设置 = 绿 +（记一笔）；资产页 = 琥珀 $（建户）
+            // FAB：线索/洞察/设置 = 绿 +（记一笔）；资产页 = 琥珀 $（建户）
             Button {
                 Haptics.tap()
-                if selection == 3 {
+                if selection == 2 {
                     showAddAccount = true
                 } else {
                     showAdd = true
                 }
             } label: {
-                Image(systemName: selection == 3 ? "dollarsign" : "plus")
+                Image(systemName: selection == 2 ? "dollarsign" : "plus")
                     .scaledFont(24, weight: .bold)
                     .foregroundStyle(.white)
                     .frame(width: 56, height: 56)
-                    .background(selection == 3 ? Theme.amber : Theme.green)
+                    .background(selection == 2 ? Theme.amber : Theme.green)
                     .clipShape(Circle())
                     .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
             }
             .buttonStyle(PressableButtonStyle(scale: 0.92))
-            .accessibilityLabel(selection == 3 ? "添加账户" : "记一笔")
-            .accessibilityHint(selection == 3 ? "新建账户" : "快速记一笔账")
+            .accessibilityLabel(selection == 2 ? "添加账户" : "记一笔")
+            .accessibilityHint(selection == 2 ? "新建账户" : "快速记一笔账")
             // 切 Tab 时 FAB 换色/换图标：让颜色渐变而非硬切
             .animation(Motion.fade, value: selection)
             .padding(.trailing, 18)
@@ -113,13 +114,13 @@ struct RootTabView: View {
             Task { await HolidayStore.shared.syncIfNeeded() }
             // CI 截图钩子：自动打开记一笔 / 直接展示成功屏 / 直达资产页
             if ciArgs.contains("-ci-tab-assets") {
-                selection = 3
+                selection = 2
             }
-            // 负债页截图钩子（按项目）
+            // 负债相关钩子：负债已并入资产页的信用账户，统一落到资产页
             if ciArgs.contains("-ci-tab-debt") {
                 selection = 2
             }
-            // 负债页「按月份」档截图钩子
+            // 「按月份」档钩子（同上，负债权重已收敛）
             if ciArgs.contains("-ci-tab-month") {
                 selection = 2
             }
@@ -147,7 +148,7 @@ struct RootTabView: View {
             }
             // 建户半屏 sheet 截图钩子（资产页 + 自动展开 AddAccountSheet）
             if ciArgs.contains("-ci-open-account") {
-                selection = 3
+                selection = 2
                 showAddAccount = true
             }
             // 工资设置页截图钩子（到手薪资 + 调休节）

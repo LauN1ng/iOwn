@@ -8,16 +8,25 @@ struct HomeView: View {
     @Query(sort: \Tx.date, order: .reverse) private var txs: [Tx]
     @Query(sort: \Account.name) private var accounts: [Account]
     @Query(sort: \Liability.sortOrder) private var liabilities: [Liability]
+    @Query(sort: \FixedExpense.sortOrder) private var fixedExpenses: [FixedExpense]
 
     @State private var editingTx: Tx?
 
-    /// 本月可支配 = 到手薪资 − 本月应还（负债与可支配-方案-v1 D1）
+    /// 本月可支配 = 到手薪资 − Σ信用账户本月应还 − Σ固定支出
+    /// （2026-10-10 v4：负债并入信用账户后，口径由账户余额派生，不再是"手填的负债表"）
     private var disposable: Decimal {
         let pay = Decimal(WageConfig.load().takeHomePay)
-        return DebtEngine.disposable(takeHomePay: pay, liabilities: liabilities)
+        return DebtEngine.disposable(takeHomePay: pay, accounts: accounts,
+                                     liabilities: liabilities, txs: txs,
+                                     fixedExpenses: fixedExpenses)
     }
-    private var dueThisMonth: Decimal {
-        liabilities.reduce(Decimal(0)) { $0 + DebtEngine.dueThisMonth($1) }
+    /// 信用账户本月应还合计
+    private var creditDue: Decimal {
+        DebtEngine.monthlyDueAll(accounts: accounts, liabilities: liabilities, txs: txs)
+    }
+    /// 固定支出每月合计
+    private var fixedDue: Decimal {
+        fixedExpenses.reduce(Decimal(0)) { $0 + $1.amount }
     }
 
     var body: some View {
@@ -26,7 +35,7 @@ struct HomeView: View {
                 VStack(spacing: Radius.cardSpacing) {
                     WageTimerCard()   // D1 工资计时器：每秒自走（点卡片进参数设置）
 
-                    if !liabilities.isEmpty {
+                    if !liabilities.isEmpty || !fixedExpenses.isEmpty {
                         disposableCard   // D1：压缩版「本月可支配」，不铺明细
                     }
 
@@ -64,10 +73,10 @@ struct HomeView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 3) {
-                Text("已还负债").scaledFont(11).foregroundStyle(.secondary)
-                Text("¥ \(Money.string(dec(dueThisMonth)))")
-                    .scaledFont(13, weight: .semibold).monospacedDigit()
-                Text("拆分预算 ›").scaledFont(11).foregroundStyle(Theme.blueText)
+                Text("信用应还 ¥\(Money.string(dec(creditDue)))")
+                    .scaledFont(11.5, weight: .semibold).monospacedDigit()
+                Text("固定支出 ¥\(Money.string(dec(fixedDue)))")
+                    .scaledFont(11.5).foregroundStyle(.secondary).monospacedDigit()
             }
         }
         .padding(15)
@@ -76,7 +85,7 @@ struct HomeView: View {
         .overlay(RoundedRectangle(cornerRadius: Radius.large)
             .stroke(Color(hex: 0xD6EDDC), lineWidth: 1))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("本月可支配 ¥\(Money.string(dec(disposable)))，已还负债 ¥\(Money.string(dec(dueThisMonth)))")
+        .accessibilityLabel("本月可支配 ¥\(Money.string(dec(disposable)))，信用应还 ¥\(Money.string(dec(creditDue)))，固定支出 ¥\(Money.string(dec(fixedDue)))")
     }
 
     private func dec(_ d: Decimal) -> Double { NSDecimalNumber(decimal: d).doubleValue }

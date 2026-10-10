@@ -18,15 +18,16 @@ struct SettingsView: View {
                     }
                     // TODO(M1-E2): 导出 CSV
                 }
-                Section("负债") {
+                Section("资产") {
                     NavigationLink {
-                        DebtView()
+                        FixedExpenseView()
                     } label: {
-                        Label("负债与可支配", systemImage: "creditcard")
+                        Label("固定支出 / 订阅", systemImage: "calendar")
                     }
+                    // 负债已并入「资产 → 信用账户」，不再单列入口（2026-10-10 v4）
                 }
                 Section("开发中") {
-                    LabeledContent("版本", value: "M2 骨架 0.2.0")
+                    LabeledContent("版本", value: "自用版 0.4.0")
                 }
                 Section {
                     Text("数据只存在这台手机上。导出即备份。")

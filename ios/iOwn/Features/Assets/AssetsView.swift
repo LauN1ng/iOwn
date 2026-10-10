@@ -7,6 +7,8 @@ struct AssetsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Account.name) private var accounts: [Account]
     @Query(sort: \Tx.date, order: .reverse) private var txs: [Tx]
+    @Query(sort: \Liability.sortOrder) private var liabilities: [Liability]
+    @Query(sort: \FixedExpense.sortOrder) private var fixedExpenses: [FixedExpense]
 
     /// 跳转洞察页（净资产趋势）——由 RootTabView 注入切换 Tab；默认空实现保证 `AssetsView()` 仍可构造
     var onOpenInsight: () -> Void = {}
@@ -33,17 +35,21 @@ struct AssetsView: View {
                         EmptyStateCard(icon: "💳", title: "还没有账户",
                                        hint: "点右下角 $ 添加第一个账户")
                     } else {
-                        if !cashAccounts.isEmpty {
-                            accountGroup(title: "现金账户", list: cashAccounts,
-                                         expanded: $cashExpanded)
-                        }
+                        // 信用账户在前：负债是"资产页的另一个视角"，且是需要关注的数字
                         if !creditAccounts.isEmpty {
                             accountGroup(title: "信用账户", list: creditAccounts,
-                                         expanded: $creditExpanded)
+                                         expanded: $creditExpanded, isCredit: true)
                         }
-                        if accounts.count >= 2 {
-                            transferPill
+                        if !cashAccounts.isEmpty {
+                            accountGroup(title: "现金账户", list: cashAccounts,
+                                         expanded: $cashExpanded, isCredit: false)
                         }
+                    }
+
+                    fixedEntry
+
+                    if accounts.count >= 2 {
+                        transferPill
                     }
                 }
                 .padding(.horizontal, Radius.pagePadding)
@@ -177,8 +183,15 @@ struct AssetsView: View {
 
     // MARK: 账户组（现金/信用）
 
-    private func accountGroup(title: String, list: [Account], expanded: Binding<Bool>) -> some View {
-        VStack(spacing: 10) {
+    private func accountGroup(title: String, list: [Account], expanded: Binding<Bool>,
+                              isCredit: Bool = false) -> some View {
+        let headerRight = isCredit
+            ? (hidden ? "¥ ****"
+                      : "本月应还 ¥\(money(DebtEngine.monthlyDueAll(accounts: list,
+                                                                     liabilities: liabilities,
+                                                                     txs: txs)))")
+            : groupTotalText(title: title, list: list)
+        return VStack(spacing: 10) {
             Button {
                 Haptics.tap()
                 withAnimation(Motion.disclosure) { expanded.wrappedValue.toggle() }
@@ -186,21 +199,35 @@ struct AssetsView: View {
                 HStack(alignment: .firstTextBaseline) {
                     Text(title).scaledFont(16, weight: .bold).foregroundStyle(.primary)
                     Spacer()
-                    Text(groupTotalText(title: title, list: list) + (expanded.wrappedValue ? " ⌄" : " ›"))
+                    Text(headerRight + (expanded.wrappedValue ? " ⌄" : " ›"))
                         .scaledFont(14, weight: .semibold)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
             }
             .buttonStyle(PressableButtonStyle(scale: 0.98))
-            .accessibilityLabel("\(title)，合计 \(groupTotalText(title: title, list: list))")
+            .accessibilityLabel("\(title)，\(headerRight)")
             .accessibilityValue(expanded.wrappedValue ? "已展开" : "已收起")
             .accessibilityHint("双击展开或收起")
 
             if expanded.wrappedValue {
                 VStack(spacing: 0) {
                     ForEach(list, id: \.id) { acc in
-                        accountRow(acc)
+                        if isCredit {
+                            // 信用账户 = 负债的载体：点进去是账户详情（当期欠款 + 分期 + 还款）
+                            NavigationLink { CreditedAccountView(account: acc) } label: {
+                                accountRowContent(acc, isCredit: true)
+                            }
+                            .buttonStyle(PressableButtonStyle(scale: 0.98))
+                        } else {
+                            Button {
+                                Haptics.tap()
+                                editingAccount = acc
+                            } label: {
+                                accountRowContent(acc, isCredit: false)
+                            }
+                            .buttonStyle(PressableButtonStyle(scale: 0.98))
+                        }
                     }
                 }
                 .padding(.vertical, 4)
@@ -211,6 +238,38 @@ struct AssetsView: View {
         .padding(.horizontal, 4)
     }
 
+    /// 固定支出 / 订阅入口（独立模块 —— 不是负债）
+    private var fixedEntry: some View {
+        let total = fixedExpenses.reduce(Decimal(0)) { $0 + $1.amount }
+        return NavigationLink { FixedExpenseView() } label: {
+            HStack(spacing: 12) {
+                Text("📅")
+                    .scaledFont(20)
+                    .frame(width: 40, height: 40)
+                    .background(Theme.iconBg)
+                    .cornerRadius(12)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("固定支出 / 订阅").scaledFont(15, weight: .semibold).foregroundStyle(.primary)
+                    Text(fixedExpenses.isEmpty ? "房租、会员等每月固定扣 · 不是负债"
+                                               : "\(fixedExpenses.count) 项 · 每月固定扣")
+                        .scaledFont(11.5).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                if !fixedExpenses.isEmpty {
+                    Text(hidden ? "¥ ****" : "¥\(money(total))")
+                        .scaledFont(15, weight: .semibold).monospacedDigit()
+                        .foregroundStyle(.primary)
+                }
+                Text("›").scaledFont(16).foregroundStyle(.tertiary)
+            }
+            .padding(14)
+            .background(Theme.card)
+            .cornerRadius(Radius.large)
+        }
+        .buttonStyle(PressableButtonStyle(scale: 0.985))
+    }
+
     private func groupTotalText(title: String, list: [Account]) -> String {
         let sum = list.reduce(Decimal(0)) { $0 + BalanceEngine.displayBalance(of: $1, txs: txs) }
         if hidden { return "¥ ****" }
@@ -218,54 +277,67 @@ struct AssetsView: View {
         return "¥ \(money(sum))"
     }
 
-    private func accountRow(_ acc: Account) -> some View {
+    /// 账户行内容（信用账户：右侧显示「本月应还」；现金账户：显示余额）
+    private func accountRowContent(_ acc: Account, isCredit: Bool) -> some View {
         let bal = BalanceEngine.displayBalance(of: acc, txs: txs)
         let negative = bal < 0
-        return Button {
-            Haptics.tap()
-            editingAccount = acc
-        } label: {
-            HStack(spacing: 12) {
-                Text(acc.kind.logoChar)
-                    .scaledFont(17, weight: .bold)
-                    .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Color(hex: acc.kind.brandColorHex))
-                    .cornerRadius(12)
-                    .accessibilityHidden(true)   // 装饰：品牌字块，账户名已在右侧念出
+        let due = isCredit
+            ? DebtEngine.monthlyDue(account: acc, liabilities: liabilities, txs: txs)
+            : 0
+        return HStack(spacing: 12) {
+            Text(acc.kind.logoChar)
+                .scaledFont(17, weight: .bold)
+                .foregroundStyle(.white)
+                .frame(width: 40, height: 40)
+                .background(Color(hex: acc.kind.brandColorHex))
+                .cornerRadius(12)
+                .accessibilityHidden(true)   // 装饰：品牌字块，账户名已在右侧念出
 
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(acc.name).scaledFont(15.5, weight: .semibold).foregroundStyle(.primary)
-                    Text(subLine(acc, bal: bal))
-                        .scaledFont(11.5)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 8)
-
-                Text(hidden ? "¥ ****" : (negative ? "-¥ \(money(-bal))" : "¥ \(money(bal))"))
-                    .scaledFont(15.5, weight: .bold)
-                    .foregroundStyle(negative ? Theme.redText : Theme.greenText)
-                    .monospacedDigit()
+            VStack(alignment: .leading, spacing: 1) {
+                Text(acc.name).scaledFont(15.5, weight: .semibold).foregroundStyle(.primary)
+                Text(subLine(acc, bal: bal))
+                    .scaledFont(11.5)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 11)
+
+            Spacer(minLength: 8)
+
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(rightAmount(bal: bal, due: due, isCredit: isCredit))
+                    .scaledFont(15.5, weight: .bold)
+                    .foregroundStyle(rightColor(negative: negative, isCredit: isCredit))
+                    .monospacedDigit()
+                if isCredit {
+                    Text("本月应还").scaledFont(10).foregroundStyle(.secondary)
+                }
+            }
         }
-        .buttonStyle(PressableButtonStyle(scale: 0.98))
-        .accessibilityHint("打开账户编辑")
+        .padding(.horizontal, 18)
+        .padding(.vertical, 11)
+        .contentShape(Rectangle())
+        .accessibilityHint(isCredit ? "打开信用账户详情（负债）" : "打开账户编辑")
     }
 
-    /// 副注：现金类 = 备注或"记账自动联动"；信用类 = 剩余额度 · 账单日（B4）
+    private func rightAmount(bal: Decimal, due: Decimal, isCredit: Bool) -> String {
+        if hidden { return "¥ ****" }
+        if isCredit { return "¥ \(money(due))" }
+        return bal < 0 ? "-¥ \(money(-bal))" : "¥ \(money(bal))"
+    }
+
+    private func rightColor(negative: Bool, isCredit: Bool) -> Color {
+        if hidden { return Theme.greenText }
+        if isCredit { return Theme.redText }
+        return negative ? Theme.redText : Theme.greenText
+    }
+
+    /// 副注：现金类 = 备注或"记账自动联动"；信用类 = 已用额度 · 还款日（B4 / M4）
     private func subLine(_ acc: Account, bal: Decimal) -> String {
         if acc.kind.isCredit {
-            var parts: [String] = []
-            if let limit = acc.creditLimit, limit > 0 {
-                let remaining = limit - abs(bal)
-                parts.append("剩余额度 ¥ \(money(max(remaining, 0)))")
-            }
-            if let day = acc.billDay { parts.append("账单日 \(day) 日") }
-            return parts.isEmpty ? (acc.brand.isEmpty ? "信用账户" : acc.brand) : parts.joined(separator: " · ")
+            var parts: [String] = ["已用 ¥ \(money(abs(bal)))"]
+            if let day = acc.dueDay { parts.append("还款日 \(day) 日") }
+            else if let day = acc.billDay { parts.append("账单日 \(day) 日") }
+            return parts.joined(separator: " · ")
         }
         return acc.brand.isEmpty ? "记账自动联动" : acc.brand
     }
