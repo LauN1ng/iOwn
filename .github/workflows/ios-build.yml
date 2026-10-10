@@ -126,6 +126,11 @@ jobs:
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-wage -ci-wage-bottom
           sleep 8
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/12-wage-holiday.png
+          # 13) 诊断：读 app UserDefaults，确认 holiday-cn 是否写入缓存
+          echo "== app UserDefaults (holiday) =="
+          APP_DATA=$(xcrun simctl get_app_container "${{ steps.sim.outputs.udid }}" "$BID" data 2>/dev/null || true)
+          echo "container: $APP_DATA"
+          plutil -p "$APP_DATA/Library/Preferences/$BID.plist" 2>/dev/null | grep -i holiday || echo "  (no holiday keys)"
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
       - name: Build unsigned IPA (Release, device)

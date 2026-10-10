@@ -78,7 +78,9 @@ final class HolidayStore: @unchecked Sendable {
     /// 失败静默（不弹任何 UI，不影响主流程）。
     func syncIfNeeded(year: Int = Calendar.current.component(.year, from: .now)) async {
         guard cachedYear != year else { return }
-        await fetch(year: year)
+        let ok = await fetch(year: year)
+        // 诊断：记录最近一次同步结果（CI 可从 UserDefaults 读出核对）
+        UserDefaults.standard.set(ok ? "ok" : "fail", forKey: "holiday.cn.lastSync")
     }
 
     /// 强制重新拉取（设置页「同步节假日」按钮用）
