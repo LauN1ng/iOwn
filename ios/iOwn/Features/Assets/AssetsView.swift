@@ -53,7 +53,8 @@ struct AssetsView: View {
                 }
                 .padding(.horizontal, Radius.pagePadding)
                 .padding(.top, 4)
-                .padding(.bottom, 40)
+                // 110 = 避开悬浮 TabBar + 底部内容（转账胶囊）不被遮挡（对齐 InsightView）
+                .padding(.bottom, 110)
             }
             .background(Theme.bg)
             .navigationTitle("资产")
@@ -163,12 +164,14 @@ struct AssetsView: View {
         let step: CGFloat = 52
         let cardHeight: CGFloat = 152
         let last = accounts.count - 1
-        return ZStack(alignment: .top) {
+        return         ZStack(alignment: .top) {
             // ⚠️ 用 indices 而不是 Array(enumerated())：元组元素**不能**做 KeyPath
             ForEach(accounts.indices, id: \.self) { idx in
                 cardLink(idx: idx, step: step, cardHeight: cardHeight, lastIndex: last)
             }
         }
+        // 撑满页宽：每张卡才能拿到全宽（否则 ZStack 塌成内容理想宽 → 窄卡）
+        .frame(maxWidth: .infinity)
         .frame(height: step * CGFloat(max(last, 0)) + cardHeight)
     }
 

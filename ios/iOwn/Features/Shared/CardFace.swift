@@ -1,11 +1,12 @@
 import SwiftUI
 import UIKit
 
-// MARK: - 卡面（Microsoft Fluent 3D 设计语言）
+// MARK: - 卡面（浅色版 · 2026-10-11 视觉收编）
 //
-// 参照 2026-10-11 用户提供的「添加支付方式 / 卡面」参考图。
-// Fluent 3D 的三条做法：① 柔和的对角渐变（体积感）② 层叠的半透明几何纹样（深度）
-// ③ 顶部一道极淡高光 + 底部极淡压暗（受光感）。
+// 设计规则（用户拍板）：**App 只允许一个「彩色源」= Fluent 3D emoji**。
+// 卡面全部退为浅色（白底 + 一抹 ≤5% 明度的同系浅 tint），账户辨识度靠
+// ① 各自的细几何纹样 ② 右下角 acct_* 3D 图标 —— 不再靠彩虹渐变。
+// 这样 emoji 的活泼不会被卡面抢戏（对标 Pool：活泼集中管理，不散落）。
 //
 // ⚠️ 卡面**全部用 SwiftUI 绘制**，不引入图片资源 —— 它是图形，不受
 //    「彩色贴图不能用 .template」那条规则约束（那条只针对 Fluent Emoji 贴图）。
@@ -31,22 +32,22 @@ enum CardFace: String, CaseIterable, Codable, Identifiable {
         }
     }
 
-    /// 浅色卡：文字与纹样改用深色（照参考图的「极简」）
-    var isLight: Bool { self == .minimal }
+    /// 浅色卡：**全部**卡面 2026-10-11 视觉收编后走浅色（见文件头设计规则）
+    var isLight: Bool { true }
 
-    /// 主渐变（左上 → 右下）
+    /// 主渐变（左上 → 右下）：白 → 一抹浅 tint（≤5% 明度的同系色，仅作账户区分）
     var gradient: [Color] {
         switch self {
-        case .alipayBlue:     [Color(hex: 0x3E9BFF), Color(hex: 0x0B5CD5)]
-        case .wechatGreen:    [Color(hex: 0x4FD07F), Color(hex: 0x1B9550)]
-        case .classic:        [Color(hex: 0x35496B), Color(hex: 0x131E33)]
-        case .appleCash:      [Color(hex: 0x2A2A2E), Color(hex: 0x0C0C0E)]
-        case .ocean:          [Color(hex: 0x3FB3A2), Color(hex: 0x0E5A52)]
-        case .geometric:      [Color(hex: 0x2B3036), Color(hex: 0x141719)]
-        case .minimal:        [Color(hex: 0xFFFFFF), Color(hex: 0xEBEBE5)]
-        case .techGrid:       [Color(hex: 0x24406E), Color(hex: 0x0B1729)]
-        case .goldHoneycomb:  [Color(hex: 0xD9B24A), Color(hex: 0x8A6516)]
-        case .businessStripe: [Color(hex: 0x2B63E8), Color(hex: 0x0C2A87)]
+        case .alipayBlue:     [Color(hex: 0xFFFFFF), Color(hex: 0xEAF3FE)]  // 支付宝 · 一抹蓝
+        case .wechatGreen:    [Color(hex: 0xFFFFFF), Color(hex: 0xE9F7EE)]  // 微信 · 一抹绿
+        case .classic:        [Color(hex: 0xFFFFFF), Color(hex: 0xEFF1F4)]  // 经典 · 石墨灰
+        case .appleCash:      [Color(hex: 0xFFFFFF), Color(hex: 0xF3F2EE)]  // Apple Cash · 米白
+        case .ocean:          [Color(hex: 0xFFFFFF), Color(hex: 0xE7F4F1)]  // 海洋 · 青
+        case .geometric:      [Color(hex: 0xFFFFFF), Color(hex: 0xF0EDFB)]  // 几何 · 淡紫
+        case .minimal:        [Color(hex: 0xFFFFFF), Color(hex: 0xEBEBE5)]  // 极简 · 暖白
+        case .techGrid:       [Color(hex: 0xFFFFFF), Color(hex: 0xEBF1FA)]  // 科技网格 · 靛蓝
+        case .goldHoneycomb:  [Color(hex: 0xFFFFFF), Color(hex: 0xFAF3E1)]  // 鎏金蜂巢 · 浅金
+        case .businessStripe: [Color(hex: 0xFFFFFF), Color(hex: 0xEBEEFB)]  // 商务条纹 · 藏青
         }
     }
 
@@ -143,9 +144,10 @@ enum CardFace: String, CaseIterable, Codable, Identifiable {
                     }
                 }
                 .frame(height: 200)
-                Circle().fill(Color(hex: 0x6FB4FF).opacity(0.85)).frame(width: 6, height: 6).offset(x: 58, y: -16)
-                Circle().fill(Color(hex: 0x6FB4FF).opacity(0.55)).frame(width: 5, height: 5).offset(x: -86, y: 34)
-                Circle().fill(Color(hex: 0x6FB4FF).opacity(0.40)).frame(width: 4, height: 4).offset(x: 20, y: 62)
+                // 浅色卡上不用饱和蓝点（会跟 emoji 抢戏），改青灰调低透明度
+                Circle().fill(Color(hex: 0x7A8AA0).opacity(0.60)).frame(width: 6, height: 6).offset(x: 58, y: -16)
+                Circle().fill(Color(hex: 0x7A8AA0).opacity(0.42)).frame(width: 5, height: 5).offset(x: -86, y: 34)
+                Circle().fill(Color(hex: 0x7A8AA0).opacity(0.30)).frame(width: 4, height: 4).offset(x: 20, y: 62)
             }
         case .goldHoneycomb:
             VStack(spacing: 5) {
@@ -269,6 +271,9 @@ struct CardFront: View {
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
         }
+        // maxWidth: .infinity —— 卡面在卡堆/建户预览里都应当撑满可用宽，
+        // 否则 ZStack 里会塌成「内容理想宽」的窄卡
+        .frame(maxWidth: .infinity)
         .frame(height: height)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .shadow(color: .black.opacity(0.16), radius: 9, y: 6)
