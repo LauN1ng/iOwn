@@ -200,16 +200,23 @@ struct CardFaceView: View {
     var cornerRadius: CGFloat = 20
 
     var body: some View {
-        ZStack {
-            LinearGradient(colors: face.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-            face.ornament
+        // ⚠️ 纹样必须走 overlay，**不能**跟渐变一起放进 ZStack 当兄弟：
+        //    ZStack 的尺寸 = 最宽的子视图。businessStripe 的纹样 `.frame(width: 460)`
+        //    再旋转 -24°，理想包围宽 ≈ 514pt → 会把整张卡撑到 514pt，
+        //    进而把资产页整页撑到 514pt（截图里左右各被裁掉约 70pt）。
+        //    overlay 的尺寸由父级决定、**不影响父级尺寸**，溢出部分交给 clipShape 裁掉。
+        LinearGradient(colors: face.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+            .overlay { face.ornament }
             // Fluent 3D 受光：顶部高光 + 底部压暗
-            LinearGradient(colors: [Color.white.opacity(face.isLight ? 0.55 : 0.16), .clear],
-                           startPoint: .top, endPoint: .center)
-            LinearGradient(colors: [.clear, Color.black.opacity(face.isLight ? 0.05 : 0.13)],
-                           startPoint: .center, endPoint: .bottom)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay {
+                LinearGradient(colors: [Color.white.opacity(face.isLight ? 0.55 : 0.16), .clear],
+                               startPoint: .top, endPoint: .center)
+            }
+            .overlay {
+                LinearGradient(colors: [.clear, Color.black.opacity(face.isLight ? 0.05 : 0.13)],
+                               startPoint: .center, endPoint: .bottom)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }
 
