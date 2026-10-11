@@ -89,4 +89,32 @@ enum EntryWriter {
     static func liabilities(in context: ModelContext) -> [Liability] {
         (try? context.fetch(FetchDescriptor<Liability>())) ?? []
     }
+
+    // MARK: 还款
+
+    /// 标记本月已还款：分期各推进 1 期 + 记一笔还款流水。
+    ///
+    /// ⚠️ **还款流水的方向极易写反 → 必须记成 `.in`（挂在该信用账户上）**。
+    /// `BalanceEngine` 的约定是「支出 −amount / 收入 +amount」，而信用账户
+    /// **余额为负 = 欠款**；所以「还款让欠款减少」在这套符号里等价于给余额 **加** amount。
+    /// 写成 `.out` 会得到「越还欠越多」——这个 bug 2026-10-11 由 `BehaviorSelfTest` 抓到
+    /// （自检第一轮就派上用场）。
+    ///
+    /// 还款**不是消费**：打 `source = .repayment`，洞察统计与首页日合计均排除它。
+    /// 本期结清后 `currentBill` 会归零（因为 |余额| 掉到分期剩余本金之下被 clamp），
+    /// 下月消费重新累积 —— 即「本期结清、下月重来」。
+    @discardableResult
+    static func recordRepayment(account: Account, plans: [Liability], amount: Decimal,
+                               into context: ModelContext) -> Tx? {
+        guard amount > 0 else { return nil }
+        for l in plans where l.kind == .installment && DebtEngine.remainingPeriods(l) > 0 {
+            l.paidPeriods = min(l.paidPeriods + 1, l.totalPeriods)
+        }
+        let tx = Tx(amount: amount, type: .in,
+                    categoryID: "fixed", subID: "repay",
+                    note: "还款 · \(account.name)", date: .now, source: .repayment)
+        tx.accountID = account.id
+        context.insert(tx)
+        return tx
+    }
 }

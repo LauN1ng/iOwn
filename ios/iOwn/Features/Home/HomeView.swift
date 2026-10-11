@@ -104,6 +104,9 @@ struct HomeView: View {
         return dict
             .map { day, items in
                 let net = items.reduce(Decimal(0)) { acc, tx in
+                    // 还款与转账都不是收支 —— 日合计排除还款（与洞察统计口径一致）。
+                    // （还款是挂在信用账户上的 .in：欠款减少，但绝不是"今天赚了钱"）
+                    if tx.source == .repayment { return acc }
                     switch tx.type {
                     case .out: acc - tx.amount
                     case .in: acc + tx.amount
@@ -211,7 +214,8 @@ struct HomeView: View {
             let cat = CategoryPresets.category(id: tx.categoryID)
             let sub = cat?.subs.first { $0.id == tx.subID }
             let title = tx.note.isEmpty ? (sub?.name ?? cat?.name ?? "记录") : tx.note
-            let sign = tx.type == .out ? "" : "+"
+            // 还款虽挂在信用账户上是 .in（欠款减少），但它不是收入 → 不加 "+"
+            let sign = (tx.type == .out || tx.source == .repayment) ? "" : "+"
             let accountName = accounts.first { $0.id == tx.accountID }?.name
             HStack(spacing: 12) {
                 CategoryIcon(asset: sub?.iconName ?? cat?.iconName,

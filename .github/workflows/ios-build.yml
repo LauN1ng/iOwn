@@ -161,6 +161,14 @@ jobs:
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data
           sleep 6
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/17-home-disposable.png
+          # 18) 行为自检（-ci-selftest）：在独立内存容器里跑真实写路径并断言
+          #     （全额下期不建负债 / 分期换算 / 不双计 / 改账联动 / 还款结清 / 删账回滚）
+          #     编译与截图证明不了"算得对不对"，这一屏才是。
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-selftest
+          sleep 6
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/18-selftest.png
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
       - name: Build unsigned IPA (Release, device)

@@ -280,16 +280,9 @@ struct CreditedAccountView: View {
 
     private func markPaid() {
         Haptics.success()
-        for l in plans where DebtEngine.remainingPeriods(l) > 0 {
-            l.paidPeriods = min(l.paidPeriods + 1, l.totalPeriods)
-        }
-        if monthlyDue > 0 {
-            let tx = Tx(amount: monthlyDue, type: .out,
-                        categoryID: "fixed", subID: "repay",
-                        note: "还款 · \(account.name)", date: .now, source: .repayment)
-            tx.accountID = account.id
-            modelContext.insert(tx)
-        }
+        // 落库核心在 Data 层（EntryWriter）—— UI 与 `BehaviorSelfTest` 走同一段代码
+        EntryWriter.recordRepayment(account: account, plans: plans,
+                                    amount: monthlyDue, into: modelContext)
         try? modelContext.save()
     }
 

@@ -18,6 +18,8 @@ struct RootTabView: View {
     @State private var showWageSettings = false
     // 添加分期 sheet（CI 截图钩子用；正常入口在信用账户详情页右上角 ＋）
     @State private var showAddInstallment = false
+    // CI 行为自检结果（-ci-selftest）
+    @State private var selfTestResults: [SelfTestResult] = []
 
     private let ciArgs = ProcessInfo.processInfo.arguments
 
@@ -67,6 +69,12 @@ struct RootTabView: View {
                         withAnimation(.easeOut(duration: 0.25)) { showSuccess = false }
                     }
             }
+
+            // CI 行为自检结果屏（仅 -ci-selftest）：盖在最上层，供截图回传
+            if ciArgs.contains("-ci-selftest") {
+                BehaviorSelfTestView(results: selfTestResults)
+                    .zIndex(10)
+            }
         }
         // 半屏 sheet（用户需求：记一笔不盖住主屏，保留背后主页上下文）
         // 0.68 = 阶段2（宫格滑走后）键盘+金额区完整放下的最小比例；可上拖全屏
@@ -103,6 +111,10 @@ struct RootTabView: View {
             seedDemoDataIfRequested()
             // 节假日/调休数据静默同步（holiday-cn）：失败静默，不阻塞 UI
             Task { await HolidayStore.shared.syncIfNeeded() }
+            // CI 行为自检：跑一遍真实写路径（独立内存容器），结果画成一屏截图回传
+            if ciArgs.contains("-ci-selftest") {
+                selfTestResults = BehaviorSelfTest.run()
+            }
             // CI 截图钩子：自动打开记一笔 / 直接展示成功屏 / 直达资产页
             if ciArgs.contains("-ci-tab-assets") {
                 selection = 2
