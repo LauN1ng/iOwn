@@ -26,7 +26,7 @@ iOwn 是一个 iOS 记账应用。出发点很简单：市面的记账 App 都�
 
 ## 构建
 
-代码在 Windows 上写，构建在 macOS 云端跑（GitHub Actions / Codemagic），产物是未签名 IPA，侧载真机。
+代码在 Windows 上写，构建在 macOS 云端跑（GitHub Actions），产物是未签名 IPA，侧载真机。
 
 ```
 Windows 改 Swift / project.yml
@@ -58,7 +58,6 @@ ios/iOwn/
   Features/              # Home / Add / Assets / Debt / Insight / Settings
   Resources/             # Assets.xcassets
 .github/workflows/       # GitHub Actions 构建流水线
-codemagic.yaml           # Codemagic 构建配置（备用通道）
 ```
 
 ## 说明
