@@ -4,9 +4,9 @@ import UIKit
 
 /// 手动建户 / 编辑账户（2026-10-11 照用户参考图「添加支付方式」重做）
 ///
-/// 结构：卡面预览（+ 更换卡面）→ 类型 → 图标 / 名称 / 备注 / 卡号后四位
+/// 结构：图标预览（图标 + 名称）→ 类型 → 图标 / 名称 / 备注 / 卡号后四位
 ///      → 初始余额 / 币种 → 记账时可选择 →（信用类）额度 / 账单日 / 还款日。
-/// 卡面卡片即 Fluent 3D `CardFace`，与卡堆、账户详情页同一套视觉。
+/// 图标 = 归一化素材（通用 Fluent 3D `acct_*` / 品牌真实 logo `logo_*`）。
 struct AddAccountSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -22,11 +22,9 @@ struct AddAccountSheet: View {
     @State private var limitStr = ""
     @State private var billDay = 5
     @State private var dueDay = 25
-    @State private var cardFace: CardFace = .goldHoneycomb
     @State private var icon: AccountIcon = .none
     @State private var isSelectable = true
 
-    @State private var showFacePicker = false
     @State private var showIconPicker = false
 
     private let ciArgs = ProcessInfo.processInfo.arguments
@@ -58,14 +56,9 @@ struct AddAccountSheet: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.bg)
         .onAppear(perform: onAppear)
-        .sheet(isPresented: $showFacePicker) {
-            CardFacePicker(selection: $cardFace)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.hidden)
-        }
         .sheet(isPresented: $showIconPicker) {
             AccountIconPicker(selection: $icon)
-                .presentationDetents([.fraction(0.45), .large])
+                .presentationDetents([.fraction(0.68), .large])
                 .presentationDragIndicator(.hidden)
         }
     }
@@ -109,31 +102,40 @@ struct AddAccountSheet: View {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    // MARK: 卡面预览 + 更换卡面
+    // MARK: 头部预览（图标 + 名称）
+    //
+    // 原「卡面预览 + 更换卡面」已删除 —— 2026-10-11 去卡片化后不再有仿真卡面
+    // （见 `AssetsView` 文件头：卡面是无底洞，资产页改为分组列表）。
 
     private var preview: some View {
-        VStack(spacing: 12) {
-            CardFront(name: name.isEmpty ? kind.defaultName : name,
-                      amountText: "¥" + Money.string(NSDecimalNumber(decimal: balanceValue).doubleValue),
-                      face: cardFace,
-                      iconName: icon.asset,
-                      logoChar: kind.logoChar,
-                      height: 168,
-                      cornerRadius: Radius.large)
-
-            Button { Haptics.tap(); showFacePicker = true } label: {
-                Text("更换卡面")
-                    .scaledFont(13.5, weight: .semibold)
-                    .foregroundStyle(Theme.greenText)
-                    .padding(.horizontal, 20).padding(.vertical, 9)
-                    .overlay(Capsule().stroke(Theme.greenText, lineWidth: 1.2))
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(PressableButtonStyle(scale: 0.96))
-            .accessibilityLabel("更换卡面")
+        VStack(spacing: 9) {
+            iconPreview
+            Text(name.isEmpty ? kind.defaultName : name)
+                .scaledFont(20, weight: .bold)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+            Text(kind.defaultName)
+                .scaledFont(12)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 4)
+        .padding(.top, 8)
+    }
+
+    /// 大号图标预览（与资产页同一套归一化素材，视觉重量一致）
+    private var iconPreview: some View {
+        Group {
+            if icon != .none, UIImage(named: icon.asset) != nil {
+                // ⚠️ 彩色贴图：不要加 .renderingMode(.template)
+                Image(icon.asset).resizable().scaledToFit()
+            } else if !icon.emoji.isEmpty {
+                Text(icon.emoji).scaledFont(46)
+            } else {
+                Text(kind.logoChar).scaledFont(28, weight: .heavy).foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 78, height: 78)
+        .accessibilityHidden(true)
     }
 
     // MARK: 类型（信用语义依赖它，必须保留）
@@ -148,14 +150,13 @@ struct AddAccountSheet: View {
                             Haptics.tap()
                             kind = k
                             if name.isEmpty || name == kind.defaultName { name = k.defaultName }
-                            cardFace = k.defaultCardFace
                             icon = k.defaultIcon
                             if !k.isCredit { limitStr = "" }
                         } label: {
                             HStack(spacing: 5) {
                                 if UIImage(named: k.defaultIcon.asset) != nil {
                                     Image(k.defaultIcon.asset)
-                                        .resizable().scaledToFit().frame(width: 17, height: 17)
+                                        .resizable().scaledToFit().frame(width: 20, height: 20)
                                 }
                                 Text(k.defaultName).scaledFont(13, weight: .semibold)
                             }
@@ -354,14 +355,13 @@ struct AddAccountSheet: View {
 
     private func onAppear() {
         prefillIfNeeded()
-        // CI 截图钩子：直接展开卡面选择器
-        if ciArgs.contains("-ci-open-face") { showFacePicker = true }
+        // CI 截图钩子：直接展开图标选择器（原 -ci-open-face 已随卡面删除）
+        if ciArgs.contains("-ci-open-icon") { showIconPicker = true }
     }
 
     private func prefillIfNeeded() {
         guard let acc = editing else {
             name = kind.defaultName
-            cardFace = kind.defaultCardFace
             icon = kind.defaultIcon
             return
         }
@@ -369,7 +369,6 @@ struct AddAccountSheet: View {
         name = acc.name
         brand = acc.brand
         cardLast4 = acc.cardLast4
-        cardFace = acc.cardFace
         icon = acc.icon
         isSelectable = acc.isSelectable
         billDay = acc.billDay ?? 5
@@ -394,7 +393,6 @@ struct AddAccountSheet: View {
             acc.creditLimit = limit
             acc.billDay = kind.isCredit ? billDay : nil
             acc.dueDay = kind.isCredit ? dueDay : nil
-            acc.cardFaceRaw = cardFace.rawValue
             acc.iconRaw = icon.rawValue
             acc.cardLast4 = cardLast4
             acc.isSelectable = isSelectable
@@ -406,7 +404,7 @@ struct AddAccountSheet: View {
                               kind: kind, billDay: kind.isCredit ? billDay : nil,
                               dueDay: kind.isCredit ? dueDay : nil,
                               creditLimit: limit,
-                              cardFace: cardFace, icon: icon,
+                              icon: icon,
                               cardLast4: cardLast4, isSelectable: isSelectable)
             modelContext.insert(acc)
         }
@@ -429,42 +427,76 @@ private struct AccountIconPicker: View {
             Text("选择图标").scaledFont(17, weight: .bold).padding(.top, 6)
 
             ScrollView {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(AccountIcon.pickerOrder, id: \.rawValue) { ic in
-                        Button {
-                            Haptics.tap()
-                            selection = ic
-                            dismiss()
-                        } label: {
-                            VStack(spacing: 6) {
-                                ZStack {
-                                    Circle()
-                                        .fill(ic == selection ? Theme.greenSoft : Theme.card)
-                                        .frame(width: 56, height: 56)
-                                    if ic == .none {
-                                        Text("无").scaledFont(14, weight: .semibold).foregroundStyle(.secondary)
-                                    } else if UIImage(named: ic.asset) != nil {
-                                        // ⚠️ 彩色 Fluent 贴图：不要加 .renderingMode(.template)
-                                        Image(ic.asset).resizable().scaledToFit().frame(width: 38, height: 38)
-                                    } else {
-                                        Text(ic.emoji).scaledFont(30)
-                                    }
-                                }
-                                .overlay(
-                                    Circle().stroke(ic == selection ? Theme.green : Color.clear, lineWidth: 2)
-                                )
-                                Text(ic.displayName)
-                                    .scaledFont(11.5)
-                                    .foregroundStyle(ic == selection ? Theme.greenText : .secondary)
-                                    .lineLimit(1)
-                            }
+                VStack(alignment: .leading, spacing: 18) {
+                    // 「无」单独一行
+                    Button {
+                        Haptics.tap(); selection = .none; dismiss()
+                    } label: {
+                        HStack(spacing: 10) {
+                            Text("不使用图标").scaledFont(13.5, weight: .medium)
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right")
+                                .scaledFont(12, weight: .semibold)
+                                .foregroundStyle(.tertiary)
                         }
-                        .buttonStyle(PressableButtonStyle(scale: 0.95))
+                        .padding(.horizontal, 16).padding(.vertical, 13)
+                        .background(Theme.card)
+                        .cornerRadius(Radius.medium)
                     }
+                    .buttonStyle(PressableButtonStyle(scale: 0.98))
+
+                    section("通用", AccountIcon.generalIcons)
+                    section("平台与钱包", AccountIcon.platformIcons)
+                    section("银行", AccountIcon.bankIcons)
+                    section("信用账户", AccountIcon.creditIcons)
                 }
                 .padding(Radius.pagePadding)
             }
         }
         .background(Theme.bg)
+    }
+
+    private func section(_ title: String, _ icons: [AccountIcon]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title).scaledFont(12.5, weight: .semibold).foregroundStyle(.secondary)
+            LazyVGrid(columns: columns, spacing: 16) {
+                ForEach(icons, id: \.rawValue) { ic in
+                    cell(ic)
+                }
+            }
+        }
+    }
+
+    private func cell(_ ic: AccountIcon) -> some View {
+        Button {
+            Haptics.tap()
+            selection = ic
+            dismiss()
+        } label: {
+            VStack(spacing: 6) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(ic == selection ? Theme.greenSoft : Theme.card)
+                        .frame(width: 56, height: 56)
+                    if UIImage(named: ic.asset) != nil {
+                        // ⚠️ 彩色贴图：不要加 .renderingMode(.template)
+                        Image(ic.asset).resizable().scaledToFit().frame(width: 38, height: 38)
+                    } else {
+                        Text(ic.emoji).scaledFont(30)
+                    }
+                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(ic == selection ? Theme.green : Color.clear, lineWidth: 2)
+                )
+                Text(ic.displayName)
+                    .scaledFont(11)
+                    .foregroundStyle(ic == selection ? Theme.greenText : .secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        }
+        .buttonStyle(PressableButtonStyle(scale: 0.95))
+        .accessibilityLabel(ic.displayName)
     }
 }

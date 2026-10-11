@@ -59,26 +59,29 @@ struct AccountDetailView: View {
         }
     }
 
-    // MARK: hero 卡面（只有品牌，不放数字）
+    // MARK: 头部（图标 + 名称 + 副标题）
+    //
+    // 原 hero 卡面已删除 —— 2026-10-11 去卡片化（见 `AssetsView` 文件头）。
 
     private var hero: some View {
-        CardFaceView(face: account.cardFace, cornerRadius: Radius.large)
-            .frame(height: 148)
-            .overlay(alignment: .topLeading) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(account.name)
-                        .scaledFont(22, weight: .heavy)
-                        .foregroundStyle(account.cardFace.foreground)
-                    if !subtitle.isEmpty {
-                        Text(subtitle)
-                            .scaledFont(11.5)
-                            .foregroundStyle(account.cardFace.foregroundSoft)
-                    }
+        HStack(spacing: 14) {
+            accountIconLarge
+            VStack(alignment: .leading, spacing: 3) {
+                Text(account.name)
+                    .scaledFont(22, weight: .heavy)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .scaledFont(12)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-                .padding(18)
             }
-            .overlay(alignment: .bottomTrailing) { iconBadge.padding(16) }
-            .shadow(color: .black.opacity(0.16), radius: 10, y: 6)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 4)
     }
 
     private var subtitle: String {
@@ -86,20 +89,19 @@ struct AccountDetailView: View {
         return account.brand
     }
 
-    private var iconBadge: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(account.cardFace.logoBackground)
-                .frame(width: 36, height: 36)
+    /// 大号账户图标（归一化素材：通用 Fluent 3D / 品牌真实 logo）
+    private var accountIconLarge: some View {
+        Group {
             if !account.icon.asset.isEmpty, UIImage(named: account.icon.asset) != nil {
-                // ⚠️ 彩色 Fluent 贴图：不要加 .renderingMode(.template)
-                Image(account.icon.asset).resizable().scaledToFit().frame(width: 26, height: 26)
+                // ⚠️ 彩色贴图：不要加 .renderingMode(.template)
+                Image(account.icon.asset).resizable().scaledToFit()
+            } else if !account.icon.emoji.isEmpty {
+                Text(account.icon.emoji).scaledFont(40)
             } else {
-                Text(account.kind.logoChar)
-                    .scaledFont(14, weight: .heavy)
-                    .foregroundStyle(account.cardFace.foreground)
+                Text(account.kind.logoChar).scaledFont(26, weight: .heavy).foregroundStyle(.secondary)
             }
         }
+        .frame(width: 64, height: 64)
         .accessibilityHidden(true)
     }
 

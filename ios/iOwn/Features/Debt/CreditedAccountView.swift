@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 /// 信用账户详情 = 原来的「负债页」（2026-10-10 v4 定案：负债并入信用账户）
 ///
@@ -89,36 +90,57 @@ struct CreditedAccountView: View {
         }
     }
 
-    // MARK: 绿卡 → 卡面 hero（2026-10-11：卡面统一走 Fluent 3D CardFace）
+    // MARK: 本月应还（2026-10-11 去卡片化：原卡面 hero → 白卡）
 
     private var heroCard: some View {
-        CardFaceView(face: account.cardFace, cornerRadius: Radius.large)
-            .frame(height: 178)
-            .overlay {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("本月应还").scaledFont(12).foregroundStyle(fgSoft)
-                    Text("¥ \(Money.string(dec(monthlyDue)))")
-                        .scaledFont(32, weight: .heavy, design: .rounded)
-                        .foregroundStyle(fg).monospacedDigit()
-                        .padding(.top, 4)
-                    Text("已用 ¥\(Money.string(dec(used)))" + limitText)
-                        .scaledFont(11.5).foregroundStyle(fgSoft)
-                        .padding(.top, 5)
-                    HStack {
-                        Text("账单日 \(dayText(account.billDay))")
-                        Spacer()
-                        Text("还款日 \(dayText(account.dueDay))")
-                    }
-                    .scaledFont(11).foregroundStyle(fgSoft)
-                    .padding(.top, 12)
-                }
-                .padding(18)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                accountIcon
+                Text(account.name)
+                    .scaledFont(13.5, weight: .semibold)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
             }
-            .shadow(color: .black.opacity(0.16), radius: 10, y: 6)
+            .padding(.bottom, 12)
+
+            Text("本月应还").scaledFont(12).foregroundStyle(.secondary)
+            Text("¥ \(Money.string(dec(monthlyDue)))")
+                .scaledFont(32, weight: .heavy, design: .rounded)
+                .foregroundStyle(Theme.redText).monospacedDigit()
+                .padding(.top, 4)
+            Text("已用 ¥\(Money.string(dec(used)))" + limitText)
+                .scaledFont(11.5).foregroundStyle(.secondary)
+                .padding(.top, 5)
+            HStack {
+                Text("账单日 \(dayText(account.billDay))")
+                Spacer()
+                Text("还款日 \(dayText(account.dueDay))")
+            }
+            .scaledFont(11).foregroundStyle(.secondary)
+            .padding(.top, 12)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.card)
+        .cornerRadius(Radius.large)
     }
 
-    private var fg: Color { account.cardFace.foreground }
-    private var fgSoft: Color { account.cardFace.foregroundSoft }
+    /// 账户图标（归一化素材：通用 Fluent 3D / 品牌真实 logo）
+    private var accountIcon: some View {
+        Group {
+            if !account.icon.asset.isEmpty, UIImage(named: account.icon.asset) != nil {
+                // ⚠️ 彩色贴图：不要加 .renderingMode(.template)
+                Image(account.icon.asset).resizable().scaledToFit()
+            } else if !account.icon.emoji.isEmpty {
+                Text(account.icon.emoji).scaledFont(20)
+            } else {
+                Text(account.kind.logoChar).scaledFont(13, weight: .heavy).foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 28, height: 28)
+        .accessibilityHidden(true)
+    }
 
     /// 一共还欠（账户属性 —— 不是分期的属性）= 已分期未还本金 + 没分期的当期欠款
     private var totalOwedCard: some View {

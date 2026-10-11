@@ -95,25 +95,36 @@ enum AccountKind: String, Codable {
     static let pickerOrder: [AccountKind] =
         [.cash, .bankCard, .wechat, .alipay, .creditCard, .huabei, .baitiao, .creditOther]
 
-    /// 建户默认卡面（2026-10-11 卡包改造：Fluent 3D 卡面）
-    var defaultCardFace: CardFace { CardFace.default(for: self) }
-
-    /// 建户默认图标（acct_* Fluent 3D 贴图）
+    /// 建户默认图标（2026-10-11：品牌类走真实 logo，通用类走 Fluent 3D）
     var defaultIcon: AccountIcon {
         switch self {
         case .cash: .cash
         case .bankCard: .bank
-        case .wechat, .alipay, .huabei: .phone
-        case .creditCard, .creditOther: .card
-        case .baitiao: .shop
+        case .wechat: .wechat
+        case .alipay: .alipay
+        case .creditCard: .card
+        case .huabei: .huabei
+        case .baitiao: .baitiao
+        case .creditOther: .card
         }
     }
 }
 
-/// 账户图标（Microsoft Fluent Emoji 3D，已入库 Assets.xcassets；asset 名即 rawValue）
-/// 找不到 asset 时由 CategoryIcon / 字块兜底。
+/// 账户图标
+///
+/// **两类来源**（2026-10-11 实测定案）：
+/// ① 通用 = Microsoft Fluent Emoji 3D（`acct_*`）—— 语义类，无品牌归属
+/// ② 品牌 = 真实品牌 logo（`logo_*`）—— 用户一眼认出是哪家银行/平台
+///
+/// ⭐ **所有图标入库前已做「内容 bbox 归一化」**：内容最大边统一到画布的 72%。
+///    原因：素材天生留白不同（Fluent 的「卡片」只占画布高 56%，「购物」占 88%），
+///    不归一化就会出现「有的很大有的很小」。归一化脚本 `reports/_build_brand_icons.py`。
+///
+/// ⚠️ 彩色贴图**不要加 `.renderingMode(.template)`**（会被染成单色）。
 enum AccountIcon: String, CaseIterable, Codable, Identifiable {
     case none = ""
+
+    // MARK: 通用（Fluent Emoji 3D）
     case cash = "acct_cash"
     case bank = "acct_bank"
     case card = "acct_card"
@@ -121,9 +132,36 @@ enum AccountIcon: String, CaseIterable, Codable, Identifiable {
     case phone = "acct_phone"
     case shop = "acct_shop"
 
+    // MARK: 品牌 · 平台与钱包（原色 logo）
+    case wechat = "logo_wechat"
+    case alipay = "logo_alipay"
+    case qq = "logo_qq"
+    case taobao = "logo_taobao"
+    case meituan = "logo_meituan"
+    case xiaohongshu = "logo_xiaohongshu"
+    case bilibili = "logo_bilibili"
+    case kuaishou = "logo_kuaishou"
+
+    // MARK: 品牌 · 银行（已去掉「汉字+字组」，只保留图形符号）
+    case icbc = "logo_icbc"
+    case cmbchina = "logo_cmbchina"
+    case ccb = "logo_ccb"
+    case boc = "logo_boc"
+    case abchina = "logo_abchina"
+    case psbc = "logo_psbc"
+    case pingan = "logo_pingan"
+    case citicbank = "logo_citicbank"
+
+    // MARK: 品牌 · 信用（源库里没有，用品牌色合成，见文档待办）
+    case huabei = "logo_huabei"
+    case baitiao = "logo_baitiao"
+
     var id: String { rawValue }
     /// Asset Catalog 名
     var asset: String { rawValue }
+
+    /// 是否品牌 logo（真实品牌 / 合成品牌色块）
+    var isBrand: Bool { rawValue.hasPrefix("logo_") }
 
     var displayName: String {
         switch self {
@@ -134,6 +172,24 @@ enum AccountIcon: String, CaseIterable, Codable, Identifiable {
         case .wallet: "钱包"
         case .phone: "手机支付"
         case .shop: "购物平台"
+        case .wechat: "微信支付"
+        case .alipay: "支付宝"
+        case .qq: "QQ钱包"
+        case .taobao: "淘宝"
+        case .meituan: "美团"
+        case .xiaohongshu: "小红书"
+        case .bilibili: "哔哩哔哩"
+        case .kuaishou: "快手"
+        case .icbc: "工商银行"
+        case .cmbchina: "招商银行"
+        case .ccb: "建设银行"
+        case .boc: "中国银行"
+        case .abchina: "农业银行"
+        case .psbc: "邮储银行"
+        case .pingan: "平安银行"
+        case .citicbank: "中信银行"
+        case .huabei: "花呗"
+        case .baitiao: "京东白条"
         }
     }
 
@@ -147,11 +203,33 @@ enum AccountIcon: String, CaseIterable, Codable, Identifiable {
         case .wallet: "💰"
         case .phone: "📱"
         case .shop: "🛍️"
+        case .wechat: "💬"
+        case .alipay: "🅰️"
+        case .qq: "🐧"
+        case .taobao: "🛒"
+        case .meituan: "🍱"
+        case .xiaohongshu: "📕"
+        case .bilibili: "📺"
+        case .kuaishou: "🎬"
+        case .icbc, .cmbchina, .ccb, .boc, .abchina, .psbc, .pingan, .citicbank: "🏦"
+        case .huabei, .baitiao: "💳"
         }
     }
 
+    /// 通用图标（Fluent 3D）
+    static let generalIcons: [AccountIcon] = [.cash, .bank, .card, .wallet, .phone, .shop]
+    /// 品牌 · 平台与钱包
+    static let platformIcons: [AccountIcon] =
+        [.wechat, .alipay, .qq, .taobao, .meituan, .xiaohongshu, .bilibili, .kuaishou]
+    /// 品牌 · 银行
+    static let bankIcons: [AccountIcon] =
+        [.icbc, .cmbchina, .ccb, .boc, .abchina, .psbc, .pingan, .citicbank]
+    /// 品牌 · 信用（合成）
+    static let creditIcons: [AccountIcon] = [.huabei, .baitiao]
+
+    /// 选择器顺序（分组展示用）
     static let pickerOrder: [AccountIcon] =
-        [.none, .cash, .bank, .card, .wallet, .phone, .shop]
+        [.none] + generalIcons + platformIcons + bankIcons + creditIcons
 }
 
 @Model
@@ -194,33 +272,32 @@ final class Account {
     var dueDay: Int?                 // 信用账户还款日（2026-10-10 新增，D8：账单日/还款日分开）
     var creditLimit: Decimal?        // 仅信用卡；剩余额度 = creditLimit - |展示余额|
 
-    // 2026-10-11 卡包改造（照用户参考图「添加支付方式」）
-    var cardFaceRaw: String = ""     // 卡面 id；空 = 按类型取默认（CardFace.default(for:)）
-    var iconRaw: String = ""         // 账户图标（acct_*）；空 = 无
+    // 2026-10-11 账户图标
+    /// ⚠️ 历史遗留：曾是「卡面 id」。2026-10-11 资产页去卡片化后**不再读取**，
+    ///    仅保留存储属性以避免 SwiftData schema 变更导致旧数据迁移问题。
+    var cardFaceRaw: String = ""
+    var iconRaw: String = ""         // 账户图标（acct_* 通用 / logo_* 品牌）；空 = 无
     var cardLast4: String = ""       // 卡号后四位（可选）
     var isSelectable: Bool = true    // 记账时可选择（关闭后不在记一笔的付款方式里出现）
-    /// 创建时间 —— **卡堆排序依据**（用户 2026-10-11 定：按创建时间，不按信用/现金分组）
+    /// 创建时间 —— **资产页分组内排序依据**（用户 2026-10-11 定：按创建时间，不按信用/现金）
     var createdAt: Date = Date.now
 
     init(id: String = UUID().uuidString, name: String, brand: String = "",
          initialBalance: Decimal, kind: AccountKind,
          billDay: Int? = nil, dueDay: Int? = nil, creditLimit: Decimal? = nil,
-         cardFace: CardFace? = nil, icon: AccountIcon? = nil,
+         icon: AccountIcon? = nil,
          cardLast4: String = "", isSelectable: Bool = true,
          createdAt: Date = .now) {
         self.id = id; self.name = name; self.brand = brand
         self.initialBalance = initialBalance; self.kind = kind
         self.billDay = billDay; self.dueDay = dueDay; self.creditLimit = creditLimit
-        self.cardFaceRaw = (cardFace ?? CardFace.default(for: kind)).rawValue
         self.iconRaw = (icon ?? kind.defaultIcon).rawValue
         self.cardLast4 = cardLast4
         self.isSelectable = isSelectable
         self.createdAt = createdAt
     }
 
-    /// 已解析卡面（rawValue 失效时按类型兜底）
-    var cardFace: CardFace { CardFace(rawValue: cardFaceRaw) ?? CardFace.default(for: kind) }
-    /// 已解析图标
+    /// 已解析图标（rawValue 失效时退回「无」，由视图层再退到 emoji / 字块）
     var icon: AccountIcon { AccountIcon(rawValue: iconRaw) ?? .none }
 }
 

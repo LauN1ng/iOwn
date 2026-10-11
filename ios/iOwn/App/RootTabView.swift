@@ -192,26 +192,28 @@ struct RootTabView: View {
         guard txCount == 0 else { return }
         let calendar = Calendar.current
 
-        // M2-B3 样例账户（2026-10-11 v5：卡包改造——卡堆按 createdAt 排序，
-        // 故这里显式错开创建时间；卡面/图标由 AccountKind 默认值带出）
+        // M2-B3 样例账户（2026-10-11 v6：资产页去卡片化 → 分组列表。
+        // 图标显式指定品牌 logo —— `bankCard` 这类 kind 本身分不出是哪家银行，
+        // 只有显式给 icon 才能做到「一眼认出」）
         let accountCount = (try? modelContext.fetchCount(FetchDescriptor<Account>())) ?? 0
         if accountCount == 0 {
-            let demoAccounts: [(String, String, Decimal, AccountKind, Int?, Int?, Decimal?, String)] = [
-                ("支付宝", "记账自动联动", 12368.20, .alipay, nil, nil, nil, ""),
-                ("微信支付", "记账自动联动", 3274.35, .wechat, nil, nil, nil, ""),
-                ("招商银行", "工资卡", 24500.00, .bankCard, nil, nil, nil, "1234"),
-                ("招商信用卡", "每月 22 日还款", -3600.00, .creditCard, 2, 22, 15000, "6621"),
-                ("花呗", "每月 25 日还款", -7000.00, .huabei, 1, 25, 20000, ""),
-                ("京东白条", "每月 25 日还款", -1800.00, .baitiao, 1, 25, 5000, ""),
+            let demoAccounts: [(String, String, Decimal, AccountKind, Int?, Int?, Decimal?, String, AccountIcon)] = [
+                ("支付宝", "记账自动联动", 12368.20, .alipay, nil, nil, nil, "", .alipay),
+                ("微信支付", "记账自动联动", 3274.35, .wechat, nil, nil, nil, "", .wechat),
+                ("招商银行", "工资卡", 24500.00, .bankCard, nil, nil, nil, "1234", .cmbchina),
+                ("招商信用卡", "每月 22 日还款", -3600.00, .creditCard, 2, 22, 15000, "6621", .card),
+                ("花呗", "每月 25 日还款", -7000.00, .huabei, 1, 25, 20000, "", .huabei),
+                ("京东白条", "每月 25 日还款", -1800.00, .baitiao, 1, 25, 5000, "", .baitiao),
             ]
             for (i, d) in demoAccounts.enumerated() {
-                let (name, brand, balance, kind, billDay, dueDay, limit, last4) = d
+                let (name, brand, balance, kind, billDay, dueDay, limit, last4, icon) = d
                 modelContext.insert(Account(
                     name: name, brand: brand, initialBalance: balance,
                     kind: kind, billDay: billDay, dueDay: dueDay,
                     creditLimit: limit,
+                    icon: icon,
                     cardLast4: last4,
-                    // 越早创建的越靠上（卡堆顺序 = 创建时间）
+                    // 越早创建的越靠上（分组内排序 = 创建时间）
                     createdAt: Date().addingTimeInterval(-Double(demoAccounts.count - i) * 86_400)))
             }
         }
@@ -245,8 +247,8 @@ struct RootTabView: View {
         let fixedCount = (try? modelContext.fetchCount(FetchDescriptor<FixedExpense>())) ?? 0
         if fixedCount == 0 {
             let demoFixed: [(String, Decimal, Int, String)] = [
-                ("房租", 1230.50, 1, "🏠"),
-                ("视频会员", 25.00, 12, "📺"),
+                ("房租", 1230.50, 1, "sub_rent"),
+                ("视频会员", 25.00, 12, "sub_subscription"),
             ]
             for (i, d) in demoFixed.enumerated() {
                 modelContext.insert(FixedExpense(name: d.0, amount: d.1,
