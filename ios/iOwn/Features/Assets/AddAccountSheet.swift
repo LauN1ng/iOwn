@@ -1,8 +1,12 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
-/// B1 手动建户（也用于编辑账户）：类型宫格（品牌色块）+ 名称 + 备注 + 初始余额 + 信用额度/账单日
-/// 验收：建户 <30 秒——选类型即自动填默认名，信用账户才出额度/账单日字段
+/// 手动建户 / 编辑账户（2026-10-11 照用户参考图「添加支付方式」重做）
+///
+/// 结构：卡面预览（+ 更换卡面）→ 类型 → 图标 / 名称 / 备注 / 卡号后四位
+///      → 初始余额 / 币种 → 记账时可选择 →（信用类）额度 / 账单日 / 还款日。
+/// 卡面卡片即 Fluent 3D `CardFace`，与卡堆、账户详情页同一套视觉。
 struct AddAccountSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -13,11 +17,19 @@ struct AddAccountSheet: View {
     @State private var kind: AccountKind = .cash
     @State private var name = ""
     @State private var brand = ""
-    @State private var balanceStr = ""    // 现金类：余额；信用卡：当前已用（正数，存为负）
+    @State private var cardLast4 = ""
+    @State private var balanceStr = ""
     @State private var limitStr = ""
     @State private var billDay = 5
     @State private var dueDay = 25
-    @State private var didPickKind = false
+    @State private var cardFace: CardFace = .goldHoneycomb
+    @State private var icon: AccountIcon = .none
+    @State private var isSelectable = true
+
+    @State private var showFacePicker = false
+    @State private var showIconPicker = false
+
+    private let ciArgs = ProcessInfo.processInfo.arguments
 
     private var balanceValue: Decimal {
         guard let v = Double(balanceStr), v.isFinite else { return 0 }
@@ -27,24 +39,38 @@ struct AddAccountSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             SheetGrabber()
+            header
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    header
-                    kindGrid
-                    formFields
+                    preview
+                    kindRow
+                    basicSection
+                    balanceSection
+                    selectableSection
+                    if kind.isCredit { creditSection }
                     if editing != nil { deleteSection }
                 }
                 .padding(.horizontal, Radius.pagePadding)
-                .padding(.bottom, 30)
+                .padding(.bottom, 34)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.bg)
-        .onAppear(perform: prefillIfNeeded)
+        .onAppear(perform: onAppear)
+        .sheet(isPresented: $showFacePicker) {
+            CardFacePicker(selection: $cardFace)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+        }
+        .sheet(isPresented: $showIconPicker) {
+            AccountIconPicker(selection: $icon)
+                .presentationDetents([.fraction(0.45), .large])
+                .presentationDragIndicator(.hidden)
+        }
     }
 
-    // MARK: 头部
+    // MARK: 头部（照参考图：取消 / 标题 / 保存）
 
     private var header: some View {
         HStack {
@@ -52,19 +78,16 @@ struct AddAccountSheet: View {
                 Haptics.tap()
                 dismiss()
             } label: {
-                Image(systemName: "xmark")
-                    .scaledFont(15, weight: .semibold)
-                    .foregroundStyle(.secondary)
-                    .padding(8)
-                    .background(Theme.card)
-                    .clipShape(Circle())
+                Text("取消").scaledFont(15).foregroundStyle(.secondary)
             }
-            .buttonStyle(PressableButtonStyle(scale: 0.9))
-            .accessibilityLabel("关闭")
+            .buttonStyle(PressableButtonStyle(scale: 0.96))
+            .accessibilityLabel("取消")
+
             Spacer()
             Text(editing == nil ? "添加账户" : "编辑账户")
                 .scaledFont(17, weight: .bold)
             Spacer()
+
             Button {
                 save()
             } label: {
@@ -78,72 +101,126 @@ struct AddAccountSheet: View {
             .buttonStyle(PressableButtonStyle(scale: 0.95))
             .disabled(!canSave)
         }
+        .padding(.horizontal, Radius.pagePadding)
         .padding(.top, 6)
     }
 
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
-            && (editing != nil || !balanceStr.isEmpty)
     }
 
-    // MARK: 类型宫格
+    // MARK: 卡面预览 + 更换卡面
 
-    private var kindGrid: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("类型").scaledFont(13, weight: .semibold).foregroundStyle(.secondary)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 5), spacing: 10) {
-                ForEach(AccountKind.pickerOrder, id: \.rawValue) { k in
-                    Button {
-                        Haptics.tap()
-                        kind = k
-                        didPickKind = true
-                        if name.isEmpty || name == kind.defaultName { name = k.defaultName }
-                        if !k.isCredit { limitStr = "" }
-                    } label: {
-                        VStack(spacing: 6) {
-                            Text(k.logoChar)
-                                .scaledFont(17, weight: .bold)
-                                .foregroundStyle(.white)
-                                .frame(width: 40, height: 40)
-                                .background(Color(hex: k.brandColorHex))
-                                .cornerRadius(12)
-                                .accessibilityHidden(true)   // 装饰：类型名已念出
-                            Text(k.defaultName)
-                                .scaledFont(11, weight: .medium)
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
+    private var preview: some View {
+        VStack(spacing: 12) {
+            CardFront(name: name.isEmpty ? kind.defaultName : name,
+                      amountText: "¥" + Money.string(NSDecimalNumber(decimal: balanceValue).doubleValue),
+                      face: cardFace,
+                      iconName: icon.asset,
+                      logoChar: kind.logoChar,
+                      height: 168,
+                      cornerRadius: Radius.large)
+
+            Button { Haptics.tap(); showFacePicker = true } label: {
+                Text("更换卡面")
+                    .scaledFont(13.5, weight: .semibold)
+                    .foregroundStyle(Theme.greenText)
+                    .padding(.horizontal, 20).padding(.vertical, 9)
+                    .overlay(Capsule().stroke(Theme.greenText, lineWidth: 1.2))
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(PressableButtonStyle(scale: 0.96))
+            .accessibilityLabel("更换卡面")
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 4)
+    }
+
+    // MARK: 类型（信用语义依赖它，必须保留）
+
+    private var kindRow: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Text("类型").scaledFont(12.5, weight: .semibold).foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(AccountKind.pickerOrder, id: \.rawValue) { k in
+                        Button {
+                            Haptics.tap()
+                            kind = k
+                            if name.isEmpty || name == kind.defaultName { name = k.defaultName }
+                            cardFace = k.defaultCardFace
+                            icon = k.defaultIcon
+                            if !k.isCredit { limitStr = "" }
+                        } label: {
+                            HStack(spacing: 5) {
+                                if UIImage(named: k.defaultIcon.asset) != nil {
+                                    Image(k.defaultIcon.asset)
+                                        .resizable().scaledToFit().frame(width: 17, height: 17)
+                                }
+                                Text(k.defaultName).scaledFont(13, weight: .semibold)
+                            }
+                            .foregroundStyle(kind == k ? Color.white : Color.primary)
+                            .padding(.horizontal, 13).padding(.vertical, 8)
+                            .background(kind == k ? Theme.green : Theme.card)
+                            .cornerRadius(999)
                         }
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity)
-                        .background(kind == k ? Theme.greenSoft : Theme.card)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Radius.medium)
-                                .stroke(kind == k ? Theme.green : .clear, lineWidth: 1.5)
-                        )
-                        .cornerRadius(Radius.medium)
+                        .buttonStyle(PressableButtonStyle(scale: 0.96))
+                        .disabled(editing != nil)   // 编辑时类型不可改（余额推导依赖类型口径）
                     }
-                    .buttonStyle(PressableButtonStyle())
-                    .disabled(editing != nil)   // 编辑时类型不可改（余额推导依赖类型口径）
                 }
+                .padding(.horizontal, 2)
+                .padding(.vertical, 2)
             }
         }
     }
 
-    // MARK: 表单
+    // MARK: 图标 / 名称 / 备注 / 卡号后四位
 
-    private var formFields: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            fieldRow(label: "名称") {
+    private var basicSection: some View {
+        formCard {
+            row("图标") {
+                Button { Haptics.tap(); showIconPicker = true } label: {
+                    HStack(spacing: 6) {
+                        if icon != .none, UIImage(named: icon.asset) != nil {
+                            Image(icon.asset).resizable().scaledToFit().frame(width: 22, height: 22)
+                        }
+                        Text(icon.displayName).scaledFont(14).foregroundStyle(.secondary)
+                        Text("›").scaledFont(15).foregroundStyle(.tertiary)
+                    }
+                }
+                .buttonStyle(PressableButtonStyle(scale: 0.97))
+                .accessibilityLabel("选择图标，当前 \(icon.displayName)")
+            }
+            divider
+            row("名称") {
                 TextField(kind.defaultName, text: $name)
                     .scaledFont(15, weight: .semibold)
                     .multilineTextAlignment(.trailing)
             }
-            fieldRow(label: "备注") {
-                TextField("工资卡 · ··1234（可空）", text: $brand)
+            divider
+            row("备注") {
+                TextField("可选", text: $brand)
                     .scaledFont(14)
                     .multilineTextAlignment(.trailing)
             }
-            fieldRow(label: kind.isCredit ? "当前已用" : "初始余额") {
+            divider
+            row("卡号后四位") {
+                TextField("可选", text: $cardLast4)
+                    .keyboardType(.numberPad)
+                    .scaledFont(14)
+                    .multilineTextAlignment(.trailing)
+                    .onChange(of: cardLast4) { _, newValue in
+                        if newValue.count > 4 { cardLast4 = String(newValue.prefix(4)) }
+                    }
+            }
+        }
+    }
+
+    // MARK: 初始余额 / 币种
+
+    private var balanceSection: some View {
+        formCard {
+            row(kind.isCredit ? "当前已用" : "初始余额") {
                 HStack(spacing: 4) {
                     Text("¥").scaledFont(14, weight: .semibold).foregroundStyle(.secondary)
                     TextField(kind.isCredit ? "0" : "0.00", text: $balanceStr)
@@ -153,8 +230,40 @@ struct AddAccountSheet: View {
                         .monospacedDigit()
                 }
             }
-            if kind.isCredit {
-                fieldRow(label: "信用额度") {
+            divider
+            row("币种") {
+                Text("🇨🇳 人民币").scaledFont(14).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    // MARK: 记账时可选择
+
+    private var selectableSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            formCard {
+                HStack {
+                    Text("记账时可选择").scaledFont(14.5, weight: .medium)
+                    Spacer()
+                    Toggle("", isOn: $isSelectable)
+                        .labelsHidden()
+                        .tint(Theme.green)
+                }
+                .padding(.vertical, 2)
+            }
+            Text("关闭后，记账选择支付方式时不再显示它。")
+                .scaledFont(11.5).foregroundStyle(.tertiary)
+                .padding(.horizontal, 4)
+        }
+    }
+
+    // MARK: 信用类专属
+
+    @ViewBuilder
+    private var creditSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            formCard {
+                row("信用额度") {
                     HStack(spacing: 4) {
                         Text("¥").scaledFont(14, weight: .semibold).foregroundStyle(.secondary)
                         TextField("15000", text: $limitStr)
@@ -164,35 +273,26 @@ struct AddAccountSheet: View {
                             .monospacedDigit()
                     }
                 }
-                fieldRow(label: "账单日") {
+                divider
+                row("账单日") {
                     Picker("", selection: $billDay) {
                         ForEach(1...28, id: \.self) { Text("\($0) 日").tag($0) }
                     }
                     .pickerStyle(.menu)
                     .tint(.primary)
                 }
-                fieldRow(label: "还款日") {
+                divider
+                row("还款日") {
                     Picker("", selection: $dueDay) {
                         ForEach(1...28, id: \.self) { Text("\($0) 日").tag($0) }
                     }
                     .pickerStyle(.menu)
                     .tint(.primary)
                 }
-                Text("已用金额将记为负债（余额为负），剩余额度 = 额度 - 已用；账单日与还款日分开记录")
-                    .scaledFont(11.5)
-                    .foregroundStyle(.tertiary)
             }
-        }
-        .padding(16)
-        .background(Theme.card)
-        .cornerRadius(Radius.large)
-    }
-
-    private func fieldRow<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
-        HStack {
-            Text(label).scaledFont(14.5, weight: .medium)
-            Spacer()
-            content()
+            Text("已用金额将记为负债（余额为负），剩余额度 = 额度 - 已用；账单日与还款日分开记录")
+                .scaledFont(11.5).foregroundStyle(.tertiary)
+                .padding(.horizontal, 4)
         }
     }
 
@@ -227,16 +327,51 @@ struct AddAccountSheet: View {
         }
     }
 
+    // MARK: 表单构件
+
+    private func formCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 0) { content() }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+            .background(Theme.card)
+            .cornerRadius(Radius.large)
+    }
+
+    private func row<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 8) {
+            Text(label).scaledFont(14.5, weight: .medium)
+            Spacer(minLength: 8)
+            content()
+        }
+        .padding(.vertical, 10)
+    }
+
+    private var divider: some View {
+        Rectangle().fill(Theme.hairline).frame(height: 1)
+    }
+
     // MARK: 预填 / 保存
+
+    private func onAppear() {
+        prefillIfNeeded()
+        // CI 截图钩子：直接展开卡面选择器
+        if ciArgs.contains("-ci-open-face") { showFacePicker = true }
+    }
 
     private func prefillIfNeeded() {
         guard let acc = editing else {
             name = kind.defaultName
+            cardFace = kind.defaultCardFace
+            icon = kind.defaultIcon
             return
         }
         kind = acc.kind
         name = acc.name
         brand = acc.brand
+        cardLast4 = acc.cardLast4
+        cardFace = acc.cardFace
+        icon = acc.icon
+        isSelectable = acc.isSelectable
         billDay = acc.billDay ?? 5
         dueDay = acc.dueDay ?? 25
         let bal = NSDecimalNumber(decimal: acc.initialBalance).doubleValue
@@ -259,6 +394,10 @@ struct AddAccountSheet: View {
             acc.creditLimit = limit
             acc.billDay = kind.isCredit ? billDay : nil
             acc.dueDay = kind.isCredit ? dueDay : nil
+            acc.cardFaceRaw = cardFace.rawValue
+            acc.iconRaw = icon.rawValue
+            acc.cardLast4 = cardLast4
+            acc.isSelectable = isSelectable
             // 编辑不改 initialBalance（改余额请用转账/调整交易，保持推导口径干净）
         } else {
             // 信用卡：已用为正数输入，存为负向负债（B4）
@@ -266,10 +405,66 @@ struct AddAccountSheet: View {
             let acc = Account(name: trimmed, brand: brand, initialBalance: initial,
                               kind: kind, billDay: kind.isCredit ? billDay : nil,
                               dueDay: kind.isCredit ? dueDay : nil,
-                              creditLimit: limit)
+                              creditLimit: limit,
+                              cardFace: cardFace, icon: icon,
+                              cardLast4: cardLast4, isSelectable: isSelectable)
             modelContext.insert(acc)
         }
         try? modelContext.save()
         dismiss()
+    }
+}
+
+// MARK: - 账户图标选择器
+
+private struct AccountIconPicker: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var selection: AccountIcon
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 4)
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SheetGrabber()
+            Text("选择图标").scaledFont(17, weight: .bold).padding(.top, 6)
+
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(AccountIcon.pickerOrder, id: \.rawValue) { ic in
+                        Button {
+                            Haptics.tap()
+                            selection = ic
+                            dismiss()
+                        } label: {
+                            VStack(spacing: 6) {
+                                ZStack {
+                                    Circle()
+                                        .fill(ic == selection ? Theme.greenSoft : Theme.card)
+                                        .frame(width: 56, height: 56)
+                                    if ic == .none {
+                                        Text("无").scaledFont(14, weight: .semibold).foregroundStyle(.secondary)
+                                    } else if UIImage(named: ic.asset) != nil {
+                                        // ⚠️ 彩色 Fluent 贴图：不要加 .renderingMode(.template)
+                                        Image(ic.asset).resizable().scaledToFit().frame(width: 38, height: 38)
+                                    } else {
+                                        Text(ic.emoji).scaledFont(30)
+                                    }
+                                }
+                                .overlay(
+                                    Circle().stroke(ic == selection ? Theme.green : Color.clear, lineWidth: 2)
+                                )
+                                Text(ic.displayName)
+                                    .scaledFont(11.5)
+                                    .foregroundStyle(ic == selection ? Theme.greenText : .secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .buttonStyle(PressableButtonStyle(scale: 0.95))
+                    }
+                }
+                .padding(Radius.pagePadding)
+            }
+        }
+        .background(Theme.bg)
     }
 }

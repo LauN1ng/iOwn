@@ -153,9 +153,13 @@ struct RootTabView: View {
             if ciArgs.contains("-ci-open-credit-pay") {
                 showAdd = true
             }
-            // 建户半屏 sheet 截图钩子：建户入口已移到资产页右上角 ＋，
+            // 建户 / 卡面选择截图钩子：建户入口在资产页右上角 ＋，
             // 这里只负责切到资产页，由 AssetsView.onAppear 打开 sheet
-            if ciArgs.contains("-ci-open-account") {
+            if ciArgs.contains("-ci-open-account") || ciArgs.contains("-ci-open-face") {
+                selection = 2
+            }
+            // 现金账户详情页截图钩子（下钻目标，由 AssetsView.onAppear 打开）
+            if ciArgs.contains("-ci-open-cash") {
                 selection = 2
             }
             // 工资设置页截图钩子（到手薪资 + 调休节）
@@ -188,21 +192,27 @@ struct RootTabView: View {
         guard txCount == 0 else { return }
         let calendar = Calendar.current
 
-        // M2-B3 样例账户（2026-10-10 v4：花呗 / 白条与信用卡同为「信用账户」）
+        // M2-B3 样例账户（2026-10-11 v5：卡包改造——卡堆按 createdAt 排序，
+        // 故这里显式错开创建时间；卡面/图标由 AccountKind 默认值带出）
         let accountCount = (try? modelContext.fetchCount(FetchDescriptor<Account>())) ?? 0
         if accountCount == 0 {
-            let demoAccounts: [(String, String, Decimal, AccountKind, Int?, Int?, Decimal?)] = [
-                ("支付宝", "默认 · 记账自动联动", 12368.20, .alipay, nil, nil, nil),
-                ("微信支付", "默认 · 记账自动联动", 3274.35, .wechat, nil, nil, nil),
-                ("招商银行", "工资卡 · ··1234", 24500.00, .bankCard, nil, nil, nil),
-                ("信用卡", "账单日 2 日", -3600.00, .creditCard, 2, 22, 15000),
-                ("花呗", "账单日 1 日", -7000.00, .huabei, 1, 25, 20000),
-                ("京东白条", "账单日 1 日", -1800.00, .baitiao, 1, 25, 5000),
+            let demoAccounts: [(String, String, Decimal, AccountKind, Int?, Int?, Decimal?, String)] = [
+                ("支付宝", "记账自动联动", 12368.20, .alipay, nil, nil, nil, ""),
+                ("微信支付", "记账自动联动", 3274.35, .wechat, nil, nil, nil, ""),
+                ("招商银行", "工资卡", 24500.00, .bankCard, nil, nil, nil, "1234"),
+                ("招商信用卡", "每月 22 日还款", -3600.00, .creditCard, 2, 22, 15000, "6621"),
+                ("花呗", "每月 25 日还款", -7000.00, .huabei, 1, 25, 20000, ""),
+                ("京东白条", "每月 25 日还款", -1800.00, .baitiao, 1, 25, 5000, ""),
             ]
-            for (name, brand, balance, kind, billDay, dueDay, limit) in demoAccounts {
-                modelContext.insert(Account(name: name, brand: brand, initialBalance: balance,
-                                            kind: kind, billDay: billDay, dueDay: dueDay,
-                                            creditLimit: limit))
+            for (i, d) in demoAccounts.enumerated() {
+                let (name, brand, balance, kind, billDay, dueDay, limit, last4) = d
+                modelContext.insert(Account(
+                    name: name, brand: brand, initialBalance: balance,
+                    kind: kind, billDay: billDay, dueDay: dueDay,
+                    creditLimit: limit,
+                    cardLast4: last4,
+                    // 越早创建的越靠上（卡堆顺序 = 创建时间）
+                    createdAt: Date().addingTimeInterval(-Double(demoAccounts.count - i) * 86_400)))
             }
         }
 

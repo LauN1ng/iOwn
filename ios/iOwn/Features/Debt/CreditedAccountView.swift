@@ -41,11 +41,16 @@ struct CreditedAccountView: View {
     private var remainingPeriodsTotal: Int {
         plans.reduce(0) { $0 + DebtEngine.remainingPeriods($1) }
     }
+    /// 已分期部分（未还本金，不含手续费）—— 与 currentBill 相减的口径一致
+    private var planRemaining: Decimal {
+        plans.reduce(Decimal(0)) { $0 + DebtEngine.remainingPrincipal($1) }
+    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: Radius.cardSpacing) {
                 heroCard
+                totalOwedCard
                 currentBillCard
                 plansSection
                 if !plans.isEmpty { totalRow }
@@ -84,36 +89,54 @@ struct CreditedAccountView: View {
         }
     }
 
-    // MARK: 绿卡
+    // MARK: 绿卡 → 卡面 hero（2026-10-11：卡面统一走 Fluent 3D CardFace）
 
     private var heroCard: some View {
-        LinearGradient(colors: [Theme.green, Theme.greenDeep], startPoint: .top, endPoint: .bottom)
-            .overlay(alignment: .bottom) {
-                Ellipse().fill(Color.white.opacity(0.14))
-                    .frame(height: 44).frame(maxWidth: .infinity).offset(y: 34)
-            }
+        CardFaceView(face: account.cardFace, cornerRadius: Radius.large)
+            .frame(height: 178)
             .overlay {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("本月应还").scaledFont(12).foregroundStyle(.white.opacity(0.88))
+                    Text("本月应还").scaledFont(12).foregroundStyle(fgSoft)
                     Text("¥ \(Money.string(dec(monthlyDue)))")
                         .scaledFont(32, weight: .heavy, design: .rounded)
-                        .foregroundStyle(.white).monospacedDigit()
+                        .foregroundStyle(fg).monospacedDigit()
                         .padding(.top, 4)
                     Text("已用 ¥\(Money.string(dec(used)))" + limitText)
-                        .scaledFont(11.5).foregroundStyle(.white.opacity(0.85))
+                        .scaledFont(11.5).foregroundStyle(fgSoft)
                         .padding(.top, 5)
                     HStack {
                         Text("账单日 \(dayText(account.billDay))")
                         Spacer()
                         Text("还款日 \(dayText(account.dueDay))")
                     }
-                    .scaledFont(11).foregroundStyle(.white.opacity(0.9))
+                    .scaledFont(11).foregroundStyle(fgSoft)
                     .padding(.top, 12)
                 }
                 .padding(18)
             }
-            .frame(height: 178)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.large))
+            .shadow(color: .black.opacity(0.16), radius: 10, y: 6)
+    }
+
+    private var fg: Color { account.cardFace.foreground }
+    private var fgSoft: Color { account.cardFace.foregroundSoft }
+
+    /// 一共还欠（账户属性 —— 不是分期的属性）= 已分期未还本金 + 没分期的当期欠款
+    private var totalOwedCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("一共还欠").scaledFont(12.5).foregroundStyle(.secondary)
+                Spacer()
+                Text("¥\(Money.string(dec(used)))")
+                    .scaledFont(18, weight: .bold).monospacedDigit()
+            }
+            Text("其中 已分期 ¥" + Money.string(dec(planRemaining))
+                 + " · 没分期 ¥" + Money.string(dec(currentBill)))
+                .scaledFont(11).foregroundStyle(.secondary).monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(15)
+        .background(Theme.card)
+        .cornerRadius(Radius.large)
     }
 
     private var limitText: String {

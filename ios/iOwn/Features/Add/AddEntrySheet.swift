@@ -69,6 +69,8 @@ struct AddEntrySheet: View {
     // MARK: 信用支付联动（D18）
 
     private var selectedAccount: Account? { accounts.first { $0.id == selectedAccountID } }
+    /// 记账可选的付款方式（建户页「记账时可选择」关闭的账户不出现在这里）
+    private var payableAccounts: [Account] { accounts.filter { $0.isSelectable } }
     private var isCreditSelected: Bool { selectedAccount?.kind.isCredit == true }
 
     /// 花呗标准档总费率（与负债模块同一套口径）
@@ -358,10 +360,10 @@ struct AddEntrySheet: View {
             .padding(.horizontal, Radius.pagePadding)
 
             // B2 账户联动：选账户 → 余额自动扣减/增加
-            if !accounts.isEmpty {
+            if !payableAccounts.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(accounts, id: \.id) { acc in
+                        ForEach(payableAccounts, id: \.id) { acc in
                             let selected = selectedAccountID == acc.id
                             Button {
                                 Haptics.tap()

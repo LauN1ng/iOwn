@@ -94,6 +94,64 @@ enum AccountKind: String, Codable {
     /// 建户宫格顺序（含信用类）
     static let pickerOrder: [AccountKind] =
         [.cash, .bankCard, .wechat, .alipay, .creditCard, .huabei, .baitiao, .creditOther]
+
+    /// 建户默认卡面（2026-10-11 卡包改造：Fluent 3D 卡面）
+    var defaultCardFace: CardFace { CardFace.default(for: self) }
+
+    /// 建户默认图标（acct_* Fluent 3D 贴图）
+    var defaultIcon: AccountIcon {
+        switch self {
+        case .cash: .cash
+        case .bankCard: .bank
+        case .wechat, .alipay, .huabei: .phone
+        case .creditCard, .creditOther: .card
+        case .baitiao: .shop
+        }
+    }
+}
+
+/// 账户图标（Microsoft Fluent Emoji 3D，已入库 Assets.xcassets；asset 名即 rawValue）
+/// 找不到 asset 时由 CategoryIcon / 字块兜底。
+enum AccountIcon: String, CaseIterable, Codable, Identifiable {
+    case none = ""
+    case cash = "acct_cash"
+    case bank = "acct_bank"
+    case card = "acct_card"
+    case wallet = "acct_wallet"
+    case phone = "acct_phone"
+    case shop = "acct_shop"
+
+    var id: String { rawValue }
+    /// Asset Catalog 名
+    var asset: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .none: "无"
+        case .cash: "现金"
+        case .bank: "银行"
+        case .card: "信用卡"
+        case .wallet: "钱包"
+        case .phone: "手机支付"
+        case .shop: "购物平台"
+        }
+    }
+
+    /// asset 缺失时的 emoji 兜底
+    var emoji: String {
+        switch self {
+        case .none: ""
+        case .cash: "💵"
+        case .bank: "🏦"
+        case .card: "💳"
+        case .wallet: "💰"
+        case .phone: "📱"
+        case .shop: "🛍️"
+        }
+    }
+
+    static let pickerOrder: [AccountIcon] =
+        [.none, .cash, .bank, .card, .wallet, .phone, .shop]
 }
 
 @Model
@@ -136,13 +194,34 @@ final class Account {
     var dueDay: Int?                 // 信用账户还款日（2026-10-10 新增，D8：账单日/还款日分开）
     var creditLimit: Decimal?        // 仅信用卡；剩余额度 = creditLimit - |展示余额|
 
+    // 2026-10-11 卡包改造（照用户参考图「添加支付方式」）
+    var cardFaceRaw: String = ""     // 卡面 id；空 = 按类型取默认（CardFace.default(for:)）
+    var iconRaw: String = ""         // 账户图标（acct_*）；空 = 无
+    var cardLast4: String = ""       // 卡号后四位（可选）
+    var isSelectable: Bool = true    // 记账时可选择（关闭后不在记一笔的付款方式里出现）
+    /// 创建时间 —— **卡堆排序依据**（用户 2026-10-11 定：按创建时间，不按信用/现金分组）
+    var createdAt: Date = Date.now
+
     init(id: String = UUID().uuidString, name: String, brand: String = "",
          initialBalance: Decimal, kind: AccountKind,
-         billDay: Int? = nil, dueDay: Int? = nil, creditLimit: Decimal? = nil) {
+         billDay: Int? = nil, dueDay: Int? = nil, creditLimit: Decimal? = nil,
+         cardFace: CardFace? = nil, icon: AccountIcon? = nil,
+         cardLast4: String = "", isSelectable: Bool = true,
+         createdAt: Date = .now) {
         self.id = id; self.name = name; self.brand = brand
         self.initialBalance = initialBalance; self.kind = kind
         self.billDay = billDay; self.dueDay = dueDay; self.creditLimit = creditLimit
+        self.cardFaceRaw = (cardFace ?? CardFace.default(for: kind)).rawValue
+        self.iconRaw = (icon ?? kind.defaultIcon).rawValue
+        self.cardLast4 = cardLast4
+        self.isSelectable = isSelectable
+        self.createdAt = createdAt
     }
+
+    /// 已解析卡面（rawValue 失效时按类型兜底）
+    var cardFace: CardFace { CardFace(rawValue: cardFaceRaw) ?? CardFace.default(for: kind) }
+    /// 已解析图标
+    var icon: AccountIcon { AccountIcon(rawValue: iconRaw) ?? .none }
 }
 
 // MARK: - 负债与可支配（负债与可支配-方案-v1）
