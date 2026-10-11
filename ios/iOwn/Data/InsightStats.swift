@@ -128,6 +128,9 @@ enum InsightStats {
         let name: String
         let amount: Decimal
         let ratio: Double       // 0...1
+
+        /// Asset Catalog 图标名（Fluent Emoji 3D）
+        var iconName: String { "cat_" + id }
     }
 
     /// 当月按大类支出占比（降序，仅含 >0）

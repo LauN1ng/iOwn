@@ -26,8 +26,11 @@ struct SettingsView: View {
                     }
                     // 负债已并入「资产 → 信用账户」，不再单列入口（2026-10-10 v4）
                 }
-                Section("开发中") {
+                Section("关于") {
                     LabeledContent("版本", value: "自用版 0.4.0")
+                    Text("图标使用 Microsoft Fluent Emoji 素材。\nCopyright (c) Microsoft Corporation. Licensed under the MIT License.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 Section {
                     Text("数据只存在这台手机上。导出即备份。")

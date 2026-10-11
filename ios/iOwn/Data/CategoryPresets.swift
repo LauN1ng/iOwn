@@ -8,10 +8,17 @@ struct CategoryDef: Identifiable {
     let name: String
     let subs: [SubDef]
 
+    /// Asset Catalog 图标名（Microsoft Fluent Emoji 3D，见 `docs/图标方案-定案-v1.md`）
+    /// 找不到该 asset 时，视图层 `CategoryIcon` 会退回 `emoji`
+    var iconName: String { "cat_" + id }
+
     struct SubDef: Identifiable, Codable, Equatable {
         let id: String
         let emoji: String
         let name: String
+
+        /// 预设子类 → `sub_<id>`；用户自建子类（`custom-xxxx`）无对应 asset → 退回 `emoji`
+        var iconName: String { "sub_" + id }
     }
 }
 

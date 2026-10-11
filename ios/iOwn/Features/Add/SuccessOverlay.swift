@@ -49,9 +49,11 @@ struct SuccessOverlay: View {
                     .padding(.top, 8)
 
                 if let mood = info.mood {
-                    Text("\(mood.label) \(mood.emoji)")
-                        .scaledFont(14)
-                        .padding(.horizontal, 18).padding(.vertical, 9)
+                    HStack(spacing: 6) {
+                        CategoryIcon(mood, size: 18)
+                        Text(mood.label).scaledFont(14)
+                    }
+                    .padding(.horizontal, 18).padding(.vertical, 9)
                         .background(Theme.card)
                         .cornerRadius(999)
                         .shadow(color: .black.opacity(0.05), radius: 4, y: 2)

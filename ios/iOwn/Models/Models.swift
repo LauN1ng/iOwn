@@ -22,6 +22,8 @@ enum Mood: String, Codable, CaseIterable {
         case .normal: "普普通通"; case .satisfied: "超满足"; case .impulsive: "上头了"; case .lesson: "买教训"
         }
     }
+    /// Asset Catalog 图标名（Microsoft Fluent Emoji 3D）：mood_normal / mood_satisfied / …
+    var iconName: String { "mood_" + rawValue }
 }
 
 enum Source: String, Codable {

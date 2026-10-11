@@ -212,7 +212,7 @@ struct AddEntrySheet: View {
                         go(to: 1)
                     } label: {
                         VStack(spacing: 8) {
-                            Text(cat.emoji).scaledFont(34).accessibilityHidden(true)  // 装饰：名称已念出
+                            CategoryIcon(cat, size: 40).accessibilityHidden(true)  // 装饰：名称已念出
                             Text(cat.name).scaledFont(12.5, weight: .medium)
                                 .foregroundStyle(.primary)
                         }
@@ -299,7 +299,7 @@ struct AddEntrySheet: View {
                             sub = s
                         } label: {
                             HStack(spacing: 6) {
-                                Text(s.emoji).scaledFont(16).accessibilityHidden(true)
+                                CategoryIcon(s, size: 19).accessibilityHidden(true)
                                 Text(s.name).scaledFont(13.5, weight: .medium)
                             }
                             .padding(.horizontal, 14).padding(.vertical, 9)
@@ -335,12 +335,17 @@ struct AddEntrySheet: View {
                     Haptics.tap()
                     mood = mood?.next() ?? .normal   // 心情轮换（A3）：nil→😐→🥰→🤯→😤→nil
                 } label: {
-                    Text(mood.map { "\($0.emoji) \($0.label)" } ?? "心情＋")
-                        .scaledFont(12)
-                        .foregroundStyle(mood == nil ? Color.secondary : Color.primary)
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(Theme.bg)
-                        .cornerRadius(999)
+                    HStack(spacing: 5) {
+                        if let mood {
+                            CategoryIcon(mood, size: 15)
+                        }
+                        Text(mood?.label ?? "心情＋")
+                            .scaledFont(12)
+                    }
+                    .foregroundStyle(mood == nil ? Color.secondary : Color.primary)
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(Theme.bg)
+                    .cornerRadius(999)
                 }
                 .buttonStyle(PressableButtonStyle(scale: 0.94))
                 .accessibilityLabel(mood.map { "心情：\($0.label)" } ?? "添加心情")

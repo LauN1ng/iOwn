@@ -214,8 +214,9 @@ struct HomeView: View {
             let sign = tx.type == .out ? "" : "+"
             let accountName = accounts.first { $0.id == tx.accountID }?.name
             HStack(spacing: 12) {
-                Text(sub?.emoji ?? cat?.emoji ?? "🏷️")
-                    .scaledFont(20)
+                CategoryIcon(asset: sub?.iconName ?? cat?.iconName,
+                             fallback: sub?.emoji ?? cat?.emoji ?? "🏷️",
+                             size: 26)
                     .frame(width: 42, height: 42)
                     .background(Theme.iconBg)
                     .cornerRadius(14)
@@ -233,12 +234,14 @@ struct HomeView: View {
                 Spacer(minLength: 8)
 
                 if let mood = tx.mood {
-                    Text("\(mood.label) \(mood.emoji)")
-                        .scaledFont(11)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8).padding(.vertical, 2)
-                        .background(Theme.bg)
-                        .cornerRadius(999)
+                    HStack(spacing: 4) {
+                        CategoryIcon(mood, size: 14)
+                        Text(mood.label).scaledFont(11)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8).padding(.vertical, 2)
+                    .background(Theme.bg)
+                    .cornerRadius(999)
                 }
 
                 // 还款流水标注：它不是消费，洞察统计已排除（Source.repayment）

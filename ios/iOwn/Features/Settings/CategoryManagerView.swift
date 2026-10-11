@@ -24,7 +24,10 @@ struct CategoryManagerView: View {
                             .foregroundStyle(Theme.greenText)
                     }
                 } header: {
-                    Text("\(cat.emoji) \(cat.name)")
+                    HStack(spacing: 6) {
+                        CategoryIcon(cat, size: 20)
+                        Text(cat.name)
+                    }
                 }
             }
             Section {
@@ -59,7 +62,7 @@ struct CategoryManagerView: View {
             Button("取消", role: .cancel) { pendingRemove = nil }
         } message: {
             if let (_, sub) = pendingRemove {
-                Text("删除「\(sub.emoji) \(sub.name)」？")
+                Text("删除「\(sub.name)」？")
             }
         }
     }
@@ -72,8 +75,11 @@ struct CategoryManagerView: View {
                 pendingRemove = (cat, sub)
             } label: {
                 HStack {
-                    Text("\(sub.emoji) \(sub.name)").scaledFont(15)
-                        .foregroundStyle(.primary)
+                    HStack(spacing: 8) {
+                        CategoryIcon(sub, size: 22)
+                        Text(sub.name).scaledFont(15)
+                    }
+                    .foregroundStyle(.primary)
                     Spacer()
                     Image(systemName: "minus.circle")
                         .foregroundStyle(Theme.redText)
@@ -82,7 +88,10 @@ struct CategoryManagerView: View {
             }
         } else {
             HStack {
-                Text("\(sub.emoji) \(sub.name)").scaledFont(15)
+                HStack(spacing: 8) {
+                    CategoryIcon(sub, size: 22)
+                    Text(sub.name).scaledFont(15)
+                }
                 Spacer()
                 Text("预设").scaledFont(11).foregroundStyle(.secondary)
             }
@@ -106,9 +115,12 @@ struct AddCustomSubSheet: View {
         VStack(spacing: 0) {
             SheetGrabber()
             VStack(alignment: .leading, spacing: 16) {
-                Text("\(category.emoji) \(category.name) · 新子类")
-                    .scaledFont(17, weight: .bold)
-                    .padding(.top, 4)
+                HStack(spacing: 8) {
+                    CategoryIcon(category, size: 24)
+                    Text("\(category.name) · 新子类")
+                        .scaledFont(17, weight: .bold)
+                }
+                .padding(.top, 4)
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("图标").scaledFont(12).foregroundStyle(.secondary)

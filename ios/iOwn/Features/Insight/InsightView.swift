@@ -220,7 +220,7 @@ struct InsightView: View {
             } else {
                 ForEach(moods, id: \.mood) { item in
                     HStack(spacing: 6) {
-                        Text(item.mood.emoji).scaledFont(16).accessibilityHidden(true)
+                        CategoryIcon(item.mood, size: 19).accessibilityHidden(true)
                         Text(item.mood.label).scaledFont(12).foregroundStyle(.primary)
                             .lineLimit(1)
                         Spacer(minLength: 4)
@@ -259,7 +259,8 @@ struct InsightView: View {
                 ForEach(shares) { s in
                     VStack(spacing: 6) {
                         HStack(spacing: 6) {
-                            Text(s.emoji).scaledFont(14).accessibilityHidden(true)
+                            CategoryIcon(asset: s.iconName, fallback: s.emoji, size: 18)
+                                .accessibilityHidden(true)
                             Text(s.name).scaledFont(13).foregroundStyle(.primary)
                             Spacer()
                             Text("\(Int((s.ratio * 100).rounded()))%")
