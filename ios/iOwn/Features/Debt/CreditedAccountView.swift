@@ -53,7 +53,7 @@ struct CreditedAccountView: View {
             }
             .padding(.horizontal, Radius.pagePadding)
             .padding(.top, 8)
-            .padding(.bottom, 150)
+            .padding(.bottom, 40)   // 资产 Tab 已无 FAB（FAB 只在非资产 Tab 显示）
         }
         .background(Theme.bg)
         .navigationTitle(account.name)

@@ -165,7 +165,7 @@ struct AddInstallmentSheet: View {
     @ViewBuilder
     private var accountPicker: some View {
         if creditAccounts.isEmpty {
-            Text("还没有信用账户 —— 先到资产页右下角 $ 新建一个信用卡 / 花呗 / 白条")
+            Text("还没有信用账户 —— 先到资产页右上角 ＋ 新建一个信用卡 / 花呗 / 白条")
                 .scaledFont(12.5).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)

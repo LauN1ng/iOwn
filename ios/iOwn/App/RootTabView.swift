@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// 4 Tab 骨架：线索 / 洞察 / 资产 / 设置 + 绿 FAB（记一笔；资产页变琥珀 $ 建户）
+/// 4 Tab 骨架：线索 / 洞察 / 资产 / 设置 + 绿 FAB（记一笔；**资产页不显示 FAB**，建户在资产页右上角 ＋）
 /// 2026-10-10 v4：负债不再是独立 Tab —— 它并入资产页的「信用账户」，
 /// 点进任一信用账户 = 原来的负债页（当期欠款 + 分期 + 还款）。
 /// 视觉对照物：site/prototype-v3.html
@@ -10,7 +10,6 @@ struct RootTabView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var selection = 0
     @State private var showAdd = false
-    @State private var showAddAccount = false      // M2：资产页 $ FAB → 建户
     @State private var savedInfo: SavedEntryInfo?
     @State private var showSuccess = false
     // E5 分类管理（sheet）
@@ -32,33 +31,31 @@ struct RootTabView: View {
             }
             .tint(Theme.greenText)
 
-            // FAB：线索/洞察/设置 = 绿 +（记一笔）；资产页 = 琥珀 $（建户）
-            Button {
-                Haptics.tap()
-                if selection == 2 {
-                    showAddAccount = true
-                } else {
+            // FAB：绿 +（记一笔）。**资产页不显示** ——
+            // 原先资产页是琥珀 $（建户），它会盖住滚到该位置的账户行金额；
+            // 建户入口已移到资产页右上角 ＋（见 AssetsView toolbar）。
+            if selection != 2 {
+                Button {
+                    Haptics.tap()
                     showAdd = true
+                } label: {
+                    Image(systemName: "plus")
+                        .scaledFont(24, weight: .bold)
+                        .foregroundStyle(.white)
+                        .frame(width: 56, height: 56)
+                        .background(Theme.green)
+                        .clipShape(Circle())
+                        // 环形"挖空"：FAB 会盖住滚到该位置的流水行金额，加一圈页面底色描边
+                        // 把它读成浮在最上层的一层，而不是和行内文字糊在一起
+                        .overlay(Circle().stroke(Theme.bg, lineWidth: 3))
+                        .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
                 }
-            } label: {
-                Image(systemName: selection == 2 ? "dollarsign" : "plus")
-                    .scaledFont(24, weight: .bold)
-                    .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-                    .background(selection == 2 ? Theme.amber : Theme.green)
-                    .clipShape(Circle())
-                    // 环形"挖空"：FAB 会盖住滚到该位置的账户行金额，加一圈页面底色描边
-                    // 把它读成浮在最上层的一层，而不是和行内文字糊在一起
-                    .overlay(Circle().stroke(Theme.bg, lineWidth: 3))
-                    .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
+                .buttonStyle(PressableButtonStyle(scale: 0.92))
+                .accessibilityLabel("记一笔")
+                .accessibilityHint("快速记一笔账")
+                .padding(.trailing, 18)
+                .padding(.bottom, 76)
             }
-            .buttonStyle(PressableButtonStyle(scale: 0.92))
-            .accessibilityLabel(selection == 2 ? "添加账户" : "记一笔")
-            .accessibilityHint(selection == 2 ? "新建账户" : "快速记一笔账")
-            // 切 Tab 时 FAB 换色/换图标：让颜色渐变而非硬切
-            .animation(Motion.fade, value: selection)
-            .padding(.trailing, 18)
-            .padding(.bottom, 76)
 
             // 成功屏（A4）：覆盖全屏，1.9s 自动返回（CI 截图模式常驻）
             if showSuccess, let info = savedInfo {
@@ -83,11 +80,6 @@ struct RootTabView: View {
             }
             .presentationDetents([.fraction(0.68), .large])
             .presentationDragIndicator(.hidden)   // 自绘 grabber 已有，隐藏系统把手防双条
-        }
-        .sheet(isPresented: $showAddAccount) {
-            AddAccountSheet()
-                .presentationDetents([.fraction(0.68), .large])
-                .presentationDragIndicator(.hidden)
         }
         .sheet(isPresented: $showCatManager) {
             NavigationStack { CategoryManagerView() }
@@ -149,10 +141,10 @@ struct RootTabView: View {
             if ciArgs.contains("-ci-open-credit-pay") {
                 showAdd = true
             }
-            // 建户半屏 sheet 截图钩子（资产页 + 自动展开 AddAccountSheet）
+            // 建户半屏 sheet 截图钩子：建户入口已移到资产页右上角 ＋，
+            // 这里只负责切到资产页，由 AssetsView.onAppear 打开 sheet
             if ciArgs.contains("-ci-open-account") {
                 selection = 2
-                showAddAccount = true
             }
             // 工资设置页截图钩子（到手薪资 + 调休节）
             if ciArgs.contains("-ci-open-wage") {

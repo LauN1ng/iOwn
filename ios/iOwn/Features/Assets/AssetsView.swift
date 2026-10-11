@@ -15,6 +15,7 @@ struct AssetsView: View {
 
     @State private var editingAccount: Account?
     @State private var showTransfer = false
+    @State private var showAddAccount = false   // 右上角 ＋ → 建户（原先是右下琥珀 $ FAB）
     @State private var hidden = false          // 👁 隐私遮挡
     @State private var cashExpanded = true
     @State private var creditExpanded = true
@@ -40,7 +41,7 @@ struct AssetsView: View {
 
                     if accounts.isEmpty {
                         EmptyStateCard(icon: "💳", title: "还没有账户",
-                                       hint: "点右下角 $ 添加第一个账户")
+                                       hint: "点右上角 ＋ 添加第一个账户")
                     } else {
                         // 信用账户在前：负债是"资产页的另一个视角"，且是需要关注的数字
                         if !creditAccounts.isEmpty {
@@ -61,11 +62,21 @@ struct AssetsView: View {
                 }
                 .padding(.horizontal, Radius.pagePadding)
                 .padding(.top, 8)
-                .padding(.bottom, 150)   // 让开右下 FAB（底 76 + 高 56）与 TabBar，避免转账胶囊被切
+                .padding(.bottom, 40)   // 资产页已无 FAB（FAB 只在非资产 Tab 显示），无需再让开 56+76
             }
             .background(Theme.bg)
             // v1.4 头部统一：与线索/洞察/设置一致走系统 large title，不再自绘居中标题
             .navigationTitle("资产")
+            // 建户入口（2026-10-11：右下琥珀 $ FAB 已删 —— 它会盖住账户行金额；
+            // 改为导航栏 ＋，与信用账户详情页「添加分期」的 ＋ 位置一致）
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { Haptics.tap(); showAddAccount = true } label: {
+                        Image(systemName: "plus").scaledFont(16, weight: .semibold)
+                    }
+                    .accessibilityLabel("添加账户")
+                }
+            }
             // CI 钩子下钻目标（正常使用走 NavigationLink，见 accountGroup / fixedEntry）
             .navigationDestination(isPresented: $showCreditDetail) {
                 if let acc = ciCredit { CreditedAccountView(account: acc) }
@@ -75,7 +86,11 @@ struct AssetsView: View {
             }
         }
         // 半屏 sheet（与记一笔统一）：不盖主屏，保留背后资产页上下文；可上拖全屏
-        // 注意：建户入口已收敛为右下琥珀 $ FAB（RootTabView 持有），此处不再重复挂建户 sheet
+        .sheet(isPresented: $showAddAccount) {
+            AddAccountSheet()
+                .presentationDetents([.fraction(0.68), .large])
+                .presentationDragIndicator(.hidden)
+        }
         .sheet(item: $editingAccount) { acc in
             AddAccountSheet(editing: acc)
                 .presentationDetents([.fraction(0.68), .large])
@@ -85,6 +100,8 @@ struct AssetsView: View {
             .presentationDetents([.fraction(0.68), .large])
             .presentationDragIndicator(.hidden)
         .onAppear {
+            // 建户 sheet 截图钩子（入口已从 FAB 移到本页右上角 ＋）
+            if ciArgs.contains("-ci-open-account") { showAddAccount = true }
             guard ciArgs.contains("-ci-open-credit") || ciArgs.contains("-ci-open-fixed") else { return }
             // 等 RootTabView 把 demo 数据落库后再取账户（onAppear 顺序不保证）
             Task { @MainActor in

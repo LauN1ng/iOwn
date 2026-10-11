@@ -94,20 +94,8 @@ struct AddEntrySheet: View {
         return payFull ? .creditFull : .creditInstallment
     }
 
-    /// 落地负债：只有「分期」才新建计划；全额下期靠账户余额自动进当期欠款。
-    /// 编辑已有分期笔时同步本金，避免与 Tx 金额漂移。
-    private func syncLiability(for tx: Tx) {
-        guard let acc = selectedAccount, acc.kind.isCredit else { return }
-        guard tx.payMethod == .creditInstallment else { return }
-        if let id = tx.liabilityID, let existing = liabilities.first(where: { $0.id == id }) {
-            existing.principal = tx.amount
-            if !tx.note.isEmpty { existing.name = tx.note }
-        } else {
-            _ = LiabilityLinker.apply(tx: tx, account: acc, periods: installmentPeriods,
-                                      feeRate: Decimal(standardRate(installmentPeriods)),
-                                      context: modelContext)
-        }
-    }
+    /// 落地负债：已抽到 `EntryWriter`（Data 层），UI 与 CI 自检共用同一段代码。
+    /// 这里不再持有实现 —— 见 `Data/EntryWriter.swift`。
 
     private func dec(_ d: Decimal) -> Double { NSDecimalNumber(decimal: d).doubleValue }
 
@@ -576,34 +564,24 @@ struct AddEntrySheet: View {
             streak: Self.streakDays(modelContext)
         )
 
-        let method = paymentMethod
+        // 落库核心在 Data 层（EntryWriter）—— CI 自检走的也是这一段，测的就是跑的
+        let draft = TxDraft(
+            amount: Decimal(amountCents) / 100,
+            isOut: isOut,
+            categoryID: category.id,
+            subID: sub?.id,
+            note: note,
+            mood: mood,
+            accountID: selectedAccountID,
+            date: date,
+            payMethod: paymentMethod,
+            installmentPeriods: installmentPeriods,
+            installmentFeeRate: Decimal(standardRate(installmentPeriods))
+        )
         if let tx = editing {
-            // B2 改账：原地更新字段；余额为推导值，无需手动回滚
-            tx.amount = Decimal(amountCents) / 100
-            tx.type = isOut ? .out : .in
-            tx.categoryID = category.id
-            tx.subID = sub?.id
-            tx.note = note
-            tx.mood = mood
-            tx.accountID = selectedAccountID
-            tx.date = date
-            tx.payMethodRaw = method.rawValue      // D18
-            syncLiability(for: tx)
+            EntryWriter.update(tx, with: draft, into: modelContext)
         } else {
-            let tx = Tx(
-                amount: Decimal(amountCents) / 100,
-                type: isOut ? .out : .in,
-                categoryID: category.id,
-                subID: sub?.id,
-                note: note,
-                mood: mood,
-                accountID: selectedAccountID,   // B2：挂账户 → 余额自动联动
-                date: date,
-                source: .manual,
-                payMethod: method               // D18：信用支付 / 分期
-            )
-            modelContext.insert(tx)
-            syncLiability(for: tx)              // 分期时自动在账户名下建一笔计划
+            EntryWriter.insert(draft, into: modelContext)
         }
         try? modelContext.save()
         return info
