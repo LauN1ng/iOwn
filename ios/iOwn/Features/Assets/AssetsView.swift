@@ -185,11 +185,11 @@ struct AssetsView: View {
 
     private func accountGroup(title: String, list: [Account], expanded: Binding<Bool>,
                               isCredit: Bool = false) -> some View {
-        let headerRight = isCredit
-            ? (hidden ? "¥ ****"
-                      : "本月应还 ¥\(money(DebtEngine.monthlyDueAll(accounts: list,
-                                                                     liabilities: liabilities,
-                                                                     txs: txs)))")
+        // ⚠️ 不要把字符串插值写跨行：单行字面量 "..." 的 \( ) 内不允许换行
+        // （只有多行字面量 """ 才可以）→ 先算值再拼串
+        let due = DebtEngine.monthlyDueAll(accounts: list, liabilities: liabilities, txs: txs)
+        let headerRight: String = isCredit
+            ? (hidden ? "¥ ****" : "本月应还 ¥\(money(due))")
             : groupTotalText(title: title, list: list)
         return VStack(spacing: 10) {
             Button {
