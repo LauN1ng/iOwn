@@ -145,6 +145,10 @@ struct RootTabView: View {
             if ciArgs.contains("-ci-open-amount") {
                 showAdd = true
             }
+            // D18 截图钩子：记一笔 + 预选信用账户 + 分期 12 期（sheet 内的 prefill 见 AddEntrySheet）
+            if ciArgs.contains("-ci-open-credit-pay") {
+                showAdd = true
+            }
             // 建户半屏 sheet 截图钩子（资产页 + 自动展开 AddAccountSheet）
             if ciArgs.contains("-ci-open-account") {
                 selection = 2

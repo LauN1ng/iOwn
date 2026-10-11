@@ -517,13 +517,14 @@ enum BalanceEngine {
         return sum
     }
 
+    /// 资产负债表口径（存量）。**不含「可支配」** ——
+    /// 可支配是月度流量（到手薪资 − 信用应还 − 固定支出），见 `DebtEngine.disposable(takeHomePay:accounts:liabilities:txs:fixedExpenses:)`；
+    /// 旧版本这里有个 `disposable = net` 的字段，导致资产页把净资产当可支配显示，2026-10-11 已删除。
+    /// 「借出/借入」也待有真实功能时再加（原先恒为 0，白占指标卡）。
     struct Totals {
         var totalAssets: Decimal      // Σ现金类余额
         var totalDebt: Decimal        // Σ|信用类余额|
         var net: Decimal              // 总资产 - 总负债
-        var disposable: Decimal       // 净资产 + 借入 - 借出（借出/借入预留 0）
-        var lent: Decimal             // 借出（预留）
-        var borrowed: Decimal         // 借入（预留）
     }
 
     static func totals(accounts: [Account], txs: [Tx]) -> Totals {
@@ -532,8 +533,6 @@ enum BalanceEngine {
             let bal = displayBalance(of: acc, txs: txs)
             if acc.kind.isCredit { debt += abs(bal) } else { assets += bal }
         }
-        let net = assets - debt
-        return Totals(totalAssets: assets, totalDebt: debt, net: net,
-                      disposable: net, lent: 0, borrowed: 0)
+        return Totals(totalAssets: assets, totalDebt: debt, net: assets - debt)
     }
 }

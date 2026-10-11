@@ -37,7 +37,6 @@ struct AssetsView: View {
                 VStack(spacing: Radius.cardSpacing) {
                     netCard
                     trendLink
-                    metricCard
 
                     if accounts.isEmpty {
                         EmptyStateCard(icon: "💳", title: "还没有账户",
@@ -185,30 +184,6 @@ struct AssetsView: View {
         }
         .buttonStyle(PressableButtonStyle(scale: 0.98))
         .accessibilityLabel("查看净资产趋势")
-    }
-
-    // MARK: 四指标卡（2×2）：可支配/负债/借出/借入
-
-    private var metricCard: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
-                  spacing: 14) {
-            metric("可支配", hidden ? "¥ ****" : "¥ \(money(totals.disposable))", .green)
-            metric("负债", hidden ? "¥ ****" : "-¥ \(money(totals.totalDebt))", .red)
-            metric("借出", hidden ? "¥ ****" : "¥ \(money(totals.lent))", .blue)
-            metric("借入", hidden ? "¥ ****" : "¥ \(money(totals.borrowed))", .blue)
-        }
-        .padding(16)
-        .background(Theme.card)
-        .cornerRadius(Radius.large)
-    }
-
-    private func metric(_ k: String, _ v: String, _ color: ThemeAccent) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(k).scaledFont(12.5).foregroundStyle(.secondary)
-            Text(v).scaledFont(19, weight: .bold).foregroundStyle(color.color).monospacedDigit()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)   // 读作「可支配 ¥38,642.55」而非两段
     }
 
     // MARK: 账户组（现金/信用）
@@ -390,15 +365,6 @@ struct AssetsView: View {
     }
 
     // MARK: 工具
-
-    private enum ThemeAccent {
-        case green, red, blue
-        var color: Color {
-            switch self {
-            case .green: Theme.greenText; case .red: Theme.redText; case .blue: Theme.blueText
-            }
-        }
-    }
 
     /// 千分位金额（资产页数值大，¥ 38,642.55）
     /// 统一走共享 Money.string —— 原先这里另建了一个 NumberFormatter，与首页/成功屏口径漂移

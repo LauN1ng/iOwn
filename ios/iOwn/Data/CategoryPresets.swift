@@ -26,7 +26,7 @@ struct CategoryDef: Identifiable {
 /// A5：`all` 为计算属性，把 CustomSubStore 的自定义子类合并进各大类尾部
 enum CategoryPresets {
     private static let base: [CategoryDef] = [
-        CategoryDef(id: "fixed", emoji: "🔒", name: "固定支出", subs: [
+        CategoryDef(id: "fixed", emoji: "🏡", name: "固定支出", subs: [
             .init(id: "rent", emoji: "🏠", name: "房租"),
             .init(id: "utility", emoji: "💡", name: "水电费"),
             .init(id: "subscription", emoji: "📺", name: "订阅会员"),
