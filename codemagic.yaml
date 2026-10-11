@@ -111,14 +111,16 @@ workflows:
           shot 11-wage-settings.png 6 -ci-demo-data -ci-open-wage
           # 12 工资设置页滚到节假日数据
           shot 12-wage-holiday.png 8 -ci-demo-data -ci-open-wage -ci-wage-bottom
-          # 13 负债页（按项目）
-          shot 13-debt.png 6 -ci-demo-data -ci-tab-debt
-          # 14 负债页（按月份 · 未来 12 个月预测）
-          shot 14-debt-month.png 6 -ci-demo-data -ci-tab-month
-          # 15 建档页（半屏：分期换算 + 两个关键日期）
-          shot 15-liability-add.png 6 -ci-demo-data -ci-open-liability
-          # 16 首页（压缩版「本月可支配」卡）
-          shot 16-home-disposable.png 6 -ci-demo-data
+          # 13 信用账户详情（= 原「负债页」：绿卡 + 只读当期欠款 + 分期笔 + 还款）
+          shot 13-credit-detail.png 8 -ci-demo-data -ci-tab-assets -ci-open-credit
+          # 14 固定支出 / 订阅（独立模块，明确"不是负债"）
+          shot 14-fixed-expense.png 8 -ci-demo-data -ci-tab-assets -ci-open-fixed
+          # 15 添加分期（半屏：两种输入模式 + 试算）
+          shot 15-installment-add.png 6 -ci-demo-data -ci-open-installment
+          # 16 记一笔 · 选中信用账户（D18：全额下期 / 分期 N 期）
+          shot 16-entry-credit-pay.png 6 -ci-demo-data -ci-open-credit-pay
+          # 17 首页（「本月可支配」新口径：信用应还 + 固定支出）
+          shot 17-home-disposable.png 6 -ci-demo-data
 
           # 诊断：读 app UserDefaults，确认 holiday-cn 是否写入缓存
           echo "== app UserDefaults (holiday) =="

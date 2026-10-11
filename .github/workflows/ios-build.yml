@@ -126,35 +126,41 @@ jobs:
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-wage -ci-wage-bottom
           sleep 8
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/12-wage-holiday.png
-          # 13) 诊断：读 app UserDefaults，确认 holiday-cn 是否写入缓存
+          # 诊断：读 app UserDefaults，确认 holiday-cn 是否写入缓存
           echo "== app UserDefaults (holiday) =="
           APP_DATA=$(xcrun simctl get_app_container "${{ steps.sim.outputs.udid }}" "$BID" data 2>/dev/null || true)
           echo "container: $APP_DATA"
           plutil -p "$APP_DATA/Library/Preferences/$BID.plist" 2>/dev/null | grep -i holiday || echo "  (no holiday keys)"
-          # 14) 负债页（按项目）——负债与可支配
+          # 13) 信用账户详情（= 原「负债页」：绿卡 + 只读当期欠款 + 分期笔 + 还款）
           xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
           sleep 1
-          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-debt
-          sleep 6
-          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/13-debt.png
-          # 15) 负债页（按月份 · 未来 12 个月预测）
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-assets -ci-open-credit
+          sleep 8
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/13-credit-detail.png
+          # 14) 固定支出 / 订阅（独立模块：明确"不是负债"）
           xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
           sleep 1
-          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-month
-          sleep 6
-          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/14-debt-month.png
-          # 16) 建档页（半屏：分期换算 + 两个关键日期）
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-assets -ci-open-fixed
+          sleep 8
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/14-fixed-expense.png
+          # 15) 添加分期（半屏：我知道本金 / 我只知道每期 两种输入模式 + 试算）
           xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
           sleep 1
-          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-liability
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-installment
           sleep 6
-          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/15-liability-add.png
-          # 17) 首页（压缩版「本月可支配」卡）
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/15-installment-add.png
+          # 16) 记一笔 · 选中信用账户（D18：全额下期 / 分期 N 期 + 年化试算）
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-credit-pay
+          sleep 6
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/16-entry-credit-pay.png
+          # 17) 首页（「本月可支配」新口径：信用应还 + 固定支出）
           xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
           sleep 1
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data
           sleep 6
-          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/16-home-disposable.png
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/17-home-disposable.png
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
       - name: Build unsigned IPA (Release, device)

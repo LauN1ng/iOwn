@@ -47,6 +47,9 @@ struct RootTabView: View {
                     .frame(width: 56, height: 56)
                     .background(selection == 2 ? Theme.amber : Theme.green)
                     .clipShape(Circle())
+                    // 环形"挖空"：FAB 会盖住滚到该位置的账户行金额，加一圈页面底色描边
+                    // 把它读成浮在最上层的一层，而不是和行内文字糊在一起
+                    .overlay(Circle().stroke(Theme.bg, lineWidth: 3))
                     .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
             }
             .buttonStyle(PressableButtonStyle(scale: 0.92))

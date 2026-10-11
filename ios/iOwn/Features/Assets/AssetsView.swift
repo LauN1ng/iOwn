@@ -19,6 +19,14 @@ struct AssetsView: View {
     @State private var cashExpanded = true
     @State private var creditExpanded = true
 
+    // CI 截图钩子：信用账户详情 / 固定支出都是 NavigationLink 目标，
+    // 没有程序化入口就拍不到 → 用 isPresented 版本的下钻
+    @State private var ciCredit: Account?
+    @State private var showCreditDetail = false
+    @State private var showFixedExpense = false
+
+    private let ciArgs = ProcessInfo.processInfo.arguments
+
     private var cashAccounts: [Account] { accounts.filter { !$0.kind.isCredit } }
     private var creditAccounts: [Account] { accounts.filter { $0.kind.isCredit } }
     private var totals: BalanceEngine.Totals { BalanceEngine.totals(accounts: accounts, txs: txs) }
@@ -59,6 +67,13 @@ struct AssetsView: View {
             .background(Theme.bg)
             // v1.4 头部统一：与线索/洞察/设置一致走系统 large title，不再自绘居中标题
             .navigationTitle("资产")
+            // CI 钩子下钻目标（正常使用走 NavigationLink，见 accountGroup / fixedEntry）
+            .navigationDestination(isPresented: $showCreditDetail) {
+                if let acc = ciCredit { CreditedAccountView(account: acc) }
+            }
+            .navigationDestination(isPresented: $showFixedExpense) {
+                FixedExpenseView()
+            }
         }
         // 半屏 sheet（与记一笔统一）：不盖主屏，保留背后资产页上下文；可上拖全屏
         // 注意：建户入口已收敛为右下琥珀 $ FAB（RootTabView 持有），此处不再重复挂建户 sheet
@@ -70,6 +85,21 @@ struct AssetsView: View {
         .sheet(isPresented: $showTransfer) { TransferSheet() }
             .presentationDetents([.fraction(0.68), .large])
             .presentationDragIndicator(.hidden)
+        .onAppear {
+            guard ciArgs.contains("-ci-open-credit") || ciArgs.contains("-ci-open-fixed") else { return }
+            // 等 RootTabView 把 demo 数据落库后再取账户（onAppear 顺序不保证）
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 900_000_000)
+                if ciArgs.contains("-ci-open-credit"),
+                   let acc = accounts.first(where: { $0.kind.isCredit }) {
+                    ciCredit = acc
+                    showCreditDetail = true
+                }
+                if ciArgs.contains("-ci-open-fixed") {
+                    showFixedExpense = true
+                }
+            }
+        }
     }
 
     // MARK: 绿色净资产卡（眼/趋势圆钮 + 波浪底 + 总资产/总负债分列）
@@ -332,11 +362,12 @@ struct AssetsView: View {
     }
 
     /// 副注：现金类 = 备注或"记账自动联动"；信用类 = 已用额度 · 还款日（B4 / M4）
+    /// ⚠️ 信用类副注必须短：行内左侧可用宽约 160pt，写全「还款日 25 日」会被 lineLimit(1) 截成「已用 ¥7,000.00 · 还款日 2…」
     private func subLine(_ acc: Account, bal: Decimal) -> String {
         if acc.kind.isCredit {
-            var parts: [String] = ["已用 ¥ \(money(abs(bal)))"]
-            if let day = acc.dueDay { parts.append("还款日 \(day) 日") }
-            else if let day = acc.billDay { parts.append("账单日 \(day) 日") }
+            var parts: [String] = ["已用 ¥\(money(abs(bal)))"]
+            if let day = acc.dueDay { parts.append("\(day) 日还款") }
+            else if let day = acc.billDay { parts.append("\(day) 日账单") }
             return parts.joined(separator: " · ")
         }
         return acc.brand.isEmpty ? "记账自动联动" : acc.brand

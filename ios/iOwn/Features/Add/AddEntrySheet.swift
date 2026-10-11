@@ -130,10 +130,21 @@ struct AddEntrySheet: View {
         .onAppear {
             prefillForEditing()
             // CI 截图钩子（自读启动参数，避免改动 memberwise init 签名）
-            if editing == nil, ProcessInfo.processInfo.arguments.contains("-ci-open-amount") {
+            let args = ProcessInfo.processInfo.arguments
+            if editing == nil, args.contains("-ci-open-amount") {
                 category = CategoryPresets.all.first
                 sub = category?.subs.first
                 amountStr = "21.9"
+                stage = 1
+            }
+            // D18 联动截图钩子：预选一个信用账户 + 选「分期 12 期」
+            if editing == nil, args.contains("-ci-open-credit-pay") {
+                category = CategoryPresets.all.first
+                sub = category?.subs.first
+                amountStr = "3800"
+                selectedAccountID = accounts.first(where: { $0.kind.isCredit })?.id
+                payFull = false
+                installmentPeriods = 12
                 stage = 1
             }
         }
