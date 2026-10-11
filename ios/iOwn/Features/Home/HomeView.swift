@@ -106,11 +106,12 @@ struct HomeView: View {
                 let net = items.reduce(Decimal(0)) { acc, tx in
                     // 还款与转账都不是收支 —— 日合计排除还款（与洞察统计口径一致）。
                     // （还款是挂在信用账户上的 .in：欠款减少，但绝不是"今天赚了钱"）
+                    // ⚠️ 闭包体一旦多于一条语句，switch 就不能再靠隐式返回 → 每个 case 都要 return
                     if tx.source == .repayment { return acc }
                     switch tx.type {
-                    case .out: acc - tx.amount
-                    case .in: acc + tx.amount
-                    case .transfer: acc
+                    case .out: return acc - tx.amount
+                    case .in: return acc + tx.amount
+                    case .transfer: return acc
                     }
                 }
                 return DayGroup(day: day, items: items.sorted { $0.date > $1.date }, net: net)
