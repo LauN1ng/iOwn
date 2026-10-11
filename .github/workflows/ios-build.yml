@@ -193,6 +193,12 @@ jobs:
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-assets -ci-open-fixed -ci-open-fixed-add
           sleep 9
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/22-fixed-add.png
+          # 23) 分期总览（「债有尽头」—— DebtEngine.forecast 终于接上界面）
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-assets -ci-open-installments
+          sleep 9
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/23-installment-overview.png
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
       - name: Build unsigned IPA (Release, device)

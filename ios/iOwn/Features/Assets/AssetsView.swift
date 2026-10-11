@@ -35,12 +35,17 @@ struct AssetsView: View {
     @State private var showCreditDetail = false
     @State private var showCashDetail = false
     @State private var showFixedExpense = false
+    @State private var showInstallments = false
 
     private let ciArgs = ProcessInfo.processInfo.arguments
 
     private var cashAccounts: [Account] { accounts.filter { !$0.kind.isCredit } }
     private var creditAccounts: [Account] { accounts.filter { $0.kind.isCredit } }
     private var totals: BalanceEngine.Totals { BalanceEngine.totals(accounts: accounts, txs: txs) }
+    /// 还有未还期的分期（有才显示「分期总览」入口）
+    private var activePlans: [Liability] {
+        liabilities.filter { $0.kind == .installment && DebtEngine.remainingPeriods($0) > 0 }
+    }
 
     var body: some View {
         NavigationStack {
@@ -60,6 +65,8 @@ struct AssetsView: View {
                             accountGroup(title: "现金账户", list: cashAccounts)
                         }
                     }
+
+                    if !activePlans.isEmpty { installmentEntry }
 
                     fixedEntry
 
@@ -92,6 +99,9 @@ struct AssetsView: View {
             .navigationDestination(isPresented: $showFixedExpense) {
                 FixedExpenseView()
             }
+            .navigationDestination(isPresented: $showInstallments) {
+                InstallmentOverviewView()
+            }
         }
         // 半屏 sheet（与记一笔统一）：不盖主屏，保留背后资产页上下文；可上拖全屏
         .sheet(isPresented: $showAddAccount) {
@@ -108,7 +118,8 @@ struct AssetsView: View {
             }
             guard ciArgs.contains("-ci-open-credit")
                 || ciArgs.contains("-ci-open-cash")
-                || ciArgs.contains("-ci-open-fixed") else { return }
+                || ciArgs.contains("-ci-open-fixed")
+                || ciArgs.contains("-ci-open-installments") else { return }
             // 等 RootTabView 把 demo 数据落库后再取账户（onAppear 顺序不保证）
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 900_000_000)
@@ -124,6 +135,9 @@ struct AssetsView: View {
                 }
                 if ciArgs.contains("-ci-open-fixed") {
                     showFixedExpense = true
+                }
+                if ciArgs.contains("-ci-open-installments") {
+                    showInstallments = true
                 }
             }
         }
@@ -304,6 +318,35 @@ struct AssetsView: View {
         }
         let bal = BalanceEngine.displayBalance(of: acc, txs: txs)
         return bal < 0 ? "-¥ " + money(-bal) : "¥ " + money(bal)
+    }
+
+    // MARK: 分期总览入口（2026-10-11：补上「所有分期藏在各账户详情里、看不到全貌」的缺口）
+
+    private var installmentEntry: some View {
+        let total = activePlans.reduce(Decimal(0)) { $0 + DebtEngine.remaining($1) }
+        let months = DebtEngine.payoffMonths(activePlans)
+        return Button { Haptics.tap(); showInstallments = true } label: {
+            HStack(spacing: 12) {
+                CategoryIcon(asset: nil, fallback: "🗓️", size: 26)
+                    .frame(width: 40, height: 40)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("分期总览").scaledFont(15, weight: .semibold).foregroundStyle(.primary)
+                    Text(hidden
+                         ? "金额已隐藏"
+                         : "\(activePlans.count) 笔 · 还剩 \(months) 期 · 还欠 ¥" + money(total))
+                        .scaledFont(11.5).foregroundStyle(.secondary).monospacedDigit()
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                Text("›").scaledFont(16).foregroundStyle(.tertiary)
+            }
+            .padding(14)
+            .background(Theme.card)
+            .cornerRadius(Radius.large)
+        }
+        .buttonStyle(PressableButtonStyle(scale: 0.985))
+        .accessibilityHint("查看全部分期与还清时间")
     }
 
     // MARK: 固定支出 / 订阅入口（独立模块 —— 不是负债）

@@ -13,7 +13,7 @@ import UIKit
 struct CreditedAccountView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var liabilities: [Liability]
-    @Query private var txs: [Tx]
+    @Query(sort: \Tx.date, order: .reverse) private var txs: [Tx]
 
     var account: Account
 
@@ -23,8 +23,14 @@ struct CreditedAccountView: View {
     @State private var showAdd = false
     @State private var editingPlan: Liability?
     @State private var showPaidConfirm = false
+    @State private var showAdjust = false
 
     // MARK: 派生值（全部纯函数，改账/删账自动回滚）
+
+    /// 该账户的流水（含转入转出）—— 2026-10-11 补上「信用账户没有流水」这个缺口
+    private var accountTxs: [Tx] {
+        txs.filter { $0.accountID == account.id || $0.toAccountID == account.id }
+    }
 
     private var plans: [Liability] {
         DebtEngine.bills(of: account.id, liabilities: liabilities)
@@ -55,6 +61,7 @@ struct CreditedAccountView: View {
                 currentBillCard
                 plansSection
                 if !plans.isEmpty { totalRow }
+                AccountFlowSection(accountName: account.name, txs: accountTxs)
                 actions
             }
             .padding(.horizontal, Radius.pagePadding)
@@ -82,6 +89,11 @@ struct CreditedAccountView: View {
                 .presentationDetents([.fraction(0.68), .large])
                 .presentationDragIndicator(.hidden)
         }
+        .sheet(isPresented: $showAdjust) {
+            AdjustBalanceSheet(account: account)
+                .presentationDetents([.fraction(0.68), .large])
+                .presentationDragIndicator(.hidden)
+        }
         .confirmationDialog("标记本月已还款？", isPresented: $showPaidConfirm, titleVisibility: .visible) {
             Button("已还完 ¥\(Money.string(dec(monthlyDue)))") { markPaid() }
             Button("取消", role: .cancel) {}
@@ -100,7 +112,18 @@ struct CreditedAccountView: View {
                     .scaledFont(13.5, weight: .semibold)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                Spacer(minLength: 0)
+                Spacer(minLength: 8)
+                // 「调整」= 对账（平移初始余额，不产生流水）
+                Button { Haptics.tap(); showAdjust = true } label: {
+                    Text("调整")
+                        .scaledFont(12, weight: .semibold)
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 13).padding(.vertical, 7)
+                        .background(Theme.iconBg)
+                        .cornerRadius(999)
+                }
+                .buttonStyle(PressableButtonStyle(scale: 0.95))
+                .accessibilityLabel("调整余额（对账）")
             }
             .padding(.bottom, 12)
 
@@ -112,19 +135,44 @@ struct CreditedAccountView: View {
             Text("已用 ¥\(Money.string(dec(used)))" + limitText)
                 .scaledFont(11.5).foregroundStyle(.secondary)
                 .padding(.top, 5)
+            // ⭐「债有尽头」——预计还清日（`DebtEngine.payoffDate`，此前无界面）
+            if let payoff = payoffText {
+                HStack(spacing: 5) {
+                    Image(systemName: "flag.checkered").scaledFont(10.5)
+                    Text(payoff)
+                }
+                .scaledFont(11.5, weight: .semibold)
+                .foregroundStyle(Theme.greenText)
+                .padding(.top, 7)
+            }
             HStack {
                 Text("账单日 \(dayText(account.billDay))")
                 Spacer()
                 Text("还款日 \(dayText(account.dueDay))")
             }
             .scaledFont(11).foregroundStyle(.secondary)
-            .padding(.top, 12)
+            .padding(.top, 10)
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.card)
         .cornerRadius(Radius.large)
     }
+
+    /// ⭐「债有尽头」——预计还清日 + 还剩几期。
+    /// 取该账户**最后一笔**分期还完的月份（`DebtEngine.payoffMonths` / `payoffDate`）。
+    /// 没有未还完的分期时返回 `nil`（不显示这一行）。
+    private var payoffText: String? {
+        let months = DebtEngine.payoffMonths(plans)
+        guard months > 0, let date = DebtEngine.payoffDate(plans) else { return nil }
+        return "还清日 " + Self.payoffFormatter.string(from: date) + " · 还剩 \(months) 期"
+    }
+
+    private static let payoffFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy 年 M 月"
+        return f
+    }()
 
     /// 账户图标（归一化素材：通用 Fluent 3D / 品牌真实 logo）
     private var accountIcon: some View {
@@ -231,7 +279,7 @@ struct CreditedAccountView: View {
                     Text("¥\(Money.string(dec(DebtEngine.perPeriod(l))))")
                         .scaledFont(15, weight: .semibold).monospacedDigit()
                 }
-                Text("第 \(l.paidPeriods)/\(l.totalPeriods) 期 · 剩 \(DebtEngine.remainingPeriods(l)) 期")
+                Text("第 \(DebtEngine.currentPeriod(l))/\(l.totalPeriods) 期 · 剩 \(DebtEngine.remainingPeriods(l)) 期")
                     .scaledFont(11).foregroundStyle(.secondary)
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {

@@ -18,18 +18,11 @@ struct AccountDetailView: View {
 
     @State private var showEdit = false
     @State private var showTransfer = false
-
-    private static let dayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "M/d"
-        return f
-    }()
+    @State private var showAdjust = false
 
     private var accountTxs: [Tx] {
         allTxs.filter { $0.accountID == account.id || $0.toAccountID == account.id }
     }
-    /// 只展示最近 30 笔
-    private var shownTxs: [Tx] { Array(accountTxs.prefix(30)) }
     private var balance: Decimal { BalanceEngine.displayBalance(of: account, txs: allTxs) }
 
     var body: some View {
@@ -37,7 +30,7 @@ struct AccountDetailView: View {
             VStack(spacing: Radius.cardSpacing) {
                 hero
                 balanceCard
-                flowSection
+                AccountFlowSection(accountName: account.name, txs: accountTxs)
                 editButton
             }
             .padding(.horizontal, Radius.pagePadding)
@@ -54,6 +47,11 @@ struct AccountDetailView: View {
         }
         .sheet(isPresented: $showTransfer) {
             TransferSheet()
+                .presentationDetents([.fraction(0.68), .large])
+                .presentationDragIndicator(.hidden)
+        }
+        .sheet(isPresented: $showAdjust) {
+            AdjustBalanceSheet(account: account)
                 .presentationDetents([.fraction(0.68), .large])
                 .presentationDragIndicator(.hidden)
         }
@@ -121,7 +119,8 @@ struct AccountDetailView: View {
             Spacer(minLength: 6)
             HStack(spacing: 8) {
                 pill("转账") { Haptics.tap(); showTransfer = true }
-                pill("编辑") { Haptics.tap(); showEdit = true }
+                // 「调整」= 对账（编辑初始余额，不产生流水）—— 编辑账户入口在底部按钮
+                pill("调整") { Haptics.tap(); showAdjust = true }
             }
         }
         .padding(15)
@@ -139,91 +138,6 @@ struct AccountDetailView: View {
                 .cornerRadius(999)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.95))
-    }
-
-    // MARK: 该账户流水
-
-    @ViewBuilder
-    private var flowSection: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("流水").scaledFont(13, weight: .semibold)
-                Spacer()
-                Text("\(accountTxs.count) 笔").scaledFont(11.5).foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 4)
-
-            if accountTxs.isEmpty {
-                EmptyStateCard(icon: "🧾", title: "还没有流水",
-                               hint: "记一笔时选「\(account.name)」就会出现在这里")
-            } else {
-                VStack(spacing: 0) {
-                    // ⚠️ 用 indices 而不是 Array(enumerated())：元组元素**不能**做 KeyPath
-                    ForEach(shownTxs.indices, id: \.self) { idx in
-                        txRow(shownTxs[idx], divider: idx > 0)
-                    }
-                }
-                .padding(.vertical, 4)
-                .background(Theme.card)
-                .cornerRadius(Radius.large)
-            }
-        }
-    }
-
-    private func txRow(_ tx: Tx, divider: Bool) -> some View {
-        let cat = CategoryPresets.category(id: tx.categoryID)
-        return HStack(spacing: 12) {
-            CategoryIcon(asset: cat?.iconName, fallback: cat?.emoji ?? "💸", size: 22)
-                .frame(width: 36, height: 36)
-                .background(Theme.iconBg)
-                .cornerRadius(11)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(rowTitle(tx, cat: cat))
-                    .scaledFont(14.5, weight: .semibold)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                Text(tx.note.isEmpty ? (cat?.name ?? "") : tx.note)
-                    .scaledFont(11.5)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 8)
-
-            VStack(alignment: .trailing, spacing: 1) {
-                Text(amountText(tx))
-                    .scaledFont(15, weight: .bold)
-                    .monospacedDigit()
-                    .foregroundStyle(tx.type == .out ? Color.primary : Theme.greenText)
-                Text(Self.dayFormatter.string(from: tx.date))
-                    .scaledFont(10.5)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 11)
-        .overlay(alignment: .top) {
-            if divider {
-                Rectangle().fill(Theme.hairline).frame(height: 0.5)
-            }
-        }
-    }
-
-    private func rowTitle(_ tx: Tx, cat: CategoryDef?) -> String {
-        if tx.source == .repayment { return "还款" }
-        if tx.type == .transfer { return "转账" }
-        return cat?.name ?? "记账"
-    }
-
-    private func amountText(_ tx: Tx) -> String {
-        let m = money(tx.amount)
-        switch tx.type {
-        case .out: return "-¥ " + m
-        case .in: return "+¥ " + m
-        case .transfer: return "¥ " + m
-        }
     }
 
     // MARK: 编辑账户
