@@ -199,6 +199,12 @@ jobs:
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-tab-assets -ci-open-installments
           sleep 9
           xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/23-installment-overview.png
+          # 24) 添加子类 · 图标选择器（2026-10-12：16 个 iOS emoji → 135 个 Fluent 3D，9 组切换）
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data -ci-open-catman-add-sub
+          sleep 10
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/24-custom-sub-icons.png
           # TODO(M4): 动效验证改用 xcrun simctl io ... recordVideo
 
       - name: Build unsigned IPA (Release, device)

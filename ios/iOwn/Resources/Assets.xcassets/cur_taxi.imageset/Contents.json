@@ -1,0 +1,26 @@
+{
+  "images": [
+    {
+      "filename": "cur_taxi.png",
+      "idiom": "universal",
+      "scale": "1x"
+    },
+    {
+      "filename": "cur_taxi@2x.png",
+      "idiom": "universal",
+      "scale": "2x"
+    },
+    {
+      "filename": "cur_taxi@3x.png",
+      "idiom": "universal",
+      "scale": "3x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "properties": {
+    "template-rendering-intent": "original"
+  }
+}

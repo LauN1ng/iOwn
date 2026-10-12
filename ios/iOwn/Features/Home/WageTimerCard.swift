@@ -50,30 +50,33 @@ struct WageTimerCard: View {
 
             if config.isConfigured {
                 HStack(alignment: .center, spacing: 12) {
+                    // ⭐ 2026-10-12「方案 B」：状态 emoji 40pt、**裸放不带容器底**，
+                    //    放在金额左侧当「卡片的脸」。emoji 是全 App 唯一彩色源，
+                    //    这里是它能拿到的最高舞台（首屏最大的一张卡）。
+                    CategoryIcon(asset: state.iconAsset,
+                                 fallback: state.iconFallback,
+                                 size: 40)
+                        .accessibilityHidden(true)   // 装饰：状态语义由整卡 accessibilityLabel + 右侧胶囊承载
+
                     VStack(alignment: .leading, spacing: 6) {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text("¥" + Money.string(earned))
-                                .scaledFont(30, weight: .heavy, design: .rounded)
-                                .foregroundStyle(Theme.greenText)
-                                .monospacedDigit()
-                                .tracking(-0.4)
-                                .contentTransition(.numericText(value: earned))
-                                .animation(.easeOut(duration: 0.35), value: earned)   // 数字滚动而非硬跳
-                            if !state.isWorkingDay {
-                                Text("今天休息")
-                                    .scaledFont(11, weight: .semibold)
-                                    .foregroundStyle(.secondary)
-                                    .padding(.horizontal, 8).padding(.vertical, 2)
-                                    .background(Theme.iconBg)
-                                    .cornerRadius(999)
-                            }
-                        }
+                        Text("¥" + Money.string(earned))
+                            .scaledFont(30, weight: .heavy, design: .rounded)
+                            .foregroundStyle(Theme.greenText)
+                            .monospacedDigit()
+                            .tracking(-0.4)
+                            .contentTransition(.numericText(value: earned))
+                            .animation(.easeOut(duration: 0.35), value: earned)   // 数字滚动而非硬跳
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                        // 2026-10-12：原「时薪…」行与新增的 40pt emoji 抢宽度 → 允许轻微缩字
                         Text("时薪 ¥\(Money.compact(config.hourlyWage(now: now))) · 本月已走 \(config.daysTouchedThisMonth(now: now)) 个工作日")
                             .scaledFont(11.5)
                             .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                     }
-                    Spacer(minLength: 0)
-                    // 状态区置于金额行右侧（原 doodle 位置），不额外撑高卡片
+                    Spacer(minLength: 4)
+                    // 状态胶囊 + 倒计时（2026-10-12 已去色，见 StatusPill）
                     StatusPill(state: state, now: now, config: config)
                 }
             } else {
@@ -94,10 +97,16 @@ struct WageTimerCard: View {
     }
 }
 
-// MARK: - 状态胶囊（方案 2）
+// MARK: - 状态胶囊（2026-10-12 方案 B：去色）
 
-/// 状态胶囊 + 倒计时：工作中（绿）/ 午休（黄）/ 未上班·已下班·休息（灰）/ 调休（蓝）
-/// 与未来小组件共用同一 `WorkState` 判定（`WageConfig.todayStatus`）
+/// 状态胶囊 + 倒计时。
+///
+/// **2026-10-12 变更（emoji 升权「方案 B」）**：
+/// - 色彩职责回归 —— 原实现用 `Theme.green / .amber / .blue` **填充**表状态，
+///   违反「绿 = 交互/功能色、彩色 = 内容」铁律；现改为中性 `Theme.iconBg`，
+///   **状态表意交给左侧的 40pt emoji**（`WorkState.iconAsset`），绿色还给交互。
+/// - 去掉 `● ` 前缀（与左侧 emoji 重复）。
+/// - 与未来小组件共用同一 `WorkState` 判定（`WageConfig.todayStatus`）不变。
 private struct StatusPill: View {
     let state: WorkState
     let now: Date
@@ -105,12 +114,12 @@ private struct StatusPill: View {
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
-            // 状态胶囊
-            Text("● " + state.label)
+            // 状态胶囊（中性底，不再用品牌色填充）
+            Text(state.label)
                 .scaledFont(11, weight: .semibold)
-                .foregroundStyle(pillTextColor)
+                .foregroundStyle(.secondary)
                 .padding(.horizontal, 10).padding(.vertical, 4)
-                .background(pillBg)
+                .background(Theme.iconBg)
                 .cornerRadius(999)
 
             // 倒计时副行（仅在有意义的状态显示）
@@ -128,25 +137,6 @@ private struct StatusPill: View {
         }
         .fixedSize()                 // 不被金额行压缩换行
         .accessibilityHidden(true)   // 状态已由整卡 accessibilityLabel 承载
-    }
-
-    /// 状态 → 胶囊配色（绿=填充档 Theme.green，文字白；其余用文字档保证对比度）
-    private var pillBg: Color {
-        switch state {
-        case .working, .makeupWorking: return Theme.green
-        case .lunch:                   return Theme.amber
-        case .makeupBefore, .makeupAfter: return Theme.blue
-        default:                       return Theme.iconBg
-        }
-    }
-
-    private var pillTextColor: Color {
-        switch state {
-        case .working, .makeupWorking: return .white
-        case .lunch:                   return .white
-        case .makeupBefore, .makeupAfter: return .white
-        default:                       return .secondary
-        }
     }
 
     /// 倒计时目标：返回 (前缀, 目标时间)；nil = 该状态不显示倒计时

@@ -249,7 +249,7 @@ struct CreditedAccountView: View {
     @ViewBuilder
     private var plansSection: some View {
         if plans.isEmpty {
-            EmptyStateCard(icon: "🧾", title: "还没有分期",
+            EmptyStateCard(icon: "cur_receipt", title: "还没有分期",
                            hint: "点右上角 ＋ 添加；已还一半的老账也能补录")
         } else {
             VStack(alignment: .leading, spacing: 9) {

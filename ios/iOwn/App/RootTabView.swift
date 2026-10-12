@@ -131,8 +131,8 @@ struct RootTabView: View {
             if ciArgs.contains("-ci-tab-insight") {
                 selection = 1
             }
-            // E5 分类管理页截图钩子
-            if ciArgs.contains("-ci-open-catman") {
+            // E5 分类管理页截图钩子（含 2026-10-12 新增的「添加子类」图标选择器）
+            if ciArgs.contains("-ci-open-catman") || ciArgs.contains("-ci-open-catman-add-sub") {
                 showCatManager = true
             }
             if ciArgs.contains("-ci-show-done") {

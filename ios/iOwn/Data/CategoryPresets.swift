@@ -17,8 +17,20 @@ struct CategoryDef: Identifiable {
         let emoji: String
         let name: String
 
-        /// 预设子类 → `sub_<id>`；用户自建子类（`custom-xxxx`）无对应 asset → 退回 `emoji`
-        var iconName: String { "sub_" + id }
+        /// 2026-10-12：自定义子类的 Fluent asset 名（`cur_*`，见 `CuratedIcons`）。
+        /// 预设子类恒为 `nil` → 走 `sub_<id>`。Optional + 默认值 → **老 JSON 缺这个键也能解**
+        /// （合成 Decodable 对 Optional 走 `decodeIfPresent`），无需迁移 UserDefaults。
+        var asset: String? = nil
+
+        /// 图标解析顺序：显式 asset → 老数据（裸 emoji 反查 curated 表）→ 预设 `sub_<id>`
+        ///
+        /// 第 2 条让**已存在的自定义子类自动升级到 Fluent 3D**：
+        /// 它们当年存的是 emoji 字符（`SubDef.emoji`），这里反查出对应的 `cur_*`。
+        var iconName: String {
+            if let asset { return asset }
+            if id.hasPrefix("custom-"), let hit = CuratedIcons.asset(forEmoji: emoji) { return hit }
+            return "sub_" + id
+        }
     }
 }
 

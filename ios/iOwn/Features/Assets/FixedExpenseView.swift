@@ -1,10 +1,60 @@
 import SwiftUI
 import SwiftData
 
+// MARK: - 固定支出图标（复用已有 Fluent 3D 贴图，asset 名即 `sub_*`）
+//
+// 说明：`FixedExpense.emoji` 这个字段名没改（改字段名会破坏 SwiftData 轻量迁移），
+// 但**内容语义已扩展** —— 新写入的是 `sub_*` asset 名；老数据里存的裸 emoji 照旧按
+// 兜底渲染（`CategoryIcon` 找不到 asset 就显示 emoji 字符）。所以无需 schema 迁移。
+
+struct FixedExpenseIconDef: Identifiable {
+    let asset: String
+    let emoji: String
+    let name: String
+    var id: String { asset }
+}
+
+enum FixedExpenseIcon {
+    static let all: [FixedExpenseIconDef] = [
+        .init(asset: "sub_rent",         emoji: "🏠", name: "房租"),
+        .init(asset: "sub_subscription", emoji: "📺", name: "订阅会员"),
+        .init(asset: "sub_utility",      emoji: "💡", name: "水电燃气"),
+        .init(asset: "sub_commute",      emoji: "🚇", name: "通勤"),
+        .init(asset: "sub_digital",      emoji: "📱", name: "手机宽带"),
+        .init(asset: "sub_fitness",      emoji: "🏋️", name: "健身"),
+        .init(asset: "sub_home",         emoji: "🛋️", name: "家居"),
+        .init(asset: "sub_medical",      emoji: "💊", name: "保险医疗"),
+        .init(asset: "sub_fun",          emoji: "🎮", name: "娱乐"),
+        .init(asset: "sub_transport",    emoji: "✈️", name: "出行"),
+        .init(asset: "sub_repay",        emoji: "💳", name: "还款分期"),
+        .init(asset: "sub_ticket",       emoji: "🎫", name: "票券"),
+    ]
+
+    /// 存进 `FixedExpense.emoji` 的值 → 渲染参数
+    ///
+    /// 三种形态兼容：① 新数据 = `sub_*` asset 名；② `cur_*`（预留：将来这套也可能被选中）；
+    /// ③ 老数据 = 裸 emoji 字符（2026-10-11 之前写入的）→ 无 asset，原样兜底。
+    /// 空串（理论上不会出现）退回 Fluent 日历，不再用 iOS emoji。
+    static func render(_ stored: String) -> (asset: String?, fallback: String) {
+        if let hit = all.first(where: { $0.asset == stored }) {
+            return (hit.asset, hit.emoji)
+        }
+        if let item = CuratedIcons.item(stored) {
+            return (item.asset, item.emoji)
+        }
+        if stored.isEmpty {
+            return ("cur_tear_off_calendar", "📅")
+        }
+        return (nil, stored)
+    }
+}
+
 /// 固定支出 / 订阅（独立模块，方案 §12 D17）
 ///
 /// 房租、会员这类「每月固定扣、永远不结束」的支出 —— **它不是负债**：
 /// 不进「待还总额」、没有期数、不会还完；但会扣掉本月可支配。
+/// 2026-10-11：与卡包改造对齐 —— 去掉绿重卡（改纯文本汇总行）、图标换 Fluent 3D、
+/// 每行加可见的编辑入口；新增/编辑 sheet 重做成建户页那套（固定头部 + 卡片式表单）。
 struct FixedExpenseView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \FixedExpense.sortOrder) private var items: [FixedExpense]
@@ -12,24 +62,28 @@ struct FixedExpenseView: View {
     @State private var showAdd = false
     @State private var editing: FixedExpense?
 
+    private let ciArgs = ProcessInfo.processInfo.arguments
+
     private var monthlyTotal: Decimal { items.reduce(Decimal(0)) { $0 + $1.amount } }
 
     var body: some View {
         ScrollView {
             VStack(spacing: Radius.cardSpacing) {
-                hero
+                summaryRow
                 notice
+
                 if items.isEmpty {
-                    EmptyStateCard(icon: "📅", title: "还没有固定支出",
-                                   hint: "点右上角 ＋ 添加房租、会员等每月固定扣款")
+                    EmptyStateCard(icon: "cur_tear_off_calendar", title: "还没有固定支出",
+                                   hint: "添加房租、会员等每月固定扣款")
                 } else {
-                    ForEach(items, id: \.id) { item in row(item) }
+                    listCard
                 }
+
                 addButton
             }
             .padding(.horizontal, Radius.pagePadding)
-            .padding(.top, 8)
-            .padding(.bottom, 40)   // 资产 Tab 已无 FAB（FAB 只在非资产 Tab 显示）
+            .padding(.top, 6)
+            .padding(.bottom, 40)
         }
         .background(Theme.bg)
         .navigationTitle("固定支出 / 订阅")
@@ -52,30 +106,27 @@ struct FixedExpenseView: View {
                 .presentationDetents([.fraction(0.68), .large])
                 .presentationDragIndicator(.hidden)
         }
+        .onAppear {
+            // CI 截图钩子：直接展开「添加固定支出」sheet
+            if ciArgs.contains("-ci-open-fixed-add") { showAdd = true }
+        }
     }
 
-    private var hero: some View {
-        LinearGradient(colors: [Theme.green, Theme.greenDeep], startPoint: .top, endPoint: .bottom)
-            .overlay(alignment: .bottom) {
-                Ellipse().fill(Color.white.opacity(0.14))
-                    .frame(height: 44).frame(maxWidth: .infinity).offset(y: 34)
-            }
-            .overlay {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("每月固定合计").scaledFont(12).foregroundStyle(.white.opacity(0.88))
-                    Text("¥ \(Money.string(dec(monthlyTotal)))")
-                        .scaledFont(34, weight: .heavy, design: .rounded)
-                        .foregroundStyle(.white).monospacedDigit()
-                        .padding(.top, 4)
-                    Text("\(items.count) 项 · 每月自动扣，不累计成欠款")
-                        .scaledFont(11.5).foregroundStyle(.white.opacity(0.85))
-                        .padding(.top, 5)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(18)
-            }
-            .frame(height: 138)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.large))
+    // MARK: 汇总行（纯文本 —— 与资产页净资产行同构，不再用绿重卡）
+
+    private var summaryRow: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("每月固定合计").scaledFont(12).foregroundStyle(.secondary)
+            Text("¥ " + Money.string(dec(monthlyTotal)))
+                .scaledFont(30, weight: .heavy, design: .rounded)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text("\(items.count) 项 · 每月自动扣，不累计成欠款")
+                .scaledFont(11.5).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 2)
     }
 
     private var notice: some View {
@@ -88,29 +139,53 @@ struct FixedExpenseView: View {
             .cornerRadius(Radius.medium)
     }
 
-    private func row(_ item: FixedExpense) -> some View {
-        Button { Haptics.tap(); editing = item } label: {
-            HStack(spacing: 12) {
-                Text(item.emoji)
-                    .scaledFont(20)
-                    .frame(width: 42, height: 42)
-                    .background(Theme.iconBg)
-                    .cornerRadius(14)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(item.name).scaledFont(15, weight: .semibold)
-                    Text("每月 \(item.dueDay) 日 · 固定").scaledFont(11).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 8)
-                Text("¥\(Money.string(dec(item.amount)))")
-                    .scaledFont(15, weight: .semibold).monospacedDigit()
+    // MARK: 列表（一个白卡容器 + 分隔线，与账户组同构）
+
+    private var listCard: some View {
+        VStack(spacing: 0) {
+            ForEach(items.indices, id: \.self) { idx in
+                row(items[idx], divider: idx > 0)
             }
-            .padding(14)
-            .background(Theme.card)
-            .cornerRadius(Radius.medium)
-            .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
         }
-        .buttonStyle(PressableButtonStyle(scale: 0.985))
+        .background(Theme.card)
+        .cornerRadius(Radius.large)
+        .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+    }
+
+    private func row(_ item: FixedExpense, divider: Bool) -> some View {
+        let icon = FixedExpenseIcon.render(item.emoji)
+        return Button { Haptics.tap(); editing = item } label: {
+            HStack(spacing: 12) {
+                CategoryIcon(asset: icon.asset, fallback: icon.fallback, size: 24)
+                    .frame(width: 40, height: 40)
+                    .background(Theme.iconBg)
+                    .cornerRadius(12)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(item.name).scaledFont(15, weight: .semibold).foregroundStyle(.primary)
+                    Text("每月 \(item.dueDay) 日扣款").scaledFont(11.5).foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 8)
+
+                Text("¥" + Money.string(dec(item.amount)))
+                    .scaledFont(15.5, weight: .bold).monospacedDigit()
+                    .foregroundStyle(.primary)
+
+                // 可见的编辑入口（原先只能靠"点这一行"或长按，界面上毫无提示）
+                Text("›").scaledFont(16).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+            .overlay(alignment: .top) {
+                if divider {
+                    Rectangle().fill(Theme.hairline).frame(height: 0.5)
+                }
+            }
+        }
+        .buttonStyle(PressableButtonStyle(scale: 0.98))
         .accessibilityHint("打开编辑")
         .contextMenu {
             Button { Haptics.tap(); editing = item } label: {
@@ -141,7 +216,8 @@ struct FixedExpenseView: View {
     private func dec(_ d: Decimal) -> Double { NSDecimalNumber(decimal: d).doubleValue }
 }
 
-/// 新增 / 编辑固定支出项
+// MARK: - 新增 / 编辑固定支出（2026-10-11 对齐建户页那套：固定头部 + 卡片式表单）
+
 struct FixedExpenseSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -153,9 +229,9 @@ struct FixedExpenseSheet: View {
     @State private var name = ""
     @State private var amountStr = ""
     @State private var dueDay = 1
-    @State private var emoji = "🏠"
+    @State private var iconAsset = "sub_rent"
 
-    private let emojis = ["🏠", "📺", "🎵", "📱", "💡", "🚇", "🏋️", "☁️", "📰", "💳"]
+    private let iconColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 6)
 
     private var amount: Decimal { Decimal(string: amountStr) ?? 0 }
     private var canSave: Bool {
@@ -163,80 +239,181 @@ struct FixedExpenseSheet: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                SheetGrabber()
-                Text(editing == nil ? "添加固定支出" : "编辑固定支出")
-                    .scaledFont(17, weight: .bold)
-                    .frame(maxWidth: .infinity)
+        VStack(spacing: 0) {
+            // ⚠️ 把手与头部必须在 ScrollView **外面** —— 放里面会跟着内容滚走
+            SheetGrabber()
+            header
 
-                field("名称") {
-                    TextField("房租 / 视频会员", text: $name)
-                        .scaledFont(14)
-                        .padding(.horizontal, 13).padding(.vertical, 12)
-                        .background(Theme.card).cornerRadius(11)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    iconSection
+                    formSection
+                    if editing != nil { deleteSection }
                 }
-                field("每月金额") {
+                .padding(.horizontal, Radius.pagePadding)
+                .padding(.bottom, 34)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Theme.bg)
+        .onAppear(perform: prefill)
+    }
+
+    // MARK: 头部（取消 / 标题 / 保存 —— 与建户页一致）
+
+    private var header: some View {
+        HStack {
+            Button {
+                Haptics.tap()
+                dismiss()
+            } label: {
+                Text("取消").scaledFont(15).foregroundStyle(.secondary)
+            }
+            .buttonStyle(PressableButtonStyle(scale: 0.96))
+            .accessibilityLabel("取消")
+
+            Spacer()
+            Text(editing == nil ? "添加固定支出" : "编辑固定支出")
+                .scaledFont(17, weight: .bold)
+            Spacer()
+
+            Button {
+                Haptics.success()
+                save()
+                dismiss()
+            } label: {
+                Text("保存")
+                    .scaledFont(14, weight: .semibold)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16).padding(.vertical, 8)
+                    .background(canSave ? Theme.green : Theme.disabled)
+                    .cornerRadius(999)
+            }
+            .buttonStyle(PressableButtonStyle(scale: 0.95))
+            .disabled(!canSave)
+        }
+        .padding(.horizontal, Radius.pagePadding)
+        .padding(.top, 6)
+        .padding(.bottom, 6)
+    }
+
+    // MARK: 图标（Fluent 3D 网格）
+
+    private var iconSection: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Text("图标").scaledFont(12.5, weight: .semibold).foregroundStyle(.secondary)
+            LazyVGrid(columns: iconColumns, spacing: 12) {
+                ForEach(FixedExpenseIcon.all) { ic in
+                    iconCell(ic)
+                }
+            }
+        }
+    }
+
+    private func iconCell(_ ic: FixedExpenseIconDef) -> some View {
+        let selected = iconAsset == ic.asset
+        return Button {
+            Haptics.tap()
+            iconAsset = ic.asset
+        } label: {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(selected ? Theme.greenSoft : Theme.card)
+                    .frame(height: 48)
+                CategoryIcon(asset: ic.asset, fallback: ic.emoji, size: 26)
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(selected ? Theme.green : Color.clear, lineWidth: 1.5)
+            )
+        }
+        .buttonStyle(PressableButtonStyle(scale: 0.94))
+        .accessibilityLabel(ic.name)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    // MARK: 表单（卡片式 + 分隔线）
+
+    private var formSection: some View {
+        VStack(spacing: 0) {
+            row("名称") {
+                TextField("房租 / 视频会员", text: $name)
+                    .scaledFont(15, weight: .semibold)
+                    .multilineTextAlignment(.trailing)
+            }
+            divider
+            row("每月金额") {
+                HStack(spacing: 4) {
+                    Text("¥").scaledFont(14, weight: .semibold).foregroundStyle(.secondary)
                     TextField("如 1230.50", text: $amountStr)
                         .keyboardType(.decimalPad)
-                        .scaledFont(14)
-                        .padding(.horizontal, 13).padding(.vertical, 12)
-                        .background(Theme.card).cornerRadius(11)
+                        .scaledFont(15, weight: .bold)
+                        .multilineTextAlignment(.trailing)
+                        .monospacedDigit()
                 }
-                field("每月扣款日") {
-                    HStack {
-                        Text("\(dueDay) 日").scaledFont(14).monospacedDigit()
-                        Spacer()
-                        Stepper("", value: $dueDay, in: 1...31).labelsHidden()
-                    }
-                    .padding(.horizontal, 13).padding(.vertical, 10)
-                    .background(Theme.card).cornerRadius(11)
-                }
-                field("图标") {
-                    HStack(spacing: 8) {
-                        ForEach(emojis, id: \.self) { e in
-                            Button {
-                                Haptics.tap(); emoji = e
-                            } label: {
-                                Text(e)
-                                    .scaledFont(17)
-                                    .frame(width: 38, height: 38)
-                                    .background(emoji == e ? Theme.greenSoft : Theme.card)
-                                    .cornerRadius(11)
-                                    .overlay(RoundedRectangle(cornerRadius: 11)
-                                        .stroke(emoji == e ? Theme.green : Theme.hairline, lineWidth: 1))
-                            }
-                            .buttonStyle(PressableButtonStyle(scale: 0.94))
-                        }
-                        Spacer()
-                    }
-                }
-
-                Button {
-                    Haptics.success()
-                    save()
-                    dismiss()
-                } label: {
-                    Text(editing == nil ? "添加" : "保存修改")
-                        .scaledFont(15, weight: .semibold).foregroundStyle(.white)
-                        .frame(maxWidth: .infinity).padding(.vertical, 15)
-                        .background(canSave ? Theme.green : Theme.disabled)
-                        .cornerRadius(14)
-                }
-                .buttonStyle(PressableButtonStyle(scale: 0.985))
-                .disabled(!canSave)
-                .padding(.top, 6)
             }
-            .padding(.horizontal, 18)
-            .padding(.bottom, 30)
+            divider
+            row("每月扣款日") {
+                Picker("", selection: $dueDay) {
+                    ForEach(1...31, id: \.self) { Text("\($0) 日").tag($0) }
+                }
+                .pickerStyle(.menu)
+                .tint(.primary)
+            }
         }
-        .background(Theme.bg)
-        .onAppear {
-            guard let item = editing else { return }
-            name = item.name
-            amountStr = NSDecimalNumber(decimal: item.amount).stringValue
-            dueDay = item.dueDay
-            emoji = item.emoji
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .background(Theme.card)
+        .cornerRadius(Radius.large)
+    }
+
+    private func row<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 8) {
+            Text(label).scaledFont(14.5, weight: .medium)
+            Spacer(minLength: 8)
+            content()
+        }
+        .padding(.vertical, 10)
+    }
+
+    private var divider: some View {
+        Rectangle().fill(Theme.hairline).frame(height: 1)
+    }
+
+    // MARK: 删除（编辑模式）
+
+    private var deleteSection: some View {
+        Button {
+            if let item = editing {
+                Haptics.tap()
+                modelContext.delete(item)
+                try? modelContext.save()
+                dismiss()
+            }
+        } label: {
+            Text("删除这项")
+                .scaledFont(14.5, weight: .semibold)
+                .foregroundStyle(Theme.redText)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(Theme.card)
+                .cornerRadius(Radius.medium)
+        }
+        .buttonStyle(PressableButtonStyle(scale: 0.97))
+    }
+
+    // MARK: 预填 / 保存
+
+    private func prefill() {
+        guard let item = editing else { return }
+        name = item.name
+        amountStr = NSDecimalNumber(decimal: item.amount).stringValue
+        dueDay = item.dueDay
+        // 老数据可能是裸 emoji（找不到对应 asset）→ 保持原值，保存时原样写回
+        if FixedExpenseIcon.all.contains(where: { $0.asset == item.emoji }) {
+            iconAsset = item.emoji
+        } else if let hit = FixedExpenseIcon.all.first(where: { $0.emoji == item.emoji }) {
+            iconAsset = hit.asset
         }
     }
 
@@ -246,21 +423,13 @@ struct FixedExpenseSheet: View {
             item.name = trimmed
             item.amount = amount
             item.dueDay = dueDay
-            item.emoji = emoji
+            item.emoji = iconAsset
         } else {
             let order = (try? modelContext.fetchCount(FetchDescriptor<FixedExpense>())) ?? 0
             modelContext.insert(FixedExpense(name: trimmed, amount: amount,
-                                             dueDay: dueDay, emoji: emoji, sortOrder: order))
+                                             dueDay: dueDay, emoji: iconAsset, sortOrder: order))
         }
         try? modelContext.save()
-    }
-
-    @ViewBuilder
-    private func field<C: View>(_ label: String, @ViewBuilder content: () -> C) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(label).scaledFont(11.5).foregroundStyle(.secondary)
-            content()
-        }
     }
 }
 

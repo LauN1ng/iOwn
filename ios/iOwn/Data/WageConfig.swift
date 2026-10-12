@@ -256,6 +256,38 @@ enum WorkState {
         case .rest:                      return "休息日"
         }
     }
+
+    // MARK: 状态图标（2026-10-12 新增 —— 工资卡「方案 B」：emoji 当卡片的脸）
+    //
+    // 素材 = Fluent 3D `state_*`（见 `Data/CuratedIcons.swift` 的 `State`，由
+    // `reports/_build_cur_icons.py` 生成）。语义与旧的彩色胶囊一一对应：
+    // 调休三态共用 `makeup`，对应原先「蓝胶囊」那一条分支。
+
+    /// Asset Catalog 名
+    var iconAsset: String {
+        switch self {
+        case .beforeWork:                 return CuratedIcons.State.beforeWork
+        case .working:                    return CuratedIcons.State.working
+        case .lunch:                      return CuratedIcons.State.lunch
+        case .afterWork:                  return CuratedIcons.State.afterWork
+        case .rest:                       return CuratedIcons.State.rest
+        case .makeupBefore, .makeupWorking, .makeupAfter:
+            return CuratedIcons.State.makeup
+        }
+    }
+
+    /// asset 缺失时的兜底 emoji（`CategoryIcon` 的 fallback）
+    var iconFallback: String {
+        switch self {
+        case .beforeWork:                 return "⏰"
+        case .working:                    return "💼"
+        case .lunch:                      return "🍜"
+        case .afterWork:                  return "🏠"
+        case .rest:                       return "🛋️"
+        case .makeupBefore, .makeupWorking, .makeupAfter:
+            return "🔁"
+        }
+    }
 }
 
 // MARK: - 金额格式化（千分位 + 两位小数）

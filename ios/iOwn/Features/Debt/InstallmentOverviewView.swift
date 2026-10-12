@@ -26,7 +26,7 @@ struct InstallmentOverviewView: View {
         ScrollView {
             VStack(spacing: Radius.cardSpacing) {
                 if activePlans.isEmpty {
-                    EmptyStateCard(icon: "🎉", title: "没有未还完的分期",
+                    EmptyStateCard(icon: "cur_party_popper", title: "没有未还完的分期",
                                    hint: "债已经到头了")
                 } else {
                     payoffCard

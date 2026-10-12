@@ -1,0 +1,26 @@
+{
+  "images": [
+    {
+      "filename": "cur_barber_pole.png",
+      "idiom": "universal",
+      "scale": "1x"
+    },
+    {
+      "filename": "cur_barber_pole@2x.png",
+      "idiom": "universal",
+      "scale": "2x"
+    },
+    {
+      "filename": "cur_barber_pole@3x.png",
+      "idiom": "universal",
+      "scale": "3x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "properties": {
+    "template-rendering-intent": "original"
+  }
+}

@@ -18,13 +18,18 @@ struct PlaceholderCard: View {
 }
 
 struct EmptyStateCard: View {
-    var icon: String = "🧾"
+    /// Fluent 3D asset 名（`cur_*` / `acct_*`）—— **不再收 emoji 字符**
+    var icon: String = "cur_receipt"
     var title: String = "还没有记录"
     var hint: String = "点右下角 + 记第一笔"
 
+    /// asset 缺失时的兜底：从 curated 表反查（自定义图标不在表内则留空，只显示文字）
+    private var fallback: String { CuratedIcons.item(icon)?.emoji ?? "" }
+
     var body: some View {
-        VStack(spacing: 10) {
-            Text(icon).scaledFont(44).accessibilityHidden(true)   // 装饰
+        VStack(spacing: 12) {
+            CategoryIcon(asset: icon, fallback: fallback, size: 52)   // 空态是首屏唯一的东西，给大
+                .accessibilityHidden(true)                            // 装饰
             Text(title).font(.subheadline).foregroundStyle(.secondary)
             Text(hint).font(.caption).foregroundStyle(.tertiary)
         }

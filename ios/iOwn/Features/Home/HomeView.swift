@@ -188,11 +188,9 @@ struct HomeView: View {
             let fromName = accounts.first { $0.id == tx.accountID }?.name ?? "?"
             let toName = accounts.first { $0.id == tx.toAccountID }?.name ?? "?"
             HStack(spacing: 12) {
-                Text("🔄")
-                    .scaledFont(20)
+                // 2026-10-12：iOS emoji 字符 → Fluent 3D；并去掉灰方块底（见 txRowContent 说明）
+                CategoryIcon(asset: "cur_left_right_arrow", fallback: "🔄", size: 30)
                     .frame(width: 42, height: 42)
-                    .background(Theme.iconBg)
-                    .cornerRadius(14)
                     .accessibilityHidden(true)   // 装饰：转账语义已由「资产互转」文字承载
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -219,12 +217,15 @@ struct HomeView: View {
             let sign = (tx.type == .out || tx.source == .repayment) ? "" : "+"
             let accountName = accounts.first { $0.id == tx.accountID }?.name
             HStack(spacing: 12) {
+                // 2026-10-12「emoji 升权」：**去掉 42×42 灰底方块**、图标 26 → 30pt。
+                // 理由：灰色圆角块把每个彩色贴图「规训」成同一套件，情绪感被抹平；
+                // 裸放后 emoji 才是列表里唯一的彩色源。
+                // ⚠️ 仍保留 42×42 的**不可见**外框 —— 用固定盒子兜住不同 emoji 的视觉重量差，
+                //    否则列表左边缘会不齐（这是本改动最大的风险点，靠 CI 截图核对）。
                 CategoryIcon(asset: sub?.iconName ?? cat?.iconName,
                              fallback: sub?.emoji ?? cat?.emoji ?? "🏷️",
-                             size: 26)
+                             size: 30)
                     .frame(width: 42, height: 42)
-                    .background(Theme.iconBg)
-                    .cornerRadius(14)
                     .accessibilityHidden(true)   // 装饰：分类名已在小字里念出
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -240,7 +241,7 @@ struct HomeView: View {
 
                 if let mood = tx.mood {
                     HStack(spacing: 4) {
-                        CategoryIcon(mood, size: 14)
+                        CategoryIcon(mood, size: 16)   // 2026-10-12：14 → 16（emoji 升权，流水行内的小幅提权）
                         Text(mood.label).scaledFont(11)
                     }
                     .foregroundStyle(.secondary)

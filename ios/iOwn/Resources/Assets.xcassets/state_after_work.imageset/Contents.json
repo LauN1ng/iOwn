@@ -1,0 +1,26 @@
+{
+  "images": [
+    {
+      "filename": "state_after_work.png",
+      "idiom": "universal",
+      "scale": "1x"
+    },
+    {
+      "filename": "state_after_work@2x.png",
+      "idiom": "universal",
+      "scale": "2x"
+    },
+    {
+      "filename": "state_after_work@3x.png",
+      "idiom": "universal",
+      "scale": "3x"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  },
+  "properties": {
+    "template-rendering-intent": "original"
+  }
+}

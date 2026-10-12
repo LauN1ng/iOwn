@@ -33,7 +33,7 @@ struct AccountFlowSection: View {
             .padding(.horizontal, 4)
 
             if txs.isEmpty {
-                EmptyStateCard(icon: "🧾", title: emptyTitle,
+                EmptyStateCard(icon: "cur_receipt", title: emptyTitle,
                                hint: "记一笔时选「\(accountName)」就会出现在这里")
             } else {
                 VStack(spacing: 0) {

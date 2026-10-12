@@ -46,7 +46,7 @@ struct CategoryManagerView: View {
             AddCustomSubSheet(category: cat) {
                 version += 1
             }
-            .presentationDetents([.fraction(0.55)])
+            .presentationDetents([.fraction(0.68), .large])   // 2026-10-12：图标从 16 个扩到 135 个（9 组），半屏不够放
             .presentationDragIndicator(.hidden)
         }
         .alert("删除子类", isPresented: Binding(
@@ -64,6 +64,19 @@ struct CategoryManagerView: View {
             if let (_, sub) = pendingRemove {
                 Text("删除「\(sub.name)」？")
             }
+        }
+        .onAppear(perform: handleCIArg)
+    }
+
+    /// CI 截图钩子：直接展开「添加子类」sheet 以拍新的图标选择器。
+    /// ⚠️ 这是**嵌套 sheet**（本页本身也是 sheet），必须等外层先落位 → 延迟 0.7s。
+    /// 按 `AGENTS.md` §4：钩子只读 `ProcessInfo.arguments`，不加存储属性。
+    private func handleCIArg() {
+        guard ProcessInfo.processInfo.arguments.contains("-ci-open-catman-add-sub"),
+              let cat = CategoryPresets.all.first(where: { $0.id == "needs" }) else { return }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            addTarget = cat
         }
     }
 
@@ -99,83 +112,178 @@ struct CategoryManagerView: View {
     }
 }
 
-// MARK: - 新增自定义子类：emoji + 名称
+// MARK: - 新增自定义子类：Fluent 3D 图标 + 名称（2026-10-12 重做）
+//
+// 变更前：图标是 **16 个 iOS 系统 emoji 字符**（✨🍜☕️…），渲染走系统字体 ——
+//         与 App 内其余 Fluent 3D 贴图同屏最刺眼，是「第三套图标语言」的主要来源。
+// 变更后：图标是 curated **135 个 Fluent 3D**，按 9 个大类分组切换（`CuratedIcons`）。
+//         素材与分组由 `reports/_build_cur_icons.py` 生成，勿手改 `CuratedIcons.swift`。
 
 struct AddCustomSubSheet: View {
     @Environment(\.dismiss) private var dismiss
     let category: CategoryDef
     var onAdded: () -> Void = {}
 
-    @State private var emoji = "✨"
     @State private var name = ""
+    @State private var iconAsset = CuratedIcons.preferred.asset
+    @State private var groupIndex = 0
 
-    private let emojiOptions = ["✨", "🍜", "☕️", "🧋", "🛒", "🚕", "🏠", "💡", "💊", "📚", "🎮", "🎬", "🎁", "🐶", "💇", "🧾"]
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 6)
+
+    /// 父大类 → 默认展开的图标组（用户可自行切到别的组）
+    private static let defaultGroup: [String: String] = [
+        "fixed":    "住 · 家居",
+        "needs":    "吃 · 餐饮",
+        "flexible": "娱乐 · 玩乐",
+        "growth":   "学习 · 办公",
+        "travel":   "行 · 交通",
+        "bigitem":  "数码 · 电子",
+    ]
+
+    private var groups: [CuratedIcons.Group] { CuratedIcons.groups }
+    private var items: [CuratedIcons.Item] {
+        groups.indices.contains(groupIndex) ? groups[groupIndex].items : []
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             SheetGrabber()
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 8) {
-                    CategoryIcon(category, size: 24)
-                    Text("\(category.name) · 新子类")
-                        .scaledFont(17, weight: .bold)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    titleRow
+                    iconSection
+                    nameSection
                 }
-                .padding(.top, 4)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("图标").scaledFont(12).foregroundStyle(.secondary)
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 8), spacing: 8) {
-                        ForEach(emojiOptions, id: \.self) { e in
-                            Button {
-                                Haptics.tap()
-                                emoji = e
-                            } label: {
-                                Text(e).scaledFont(20)
-                                    .frame(width: 38, height: 38)
-                                    .background(emoji == e ? Theme.green : Theme.iconBg,
-                                                in: RoundedRectangle(cornerRadius: Radius.small))
-                            }
-                        }
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("名称").scaledFont(12).foregroundStyle(.secondary)
-                    TextField("如：咖啡续命", text: $name)
-                        .scaledFont(16)
-                        .padding(12)
-                        .background(Theme.card, in: RoundedRectangle(cornerRadius: Radius.small))
-                        .overlay(RoundedRectangle(cornerRadius: Radius.small)
-                            .stroke(Theme.hairline, lineWidth: 1))
-                }
-
-                Spacer()
-
-                Button {
-                    save()
-                } label: {
-                    Text("保存")
-                        .scaledFont(16, weight: .bold)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, minHeight: 48)
-                        .background(name.isEmpty ? Theme.disabled : Theme.green,
-                                    in: RoundedRectangle(cornerRadius: Radius.medium))
-                }
-                .foregroundStyle(name.isEmpty ? Theme.disabledText : .white)
-                .disabled(name.isEmpty)
-                .accessibilityLabel("保存自定义子类")
+                .padding(.horizontal, Radius.pagePadding)
+                .padding(.bottom, 8)
             }
-            .padding(.horizontal, Radius.pagePadding)
-            .padding(.bottom, 20)
+            saveButton
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.bg)
+        .onAppear(perform: applyDefaultGroup)
+    }
+
+    private var titleRow: some View {
+        HStack(spacing: 8) {
+            CategoryIcon(category, size: 24)
+            Text("\(category.name) · 新子类")
+                .scaledFont(17, weight: .bold)
+        }
+        .padding(.top, 4)
+    }
+
+    // MARK: 图标（9 组切换 + 6 列网格）
+
+    private var iconSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("图标").scaledFont(12).foregroundStyle(.secondary)
+                Spacer(minLength: 8)
+                // 让用户明确知道自己选的是哪个（图标本身没文字）
+                if let item = CuratedIcons.item(iconAsset) {
+                    Text(item.name).scaledFont(11).foregroundStyle(.tertiary)
+                }
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(groups.indices, id: \.self) { i in
+                        groupChip(i)
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(items) { item in
+                    iconCell(item)
+                }
+            }
+        }
+    }
+
+    private func groupChip(_ i: Int) -> some View {
+        let on = i == groupIndex
+        return Button {
+            Haptics.tap()
+            groupIndex = i
+        } label: {
+            Text(groups[i].title)
+                .scaledFont(12, weight: .semibold)
+                .foregroundStyle(on ? Color.white : Color.secondary)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(on ? Theme.green : Theme.iconBg)
+                .cornerRadius(999)
+        }
+        .buttonStyle(PressableButtonStyle(scale: 0.96))
+        .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private func iconCell(_ item: CuratedIcons.Item) -> some View {
+        let on = iconAsset == item.asset
+        return Button {
+            Haptics.tap()
+            iconAsset = item.asset
+        } label: {
+            CategoryIcon(asset: item.asset, fallback: item.emoji, size: 26)
+                .frame(maxWidth: .infinity)
+                .frame(height: 40)
+                .background(on ? Theme.greenSoft : Theme.card,
+                            in: RoundedRectangle(cornerRadius: Radius.small))
+                .overlay(RoundedRectangle(cornerRadius: Radius.small)
+                    .stroke(on ? Theme.green : Theme.hairline, lineWidth: 1))
+        }
+        .buttonStyle(PressableButtonStyle(scale: 0.94))
+        .accessibilityLabel(item.name)
+        .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
+    }
+
+    // MARK: 名称
+
+    private var nameSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("名称").scaledFont(12).foregroundStyle(.secondary)
+            TextField("如：咖啡续命", text: $name)
+                .scaledFont(16)
+                .padding(12)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: Radius.small))
+                .overlay(RoundedRectangle(cornerRadius: Radius.small)
+                    .stroke(Theme.hairline, lineWidth: 1))
+        }
+    }
+
+    private var saveButton: some View {
+        Button {
+            save()
+        } label: {
+            Text("保存")
+                .scaledFont(16, weight: .bold)
+                .foregroundStyle(name.isEmpty ? Theme.disabledText : .white)
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .background(name.isEmpty ? Theme.disabled : Theme.green,
+                            in: RoundedRectangle(cornerRadius: Radius.medium))
+        }
+        .disabled(name.isEmpty)
+        .accessibilityLabel("保存自定义子类")
+        .padding(.horizontal, Radius.pagePadding)
+        .padding(.top, 8)
+        .padding(.bottom, 16)
+    }
+
+    private func applyDefaultGroup() {
+        guard let title = Self.defaultGroup[category.id],
+              let i = groups.firstIndex(where: { $0.title == title }) else { return }
+        groupIndex = i
     }
 
     private func save() {
         Haptics.success()
         let id = "custom-\(UUID().uuidString.prefix(8))"
-        CustomSubStore.add(.init(id: id, emoji: emoji, name: name), to: category.id)
+        let item = CuratedIcons.item(iconAsset) ?? CuratedIcons.preferred
+        // emoji 一并存下：asset 万一缺失时的兜底，也让数据可读
+        CustomSubStore.add(.init(id: id, emoji: item.emoji, name: name, asset: item.asset),
+                           to: category.id)
         onAdded()
         dismiss()
     }

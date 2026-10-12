@@ -54,7 +54,7 @@ struct AssetsView: View {
                     netSummary
 
                     if accounts.isEmpty {
-                        EmptyStateCard(icon: "💳", title: "还没有账户",
+                        EmptyStateCard(icon: "acct_card", title: "还没有账户",
                                        hint: "点右上角 ＋ 添加第一个账户")
                     } else {
                         // 信用在前：负债是「资产页的另一个视角」，且是需要关注的数字
@@ -327,7 +327,7 @@ struct AssetsView: View {
         let months = DebtEngine.payoffMonths(activePlans)
         return Button { Haptics.tap(); showInstallments = true } label: {
             HStack(spacing: 12) {
-                CategoryIcon(asset: nil, fallback: "🗓️", size: 26)
+                CategoryIcon(asset: "cur_tear_off_calendar", fallback: "🗓️", size: 26)
                     .frame(width: 40, height: 40)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
