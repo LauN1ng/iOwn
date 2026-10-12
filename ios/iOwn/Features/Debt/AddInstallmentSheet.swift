@@ -63,7 +63,7 @@ struct AddInstallmentSheet: View {
                     .buttonStyle(PressableButtonStyle(scale: 0.985))
                 }
 
-                hintCard
+                if isBatch { hintCard }
 
                 Button {
                     Haptics.success()
@@ -244,7 +244,7 @@ struct AddInstallmentSheet: View {
 
     /// 说明卡：只在补录模式显示，且不啰嗦
     private var hintCard: some View {
-        Text("账单写「第 2/12 期 ¥120.03」就填 **2**、**12**、**120.03**。\n尾差：花呗 / 白条把余数计入**首期**（填「＋首期」）；银行信用卡计入**末期**（填「＋合计」＝ 本金 ＋ 手续费/利息，末期会自动算出来）。\n「一共欠多少」不用在这里录 —— 那是账户余额的事，用详情页的「调整」对账。")
+        Text("账单写「第 2/12 期 ¥120.03」就填 **2**、**12**、**120.03**。尾差落在首期（花呗 / 白条）填「＋首期」，落在末期（银行）填「＋合计」。「一共欠多少」不用录 —— 用详情页的「调整」对账。")
             .scaledFont(11.5)
             .foregroundStyle(.secondary)
             .padding(12)
