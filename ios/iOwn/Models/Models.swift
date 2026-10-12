@@ -367,8 +367,19 @@ final class Liability {
     /// 每期金额 —— 直接抄账单。`> 0` 时优先于旧的「(本金 + 手续费) ÷ 期数」推导。
     var perPeriodAmount: Decimal = 0
     /// 首期金额 —— 仅当首期与其余期**不同**时填：
-    /// 尾差（几分钱，可忽略）/ 手续费一次性收取（几十到几百，必须填）。`0` = 首期与其余期相同。
+    /// 尾差（花呗 / 白条：余数计入首期）/ 手续费一次性收取（几十到几百，必须填）。
+    /// `0` = 首期与其余期相同。
     var firstPeriodAmount: Decimal = 0
+
+    /// 合计（本金 ＋ 手续费/利息）—— 2026-10-12 新增（方案 A）。
+    ///
+    /// 用途：**反解末期差额**。各平台「本金 ÷ 期数」除不尽时的余数落点不同：
+    ///   · 花呗 / 京东白条 → 计入**首期**（由 `firstPeriodAmount` 直接录）
+    ///   · 银行信用卡（招 / 建 / 农 / 汇丰…）→ 计入**最后一期**（本字段反解）
+    /// 只需抄一个「合计」（花呗详情页直接叫「分期总额」；白条 = 本金 ＋ 服务费；
+    /// 银行 = 分期金额 ＋ 分期利息），`DebtEngine.lastAmount` 就能把末期算准。
+    /// `0` = 未填（末期与其余期相同）。
+    var totalRepayAmount: Decimal = 0
 
     init(id: String = UUID().uuidString, name: String, kind: LiabilityKind,
          category: LiabilityCategory, principal: Decimal, totalPeriods: Int = 0,
@@ -376,7 +387,8 @@ final class Liability {
          billDay: Int = 1, dueDay: Int = 25, startMonth: String = "",
          iconChar: String = "债", iconHex: UInt32 = 0x8E8E93,
          linkedAccountID: String? = nil, sortOrder: Int = 0,
-         perPeriodAmount: Decimal = 0, firstPeriodAmount: Decimal = 0) {
+         perPeriodAmount: Decimal = 0, firstPeriodAmount: Decimal = 0,
+         totalRepayAmount: Decimal = 0) {
         self.id = id; self.name = name
         self.kindRaw = kind.rawValue; self.categoryRaw = category.rawValue
         self.principal = principal
@@ -387,6 +399,7 @@ final class Liability {
         self.iconChar = iconChar; self.iconHex = iconHex
         self.linkedAccountID = linkedAccountID; self.sortOrder = sortOrder
         self.perPeriodAmount = perPeriodAmount; self.firstPeriodAmount = firstPeriodAmount
+        self.totalRepayAmount = totalRepayAmount
     }
 
     var kind: LiabilityKind { LiabilityKind(rawValue: kindRaw) ?? .fixed }
@@ -483,12 +496,47 @@ enum DebtEngine {
         return (l.principal + totalFee(l)) / Decimal(l.totalPeriods)
     }
 
-    /// 首期尚未偿还的**差额**：仅当首期与其余期不同、且第 1 期还没还时返回它；否则 0。
-    /// （尾差 / 手续费一次性收取 —— 见 `AddInstallmentSheet` 的「＋首期」入口）
-    static func firstUnpaid(_ l: Liability) -> Decimal {
-        guard l.kind == .installment, l.totalPeriods > 0, l.paidPeriods == 0,
-              l.firstPeriodAmount > 0 else { return 0 }
-        return l.firstPeriodAmount
+    // MARK: 尾差（2026-10-12：首期 / 末期两类例外）
+    //
+    // 各平台「本金 ÷ 期数」除不尽时，余数落点**不同**（已查官方条款）：
+    //   · 花呗 / 京东白条 → 余数计入 **首期**
+    //   · 银行信用卡（招 / 建 / 农 / 汇丰…）→ 余数计入 **最后一期**
+    // 一次分期只有**一期**是例外，所以建模成三档：首期金额 / 每期金额 / 末期金额。
+    // 末期**不单独录**，由 `totalRepayAmount`（合计，含手续费/利息）反解：
+    //   末期 = 合计 − 首期 − (期数 − 2) × 每期
+    //
+    // 用三张真实账单验证过（2026-10-12）：
+    //   白条 12期 9.75 + 首期9.83 + 合计117.08      → 末期 9.75  ✅
+    //   花呗 12期 120.03 + 首期120.06 + 合计1440.39  → 末期 120.03 ✅
+    //   招行 3期 33.33 +（首期不填）+ 合计100.00     → 末期 33.34  ✅
+
+    /// 首期金额（未单独填 = 与每期相同）
+    static func firstAmount(_ l: Liability) -> Decimal {
+        guard l.kind == .installment, l.totalPeriods > 0 else { return l.principal }
+        return l.firstPeriodAmount > 0 ? l.firstPeriodAmount : perPeriod(l)
+    }
+
+    /// 末期金额（未填合计 = 与每期相同）
+    static func lastAmount(_ l: Liability) -> Decimal {
+        guard l.kind == .installment, l.totalPeriods > 0 else { return l.principal }
+        let n = l.totalPeriods
+        guard n > 1 else { return firstAmount(l) }
+        guard l.totalRepayAmount > 0 else { return perPeriod(l) }
+        let derived = l.totalRepayAmount - firstAmount(l) - Decimal(n - 2) * perPeriod(l)
+        return derived > 0 ? derived : perPeriod(l)   // 填错合计时兜底，不产生负数期
+    }
+
+    /// 第 k 期应还（1-based）—— **全 App 取「某一期金额」的唯一入口**
+    static func amount(of l: Liability, period k: Int) -> Decimal {
+        guard l.kind == .installment, l.totalPeriods > 0 else { return l.principal }
+        if k <= 1 { return firstAmount(l) }
+        if k >= l.totalPeriods { return lastAmount(l) }
+        return perPeriod(l)
+    }
+
+    /// 已还完的分期在列表里仍要显示一个数 → 用「每期」；没还完 → 用**本期应还**
+    static func displayDue(_ l: Liability) -> Decimal {
+        remainingPeriods(l) > 0 ? dueThisMonth(l) : perPeriod(l)
     }
 
     /// 实际年化利率（名义总费率 ≠ 实际）：统一走 IRR
@@ -501,16 +549,16 @@ enum DebtEngine {
         }
     }
 
-    /// 剩余待还总额 —— 首期若尚未还且与其余期不同，单独计入
+    /// 剩余待还总额 = Σ **未偿还各期**的金额（首期 / 中间期 / 末期各不相同）
     static func remaining(_ l: Liability) -> Decimal {
         switch l.kind {
         case .installment:
-            guard l.totalPeriods > 0 else { return l.principal }
-            let left = max(l.totalPeriods - l.paidPeriods, 0)
-            guard left > 0 else { return 0 }
-            let first = firstUnpaid(l)
-            let rest = Decimal(first > 0 ? left - 1 : left)
-            return first + max(rest, 0) * perPeriod(l)
+            let n = l.totalPeriods
+            guard n > 0 else { return l.principal }
+            guard l.paidPeriods < n else { return 0 }
+            var sum: Decimal = 0
+            for k in (l.paidPeriods + 1)...n { sum += amount(of: l, period: k) }
+            return sum
         case .currentBill, .fixed:
             return l.principal
         }
@@ -529,11 +577,14 @@ enum DebtEngine {
         return min(l.paidPeriods + 1, l.totalPeriods)
     }
 
-    /// 本月应还（本项目中最简口径：分期=每期固定；当期账单=本金；固定=本金）
+    /// 本月应还 —— 分期 = **当前这一期**的金额（首期 / 中间期 / 末期各不同）
     static func dueThisMonth(_ l: Liability) -> Decimal {
         switch l.kind {
-        case .installment: return remainingPeriods(l) > 0 ? perPeriod(l) : 0
-        case .currentBill, .fixed: return l.principal
+        case .installment:
+            guard remainingPeriods(l) > 0 else { return 0 }
+            return amount(of: l, period: currentPeriod(l))
+        case .currentBill, .fixed:
+            return l.principal
         }
     }
 
@@ -573,13 +624,18 @@ enum DebtEngine {
         return Calendar.current.date(byAdding: .month, value: m, to: date)
     }
 
-    /// 第 m 个月**月末**的剩余债务（`m = 0` 即本月末）。
+    /// 第 m 个月**月末**的剩余债务（`m = 0` 即本月末，即本月应还已扣除）。
     /// 用于「债有尽头」看板把「逐月递减到 0」画出来。
     static func remainingAfter(_ liabilities: [Liability], months m: Int) -> Decimal {
         liabilities.filter { $0.kind == .installment }
             .reduce(Decimal(0)) { acc, l in
-                let left = max(remainingPeriods(l) - m - 1, 0)
-                return acc + Decimal(left) * perPeriod(l)
+                let n = l.totalPeriods
+                guard n > 0 else { return acc }
+                let paid = min(l.paidPeriods + m + 1, n)
+                guard paid < n else { return acc }
+                var sum: Decimal = 0
+                for k in (paid + 1)...n { sum += amount(of: l, period: k) }
+                return acc + sum
             }
     }
 
@@ -587,17 +643,15 @@ enum DebtEngine {
     /// 简化模型：每过一月，分期 `paidPeriods + 1`；还完后该月应还归零。
     /// ⚠️ **只预测 `.installment` 分期** —— 当期账单每月浮动、固定支出属另一模块，
     ///    两者都无法按月外推（旧实现按当前值"平推"，会让数字永远不降，已修正）。
+    /// 每个月取的是**该月对应那一期**的金额，所以首期 / 末期的尾差会落在正确的月份。
     /// 返回 [(月偏移, 当月可支配, 当月应还)]
     static func forecast(takeHomePay: Decimal, liabilities: [Liability], months: Int = 12) -> [(Int, Decimal, Decimal)] {
         var out: [(Int, Decimal, Decimal)] = []
         for m in 0..<months {
             var due: Decimal = 0
             for l in liabilities where l.kind == .installment {
-                let left = remainingPeriods(l)
-                if m < left {
-                    // 第 0 月可能包含首期差额（尾差 / 一次性手续费）
-                    due += (m == 0 ? perPeriod(l) + firstUnpaid(l) : perPeriod(l))
-                }
+                let k = l.paidPeriods + m + 1
+                if k <= l.totalPeriods { due += amount(of: l, period: k) }
             }
             out.append((m, takeHomePay - due, due))
         }
@@ -613,7 +667,11 @@ enum DebtEngine {
     //   本月应还          = 当期欠款 + Σ各笔分期的每期金额
     // 用「本金」而非「本金+手续费」相减，避免手续费造成口径漂移。
 
-    /// 一笔分期尚未偿还的本金（不含手续费）
+    /// 一笔分期尚未偿还的**本金**（不含手续费/利息）。
+    /// ⚠️ 口径纪律：账户余额（`|余额|`）里只有本金（记账金额），不含手续费，
+    ///    所以这里必须按本金推算，否则「当期欠款 = |余额| − Σ分期未还本金」会漂。
+    ///    （2026-10-12 一度改成含手续费的 `remaining`，会破坏 `BehaviorSelfTest` ②，
+    ///     已回退 —— 手续费只在 `remaining` / `dueThisMonth` / `forecast` 里体现。）
     static func remainingPrincipal(_ l: Liability) -> Decimal {
         switch l.kind {
         case .installment:
@@ -705,7 +763,8 @@ enum LiabilityLinker {
             feeMode: feeRate > 0 ? .totalRate : .none, feeValue: feeRate,
             billDay: 1, dueDay: 25, startMonth: "",
             iconChar: "分", iconHex: 0x8E8E93,
-            linkedAccountID: account.id, sortOrder: order)
+            linkedAccountID: account.id, sortOrder: order,
+            totalRepayAmount: tx.amount * (1 + feeRate / 100))   // 合计 = 本金 ×(1 + 总费率)
         context.insert(plan)
         tx.liabilityID = plan.id
         return plan

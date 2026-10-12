@@ -48,7 +48,7 @@ struct CreditedAccountView: View {
     private var remainingPeriodsTotal: Int {
         plans.reduce(0) { $0 + DebtEngine.remainingPeriods($1) }
     }
-    /// 已分期部分（未还本金，不含手续费）—— 与 currentBill 相减的口径一致
+    /// 已分期部分（未偿还金额，含手续费/利息）—— 与 currentBill 相减的口径一致
     private var planRemaining: Decimal {
         plans.reduce(Decimal(0)) { $0 + DebtEngine.remainingPrincipal($1) }
     }
@@ -276,7 +276,7 @@ struct CreditedAccountView: View {
                         .padding(.horizontal, 6).padding(.vertical, 1.5)
                         .background(Color(hex: 0xFCF3E2)).cornerRadius(6)
                     Spacer(minLength: 6)
-                    Text("¥\(Money.string(dec(DebtEngine.perPeriod(l))))")
+                    Text("¥\(Money.string(dec(DebtEngine.displayDue(l))))")
                         .scaledFont(15, weight: .semibold).monospacedDigit()
                 }
                 Text("第 \(DebtEngine.currentPeriod(l))/\(l.totalPeriods) 期 · 剩 \(DebtEngine.remainingPeriods(l)) 期")

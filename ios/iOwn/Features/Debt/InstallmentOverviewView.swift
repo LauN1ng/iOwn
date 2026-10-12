@@ -133,7 +133,7 @@ struct InstallmentOverviewView: View {
             HStack(spacing: 6) {
                 Text(l.name).scaledFont(14, weight: .semibold).lineLimit(1)
                 Spacer(minLength: 6)
-                Text("¥" + money(DebtEngine.perPeriod(l)))
+                Text("¥" + money(DebtEngine.displayDue(l)))
                     .scaledFont(15, weight: .semibold).monospacedDigit()
             }
             HStack(spacing: 6) {
