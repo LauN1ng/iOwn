@@ -36,15 +36,22 @@ struct Green3DBackground: View {
     var capsule: Bool = false
     var circle: Bool = false
 
-    // ⚠️ 必须用 `AnyInsettableShape`（不是 `AnyShape`）—— 底部暗唇走 `strokeBorder`，
-    //    而 `strokeBorder` 是 `InsettableShape` 的扩展，`AnyShape` 只是 `Shape`，编译不过。
-    private var shape: AnyInsettableShape {
-        if circle { return AnyInsettableShape(Circle()) }
-        if capsule { return AnyInsettableShape(Capsule()) }
-        return AnyInsettableShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+    // ⚠️ 不要用类型擦除（`AnyShape` / `AnyInsettableShape`）—— 底部暗唇走 `strokeBorder`，
+    //    它是 `InsettableShape` 的扩展，`AnyShape` 只是 `Shape` 编译不过；
+    //    而 SwiftUI **没有** `AnyInsettableShape`（2026-10-15 CI 实测 `cannot find type`）。
+    //    → 用泛型 `S: InsettableShape` 分派三种形状，零擦除、保住 `strokeBorder`。
+    var body: some View {
+        if circle {
+            surface(Circle())
+        } else if capsule {
+            surface(Capsule())
+        } else {
+            surface(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        }
     }
 
-    var body: some View {
+    @ViewBuilder
+    private func surface<S: InsettableShape>(_ shape: S) -> some View {
         if enabled {
             shape
                 .fill(LinearGradient(colors: [Theme.greenTop, Theme.green, Theme.greenDeep],
