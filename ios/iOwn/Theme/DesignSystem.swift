@@ -64,6 +64,11 @@ extension View {
 
     /// 字号 token 入口（**业务代码统一用这个**）
     /// `display` 档固定不缩放；其余档跟随 Dynamic Type
+    ///
+    /// ⚠️ 必须标 `@ViewBuilder`：两个分支返回的是不同具体类型
+    /// （`ModifiedContent<Self, ScaledFontModifier>` vs `ModifiedContent<Self, _EnvironmentKeyWritingModifier<…>>`），
+    /// 不标会让 `some View` 推断失败 → `branches have mismatching types`（2026-10-15 CI 实测）。
+    @ViewBuilder
     func scaledFont(_ token: Type,
                     weight: Font.Weight = .regular,
                     design: Font.Design = .default) -> some View {
