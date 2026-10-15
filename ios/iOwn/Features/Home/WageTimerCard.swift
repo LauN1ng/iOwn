@@ -114,7 +114,7 @@ struct WageTimerCard: View {
 /// **2026-10-12 变更（emoji 升权「方案 B」）**：
 /// - 色彩职责回归 —— 原实现用 `Theme.green / .amber / .blue` **填充**表状态，
 ///   违反「绿 = 交互/功能色、彩色 = 内容」铁律；现改为中性 `Theme.iconBg`，
-///   **状态表意交给左侧的 40pt emoji**（`WorkState.iconAsset`），绿色还给交互。
+///   **状态表意交给左侧的情绪脸**（`WorkState.iconAsset`；2026-10-15 起 56pt），绿色还给交互。
 /// - 去掉 `● ` 前缀（与左侧 emoji 重复）。
 /// - 与未来小组件共用同一 `WorkState` 判定（`WageConfig.todayStatus`）不变。
 private struct StatusPill: View {
