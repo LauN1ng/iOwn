@@ -74,7 +74,7 @@ struct CreditedAccountView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { Haptics.tap(); showAdd = true } label: {
-                    Image(systemName: "plus").scaledFont(16, weight: .semibold)
+                    Image(systemName: "plus").scaledFont(.title, weight: .semibold)
                 }
                 .accessibilityLabel("添加分期")
             }
@@ -109,14 +109,14 @@ struct CreditedAccountView: View {
             HStack(spacing: 10) {
                 accountIcon
                 Text(account.name)
-                    .scaledFont(13.5, weight: .semibold)
+                    .scaledFont(.sm, weight: .semibold)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 Spacer(minLength: 8)
                 // 「调整」= 对账（平移初始余额，不产生流水）
                 Button { Haptics.tap(); showAdjust = true } label: {
                     Text("调整")
-                        .scaledFont(12, weight: .semibold)
+                        .scaledFont(.sm, weight: .semibold)
                         .foregroundStyle(.primary)
                         .padding(.horizontal, 13).padding(.vertical, 7)
                         .background(Theme.iconBg)
@@ -127,21 +127,23 @@ struct CreditedAccountView: View {
             }
             .padding(.bottom, 12)
 
-            Text("本月应还").scaledFont(12).foregroundStyle(.secondary)
+            Text("本月应还").scaledFont(.sm).foregroundStyle(.secondary)
             Text("¥ \(Money.string(dec(monthlyDue)))")
-                .scaledFont(32, weight: .heavy, design: .rounded)
+                .scaledFont(.display, weight: .heavy, design: .rounded)
                 .foregroundStyle(Theme.redText).monospacedDigit()
                 .padding(.top, 4)
             Text("已用 ¥\(Money.string(dec(used)))" + limitText)
-                .scaledFont(11.5).foregroundStyle(.secondary)
+                .scaledFont(.xs).foregroundStyle(.secondary)
                 .padding(.top, 5)
             // ⭐「债有尽头」——预计还清日（`DebtEngine.payoffDate`，此前无界面）
             if let payoff = payoffText {
                 HStack(spacing: 5) {
-                    Image(systemName: "flag.checkered").scaledFont(10.5)
+                    // 2026-10-15：SF Symbol → Fluent 3D（原 10pt 太小，3D 体积读不出，提到 15pt）
+                    Image("nav_flag").renderingMode(.original).resizable().scaledToFit()
+                        .frame(width: 15, height: 15)
                     Text(payoff)
                 }
-                .scaledFont(11.5, weight: .semibold)
+                .scaledFont(.xs, weight: .semibold)
                 .foregroundStyle(Theme.greenText)
                 .padding(.top, 7)
             }
@@ -150,7 +152,7 @@ struct CreditedAccountView: View {
                 Spacer()
                 Text("还款日 \(dayText(account.dueDay))")
             }
-            .scaledFont(11).foregroundStyle(.secondary)
+            .scaledFont(.xs).foregroundStyle(.secondary)
             .padding(.top, 10)
         }
         .padding(18)
@@ -180,10 +182,9 @@ struct CreditedAccountView: View {
             if !account.icon.asset.isEmpty, UIImage(named: account.icon.asset) != nil {
                 // ⚠️ 彩色贴图：不要加 .renderingMode(.template)
                 Image(account.icon.asset).resizable().scaledToFit()
-            } else if !account.icon.emoji.isEmpty {
-                Text(account.icon.emoji).scaledFont(20)
             } else {
-                Text(account.kind.logoChar).scaledFont(13, weight: .heavy).foregroundStyle(.secondary)
+                // 2026-10-15：emoji 兜底层已删 → 落到单字字块（暂时保留）
+                Text(account.kind.logoChar).scaledFont(.sm, weight: .heavy).foregroundStyle(.secondary)
             }
         }
         .frame(width: 28, height: 28)
@@ -194,14 +195,14 @@ struct CreditedAccountView: View {
     private var totalOwedCard: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                Text("一共还欠").scaledFont(12.5).foregroundStyle(.secondary)
+                Text("一共还欠").scaledFont(.sm).foregroundStyle(.secondary)
                 Spacer()
                 Text("¥\(Money.string(dec(used)))")
-                    .scaledFont(18, weight: .bold).monospacedDigit()
+                    .scaledFont(.title, weight: .bold).monospacedDigit()
             }
             Text("其中 已分期 ¥" + Money.string(dec(planRemaining))
                  + " · 没分期 ¥" + Money.string(dec(currentBill)))
-                .scaledFont(11).foregroundStyle(.secondary).monospacedDigit()
+                .scaledFont(.xs).foregroundStyle(.secondary).monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(15)
@@ -224,18 +225,18 @@ struct CreditedAccountView: View {
     private var currentBillCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text("当期欠款").scaledFont(13, weight: .semibold)
+                Text("当期欠款").scaledFont(.sm, weight: .semibold)
                 Text("只读 · 来自记账")
-                    .scaledFont(10, weight: .medium)
+                    .scaledFont(.micro, weight: .medium)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 6).padding(.vertical, 1.5)
                     .background(Theme.iconBg).cornerRadius(6)
                 Spacer()
                 Text("¥\(Money.string(dec(currentBill)))")
-                    .scaledFont(18, weight: .bold).monospacedDigit()
+                    .scaledFont(.title, weight: .bold).monospacedDigit()
             }
             Text("选「\(account.name)」支付的记账会自动汇总到这里，不需要你录入。")
-                .scaledFont(11.5).foregroundStyle(.secondary)
+                .scaledFont(.xs).foregroundStyle(.secondary)
         }
         .padding(15)
         .background(Theme.card)
@@ -254,10 +255,10 @@ struct CreditedAccountView: View {
         } else {
             VStack(alignment: .leading, spacing: 9) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text("分期").scaledFont(13, weight: .semibold)
+                    Text("分期").scaledFont(.sm, weight: .semibold)
                     Spacer()
                     Text("\(plans.count) 笔 · 剩余共 \(remainingPeriodsTotal) 期")
-                        .scaledFont(11.5).foregroundStyle(.secondary)
+                        .scaledFont(.xs).foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 4)
                 ForEach(plans, id: \.id) { l in planRow(l) }
@@ -269,18 +270,18 @@ struct CreditedAccountView: View {
         Button { Haptics.tap(); editingPlan = l } label: {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
-                    Text(l.name).scaledFont(14, weight: .semibold)
+                    Text(l.name).scaledFont(.body, weight: .semibold)
                     Text("分期 \(l.totalPeriods) 期")
-                        .scaledFont(10, weight: .medium)
+                        .scaledFont(.micro, weight: .medium)
                         .foregroundStyle(Color(hex: 0x8A5A0B))
                         .padding(.horizontal, 6).padding(.vertical, 1.5)
                         .background(Color(hex: 0xFCF3E2)).cornerRadius(6)
                     Spacer(minLength: 6)
                     Text("¥\(Money.string(dec(DebtEngine.displayDue(l))))")
-                        .scaledFont(15, weight: .semibold).monospacedDigit()
+                        .scaledFont(.body, weight: .semibold).monospacedDigit()
                 }
                 Text("第 \(DebtEngine.currentPeriod(l))/\(l.totalPeriods) 期 · 剩 \(DebtEngine.remainingPeriods(l)) 期")
-                    .scaledFont(11).foregroundStyle(.secondary)
+                    .scaledFont(.xs).foregroundStyle(.secondary)
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Capsule().fill(Color(hex: 0xF0F0EE)).frame(height: 5)
@@ -316,21 +317,21 @@ struct CreditedAccountView: View {
     private var totalRow: some View {
         VStack(spacing: 8) {
             HStack {
-                Text("当期欠款").scaledFont(12.5).foregroundStyle(.secondary)
+                Text("当期欠款").scaledFont(.sm).foregroundStyle(.secondary)
                 Spacer()
-                Text("¥\(Money.string(dec(currentBill)))").scaledFont(12.5).monospacedDigit()
+                Text("¥\(Money.string(dec(currentBill)))").scaledFont(.sm).monospacedDigit()
             }
             HStack {
-                Text("分期月供").scaledFont(12.5).foregroundStyle(.secondary)
+                Text("分期月供").scaledFont(.sm).foregroundStyle(.secondary)
                 Spacer()
-                Text("¥\(Money.string(dec(planDue)))").scaledFont(12.5).monospacedDigit()
+                Text("¥\(Money.string(dec(planDue)))").scaledFont(.sm).monospacedDigit()
             }
             Divider().overlay(Theme.hairline)
             HStack {
-                Text("本月应还合计").scaledFont(13.5, weight: .semibold)
+                Text("本月应还合计").scaledFont(.sm, weight: .semibold)
                 Spacer()
                 Text("¥ \(Money.string(dec(monthlyDue)))")
-                    .scaledFont(15, weight: .bold).monospacedDigit()
+                    .scaledFont(.body, weight: .bold).monospacedDigit()
             }
         }
         .padding(15)
@@ -344,7 +345,7 @@ struct CreditedAccountView: View {
             if plans.isEmpty {
                 Button { Haptics.tap(); showAdd = true } label: {
                     Text("＋ 添加一笔分期")
-                        .scaledFont(15, weight: .semibold)
+                        .scaledFont(.body, weight: .semibold)
                         .foregroundStyle(Theme.greenText)
                         .frame(maxWidth: .infinity).padding(.vertical, 15)
                         .background(Theme.greenSoft).cornerRadius(14)
@@ -354,7 +355,7 @@ struct CreditedAccountView: View {
             if monthlyDue > 0 {
                 Button { Haptics.tap(); showPaidConfirm = true } label: {
                     Text("标记本月已还款")
-                        .scaledFont(15, weight: .semibold).foregroundStyle(.white)
+                        .scaledFont(.body, weight: .semibold).foregroundStyle(.white)
                         .frame(maxWidth: .infinity).padding(.vertical, 15)
                         .background(Theme.green)
                         .cornerRadius(14)
@@ -362,7 +363,7 @@ struct CreditedAccountView: View {
                 }
                 .buttonStyle(PressableButtonStyle(scale: 0.985))
                 Text("只推进分期期数并记一笔还款流水，当期欠款靠记账自动更新")
-                    .scaledFont(11).foregroundStyle(.secondary)
+                    .scaledFont(.xs).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
         }

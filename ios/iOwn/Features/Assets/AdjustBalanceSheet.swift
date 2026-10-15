@@ -44,23 +44,23 @@ struct AdjustBalanceSheet: View {
             VStack(alignment: .leading, spacing: 14) {
                 SheetGrabber()
                 Text("调整余额（对账）")
-                    .scaledFont(17, weight: .bold)
+                    .scaledFont(.title, weight: .bold)
                     .frame(maxWidth: .infinity)
 
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        Text("App 里的余额").scaledFont(12.5).foregroundStyle(.secondary)
+                        Text("App 里的余额").scaledFont(.sm).foregroundStyle(.secondary)
                         Spacer()
                         Text(moneyText(current))
-                            .scaledFont(15, weight: .semibold).monospacedDigit()
+                            .scaledFont(.body, weight: .semibold).monospacedDigit()
                     }
                     Divider().overlay(Theme.hairline)
                     VStack(alignment: .leading, spacing: 6) {
                         Text(account.kind.isCredit ? "实际欠款（填正数）" : "实际余额")
-                            .scaledFont(11.5).foregroundStyle(.secondary)
+                            .scaledFont(.xs).foregroundStyle(.secondary)
                         TextField("0.00", text: $actualStr)
                             .keyboardType(.decimalPad)
-                            .scaledFont(22, weight: .bold)
+                            .scaledFont(.lg, weight: .bold)
                             .monospacedDigit()
                     }
                 }
@@ -72,7 +72,7 @@ struct AdjustBalanceSheet: View {
                 if let d = diff, d != 0 {
                     let up = d > 0
                     Text((up ? "将上调 ¥" : "将下调 ¥") + moneyText(abs(d)))
-                        .scaledFont(12.5, weight: .semibold)
+                        .scaledFont(.sm, weight: .semibold)
                         .foregroundStyle(up ? Theme.greenText : Theme.redText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(12)
@@ -81,7 +81,7 @@ struct AdjustBalanceSheet: View {
                 }
 
                 Text("调整只平移「初始余额」，不会产生流水，也不影响洞察页的任何统计。")
-                    .scaledFont(11.5).foregroundStyle(.secondary)
+                    .scaledFont(.xs).foregroundStyle(.secondary)
 
                 Button {
                     Haptics.success()
@@ -89,7 +89,7 @@ struct AdjustBalanceSheet: View {
                     dismiss()
                 } label: {
                     Text("确认调整")
-                        .scaledFont(15, weight: .semibold).foregroundStyle(.white)
+                        .scaledFont(.body, weight: .semibold).foregroundStyle(.white)
                         .frame(maxWidth: .infinity).padding(.vertical, 15)
                         .background(canSave ? Theme.green : Theme.disabled)
                         .cornerRadius(14)

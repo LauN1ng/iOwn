@@ -48,17 +48,19 @@ struct InstallmentOverviewView: View {
     private var payoffCard: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: "flag.checkered").scaledFont(12)
-                Text("全部还清").scaledFont(12, weight: .semibold)
+                // 2026-10-15：SF Symbol → Fluent 3D（原 13pt 小符号，换成素材后提到 16pt 才读得出立体感）
+                Image("nav_flag").renderingMode(.original).resizable().scaledToFit()
+                    .frame(width: 16, height: 16)
+                Text("全部还清").scaledFont(.sm, weight: .semibold)
             }
             .foregroundStyle(Theme.greenText)
 
             Text(payoffDateText)
-                .scaledFont(28, weight: .heavy, design: .rounded)
+                .scaledFont(.xl, weight: .heavy, design: .rounded)
                 .foregroundStyle(.primary)
 
             Text("还剩 \(monthsLeft) 期 · 一共还欠 ¥" + money(remainingTotal))
-                .scaledFont(11.5).foregroundStyle(.secondary).monospacedDigit()
+                .scaledFont(.xs).foregroundStyle(.secondary).monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
@@ -73,9 +75,9 @@ struct InstallmentOverviewView: View {
                                        liabilities: activePlans, months: 12)
         return VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
-                Text("未来 12 个月").scaledFont(13, weight: .semibold)
+                Text("未来 12 个月").scaledFont(.sm, weight: .semibold)
                 Spacer()
-                Text("每月应还 · 剩余债务").scaledFont(11.5).foregroundStyle(.secondary)
+                Text("每月应还 · 剩余债务").scaledFont(.xs).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 4)
 
@@ -96,14 +98,14 @@ struct InstallmentOverviewView: View {
         let left = DebtEngine.remainingAfter(activePlans, months: offset)
         return HStack(spacing: 10) {
             Text(Self.monthFormatter.string(from: date))
-                .scaledFont(12.5).foregroundStyle(.secondary)
+                .scaledFont(.sm).foregroundStyle(.secondary)
                 .frame(width: 88, alignment: .leading)
             Text(due > 0 ? "¥ " + money(due) : "已还完")
-                .scaledFont(13.5, weight: .semibold).monospacedDigit()
+                .scaledFont(.sm, weight: .semibold).monospacedDigit()
                 .foregroundStyle(due > 0 ? Color.primary : Theme.greenText)
             Spacer(minLength: 8)
             Text("余 ¥" + money(left))
-                .scaledFont(12).foregroundStyle(.secondary).monospacedDigit()
+                .scaledFont(.sm).foregroundStyle(.secondary).monospacedDigit()
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 9)
@@ -119,9 +121,9 @@ struct InstallmentOverviewView: View {
     private var plansSection: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
-                Text("每一笔").scaledFont(13, weight: .semibold)
+                Text("每一笔").scaledFont(.sm, weight: .semibold)
                 Spacer()
-                Text("\(activePlans.count) 笔").scaledFont(11.5).foregroundStyle(.secondary)
+                Text("\(activePlans.count) 笔").scaledFont(.xs).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 4)
             ForEach(activePlans, id: \.id) { l in planRow(l) }
@@ -131,16 +133,16 @@ struct InstallmentOverviewView: View {
     private func planRow(_ l: Liability) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Text(l.name).scaledFont(14, weight: .semibold).lineLimit(1)
+                Text(l.name).scaledFont(.body, weight: .semibold).lineLimit(1)
                 Spacer(minLength: 6)
                 Text("¥" + money(DebtEngine.displayDue(l)))
-                    .scaledFont(15, weight: .semibold).monospacedDigit()
+                    .scaledFont(.body, weight: .semibold).monospacedDigit()
             }
             HStack(spacing: 6) {
-                Text(accountName(of: l)).scaledFont(11).foregroundStyle(.secondary).lineLimit(1)
-                Text("·").scaledFont(11).foregroundStyle(.secondary)
+                Text(accountName(of: l)).scaledFont(.xs).foregroundStyle(.secondary).lineLimit(1)
+                Text("·").scaledFont(.xs).foregroundStyle(.secondary)
                 Text("第 \(DebtEngine.currentPeriod(l))/\(l.totalPeriods) 期 · 剩 \(DebtEngine.remainingPeriods(l)) 期")
-                    .scaledFont(11).foregroundStyle(.secondary)
+                    .scaledFont(.xs).foregroundStyle(.secondary)
                 Spacer(minLength: 0)
             }
             GeometryReader { geo in

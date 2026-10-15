@@ -71,21 +71,21 @@ struct AddAccountSheet: View {
                 Haptics.tap()
                 dismiss()
             } label: {
-                Text("取消").scaledFont(15).foregroundStyle(.secondary)
+                Text("取消").scaledFont(.body).foregroundStyle(.secondary)
             }
             .buttonStyle(PressableButtonStyle(scale: 0.96))
             .accessibilityLabel("取消")
 
             Spacer()
             Text(editing == nil ? "添加账户" : "编辑账户")
-                .scaledFont(17, weight: .bold)
+                .scaledFont(.title, weight: .bold)
             Spacer()
 
             Button {
                 save()
             } label: {
                 Text("保存")
-                    .scaledFont(14, weight: .semibold)
+                    .scaledFont(.body, weight: .semibold)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16).padding(.vertical, 8)
                     .background(canSave ? Theme.green : Theme.disabled)
@@ -111,11 +111,11 @@ struct AddAccountSheet: View {
         VStack(spacing: 9) {
             iconPreview
             Text(name.isEmpty ? kind.defaultName : name)
-                .scaledFont(20, weight: .bold)
+                .scaledFont(.lg, weight: .bold)
                 .foregroundStyle(.primary)
                 .lineLimit(1)
             Text(kind.defaultName)
-                .scaledFont(12)
+                .scaledFont(.sm)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -128,10 +128,9 @@ struct AddAccountSheet: View {
             if icon != .none, UIImage(named: icon.asset) != nil {
                 // ⚠️ 彩色贴图：不要加 .renderingMode(.template)
                 Image(icon.asset).resizable().scaledToFit()
-            } else if !icon.emoji.isEmpty {
-                Text(icon.emoji).scaledFont(46)
             } else {
-                Text(kind.logoChar).scaledFont(28, weight: .heavy).foregroundStyle(.secondary)
+                // 2026-10-15：emoji 兜底层已删 → 落到单字字块（暂时保留）
+                Text(kind.logoChar).scaledFont(.xl, weight: .heavy).foregroundStyle(.secondary)
             }
         }
         .frame(width: 78, height: 78)
@@ -142,7 +141,7 @@ struct AddAccountSheet: View {
 
     private var kindRow: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text("类型").scaledFont(12.5, weight: .semibold).foregroundStyle(.secondary)
+            Text("类型").scaledFont(.sm, weight: .semibold).foregroundStyle(.secondary)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(AccountKind.pickerOrder, id: \.rawValue) { k in
@@ -158,7 +157,7 @@ struct AddAccountSheet: View {
                                     Image(k.defaultIcon.asset)
                                         .resizable().scaledToFit().frame(width: 20, height: 20)
                                 }
-                                Text(k.defaultName).scaledFont(13, weight: .semibold)
+                                Text(k.defaultName).scaledFont(.sm, weight: .semibold)
                             }
                             .foregroundStyle(kind == k ? Color.white : Color.primary)
                             .padding(.horizontal, 13).padding(.vertical, 8)
@@ -185,8 +184,8 @@ struct AddAccountSheet: View {
                         if icon != .none, UIImage(named: icon.asset) != nil {
                             Image(icon.asset).resizable().scaledToFit().frame(width: 22, height: 22)
                         }
-                        Text(icon.displayName).scaledFont(14).foregroundStyle(.secondary)
-                        Text("›").scaledFont(15).foregroundStyle(.tertiary)
+                        Text(icon.displayName).scaledFont(.body).foregroundStyle(.secondary)
+                        Text("›").scaledFont(.body).foregroundStyle(.tertiary)
                     }
                 }
                 .buttonStyle(PressableButtonStyle(scale: 0.97))
@@ -195,20 +194,20 @@ struct AddAccountSheet: View {
             divider
             row("名称") {
                 TextField(kind.defaultName, text: $name)
-                    .scaledFont(15, weight: .semibold)
+                    .scaledFont(.body, weight: .semibold)
                     .multilineTextAlignment(.trailing)
             }
             divider
             row("备注") {
                 TextField("可选", text: $brand)
-                    .scaledFont(14)
+                    .scaledFont(.body)
                     .multilineTextAlignment(.trailing)
             }
             divider
             row("卡号后四位") {
                 TextField("可选", text: $cardLast4)
                     .keyboardType(.numberPad)
-                    .scaledFont(14)
+                    .scaledFont(.body)
                     .multilineTextAlignment(.trailing)
                     .onChange(of: cardLast4) { _, newValue in
                         if newValue.count > 4 { cardLast4 = String(newValue.prefix(4)) }
@@ -223,17 +222,17 @@ struct AddAccountSheet: View {
         formCard {
             row(kind.isCredit ? "当前已用" : "初始余额") {
                 HStack(spacing: 4) {
-                    Text("¥").scaledFont(14, weight: .semibold).foregroundStyle(.secondary)
+                    Text("¥").scaledFont(.body, weight: .semibold).foregroundStyle(.secondary)
                     TextField(kind.isCredit ? "0" : "0.00", text: $balanceStr)
                         .keyboardType(.decimalPad)
-                        .scaledFont(15, weight: .bold)
+                        .scaledFont(.body, weight: .bold)
                         .multilineTextAlignment(.trailing)
                         .monospacedDigit()
                 }
             }
             divider
             row("币种") {
-                Text("🇨🇳 人民币").scaledFont(14).foregroundStyle(.secondary)
+                Text("🇨🇳 人民币").scaledFont(.body).foregroundStyle(.secondary)
             }
         }
     }
@@ -244,7 +243,7 @@ struct AddAccountSheet: View {
         VStack(alignment: .leading, spacing: 8) {
             formCard {
                 HStack {
-                    Text("记账时可选择").scaledFont(14.5, weight: .medium)
+                    Text("记账时可选择").scaledFont(.body, weight: .medium)
                     Spacer()
                     Toggle("", isOn: $isSelectable)
                         .labelsHidden()
@@ -253,7 +252,7 @@ struct AddAccountSheet: View {
                 .padding(.vertical, 2)
             }
             Text("关闭后，记账选择支付方式时不再显示它。")
-                .scaledFont(11.5).foregroundStyle(.tertiary)
+                .scaledFont(.xs).foregroundStyle(.tertiary)
                 .padding(.horizontal, 4)
         }
     }
@@ -266,10 +265,10 @@ struct AddAccountSheet: View {
             formCard {
                 row("信用额度") {
                     HStack(spacing: 4) {
-                        Text("¥").scaledFont(14, weight: .semibold).foregroundStyle(.secondary)
+                        Text("¥").scaledFont(.body, weight: .semibold).foregroundStyle(.secondary)
                         TextField("15000", text: $limitStr)
                             .keyboardType(.decimalPad)
-                            .scaledFont(15, weight: .bold)
+                            .scaledFont(.body, weight: .bold)
                             .multilineTextAlignment(.trailing)
                             .monospacedDigit()
                     }
@@ -292,7 +291,7 @@ struct AddAccountSheet: View {
                 }
             }
             Text("已用金额将记为负债（余额为负），剩余额度 = 额度 - 已用；账单日与还款日分开记录")
-                .scaledFont(11.5).foregroundStyle(.tertiary)
+                .scaledFont(.xs).foregroundStyle(.tertiary)
                 .padding(.horizontal, 4)
         }
     }
@@ -311,7 +310,7 @@ struct AddAccountSheet: View {
                 }
             } label: {
                 Text("删除账户")
-                    .scaledFont(14.5, weight: .semibold)
+                    .scaledFont(.body, weight: .semibold)
                     .foregroundStyle(referenced ? Theme.disabledText : Theme.redText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 13)
@@ -322,7 +321,7 @@ struct AddAccountSheet: View {
             .disabled(referenced)
             if referenced {
                 Text("该账户有关联交易，暂不能删除（B2：余额推导依赖交易关联）")
-                    .scaledFont(11.5)
+                    .scaledFont(.xs)
                     .foregroundStyle(.tertiary)
             }
         }
@@ -340,7 +339,7 @@ struct AddAccountSheet: View {
 
     private func row<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
         HStack(spacing: 8) {
-            Text(label).scaledFont(14.5, weight: .medium)
+            Text(label).scaledFont(.body, weight: .medium)
             Spacer(minLength: 8)
             content()
         }
@@ -424,7 +423,7 @@ private struct AccountIconPicker: View {
     var body: some View {
         VStack(spacing: 0) {
             SheetGrabber()
-            Text("选择图标").scaledFont(17, weight: .bold).padding(.top, 6)
+            Text("选择图标").scaledFont(.title, weight: .bold).padding(.top, 6)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
@@ -433,10 +432,10 @@ private struct AccountIconPicker: View {
                         Haptics.tap(); selection = .none; dismiss()
                     } label: {
                         HStack(spacing: 10) {
-                            Text("不使用图标").scaledFont(13.5, weight: .medium)
+                            Text("不使用图标").scaledFont(.sm, weight: .medium)
                             Spacer(minLength: 8)
                             Image(systemName: "chevron.right")
-                                .scaledFont(12, weight: .semibold)
+                                .scaledFont(.sm, weight: .semibold)
                                 .foregroundStyle(.tertiary)
                         }
                         .padding(.horizontal, 16).padding(.vertical, 13)
@@ -458,7 +457,7 @@ private struct AccountIconPicker: View {
 
     private func section(_ title: String, _ icons: [AccountIcon]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title).scaledFont(12.5, weight: .semibold).foregroundStyle(.secondary)
+            Text(title).scaledFont(.sm, weight: .semibold).foregroundStyle(.secondary)
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(icons, id: \.rawValue) { ic in
                     cell(ic)
@@ -481,16 +480,15 @@ private struct AccountIconPicker: View {
                     if UIImage(named: ic.asset) != nil {
                         // ⚠️ 彩色贴图：不要加 .renderingMode(.template)
                         Image(ic.asset).resizable().scaledToFit().frame(width: 38, height: 38)
-                    } else {
-                        Text(ic.emoji).scaledFont(30)
                     }
+                    // asset 缺失（理论上不会：AccountIcon 每档都有素材）→ 只留 ZStack 的圆角底，不再退回 emoji
                 }
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .stroke(ic == selection ? Theme.green : Color.clear, lineWidth: 2)
                 )
                 Text(ic.displayName)
-                    .scaledFont(11)
+                    .scaledFont(.xs)
                     .foregroundStyle(ic == selection ? Theme.greenText : .secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)

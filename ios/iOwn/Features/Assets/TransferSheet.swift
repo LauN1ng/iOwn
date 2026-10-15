@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 /// B2 转账：账户间移动资金，不计收支（流水中类型 .transfer 净额为 0）
 /// 入口：资产页底部"转账"胶囊按钮
@@ -36,19 +37,19 @@ struct TransferSheet: View {
                 HStack(spacing: 12) {
                     accountPicker(selection: $fromID, excluding: toID, label: "转出")
                     Image(systemName: "arrow.right")
-                        .scaledFont(15, weight: .bold)
+                        .scaledFont(.body, weight: .bold)
                         .foregroundStyle(Theme.greenText)
                     accountPicker(selection: $toID, excluding: fromID, label: "转入")
                 }
 
                 // 金额
                 VStack(spacing: 6) {
-                    Text("金额").scaledFont(12.5).foregroundStyle(.secondary)
+                    Text("金额").scaledFont(.sm).foregroundStyle(.secondary)
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text("¥").scaledFont(22, weight: .bold).foregroundStyle(Theme.greenText)
+                        Text("¥").scaledFont(.lg, weight: .bold).foregroundStyle(Theme.greenText)
                         TextField("0.00", text: $amountStr)
                             .keyboardType(.decimalPad)
-                            .scaledFont(40, weight: .heavy, design: .rounded)
+                            .scaledFont(.display, weight: .heavy, design: .rounded)
                             .foregroundStyle(Theme.greenText)
                             .multilineTextAlignment(.center)
                             .monospacedDigit()
@@ -61,7 +62,7 @@ struct TransferSheet: View {
                 .cornerRadius(Radius.large)
 
                 Text("转账在流水里不计收支，仅移动余额")
-                    .scaledFont(11.5)
+                    .scaledFont(.xs)
                     .foregroundStyle(.tertiary)
 
                 Spacer(minLength: 0)
@@ -70,7 +71,7 @@ struct TransferSheet: View {
                     save()
                 } label: {
                     Text("完成转账")
-                        .scaledFont(16, weight: .bold)
+                        .scaledFont(.title, weight: .bold)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 15)
@@ -98,7 +99,7 @@ struct TransferSheet: View {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .scaledFont(15, weight: .semibold)
+                    .scaledFont(.body, weight: .semibold)
                     .foregroundStyle(.secondary)
                     .padding(8)
                     .background(Theme.card)
@@ -107,7 +108,7 @@ struct TransferSheet: View {
             .buttonStyle(PressableButtonStyle(scale: 0.9))
             .accessibilityLabel("关闭")
             Spacer()
-            Text("转账").scaledFont(17, weight: .bold)
+            Text("转账").scaledFont(.title, weight: .bold)
             Spacer()
             Color.clear.frame(width: 31, height: 31)   // 占位保持标题居中
         }
@@ -116,13 +117,22 @@ struct TransferSheet: View {
 
     private func accountPicker(selection: Binding<String?>, excluding: String?, label: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label).scaledFont(12).foregroundStyle(.secondary)
+            Text(label).scaledFont(.sm).foregroundStyle(.secondary)
             Menu {
                 ForEach(accounts.filter { $0.id != excluding }, id: \.id) { acc in
                     Button {
                         selection.wrappedValue = acc.id
                     } label: {
-                        Label(acc.name, systemImage: "creditcard")
+                        // 2026-10-15：`creditcard` SF Symbol → 该账户自己的 Fluent 3D 图标
+                        Label {
+                            Text(acc.name)
+                        } icon: {
+                            if !acc.icon.asset.isEmpty, UIImage(named: acc.icon.asset) != nil {
+                                Image(acc.icon.asset)
+                                    .renderingMode(.original)
+                                    .resizable().scaledToFit().frame(width: 20, height: 20)
+                            }
+                        }
                     }
                 }
             } label: {
@@ -130,10 +140,10 @@ struct TransferSheet: View {
                     Text(selection.wrappedValue.flatMap { id in
                         accounts.first { $0.id == id }?.name
                     } ?? "选择账户")
-                        .scaledFont(14, weight: .semibold)
+                        .scaledFont(.body, weight: .semibold)
                         .lineLimit(1)
                     Image(systemName: "chevron.up.chevron.down")
-                        .scaledFont(10, weight: .bold)
+                        .scaledFont(.micro, weight: .bold)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 12).padding(.vertical, 10)

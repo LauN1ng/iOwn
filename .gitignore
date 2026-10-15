@@ -25,6 +25,9 @@ docs/
 site/
 generated-images/
 
+# 项目规则（内部约定，含推送/工作流细节）—— 仅本地
+AGENTS.md
+
 # 本地记忆与工作日志（含个人偏好、财务数字、开发记录）
 .workbuddy/
 

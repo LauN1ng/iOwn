@@ -85,7 +85,7 @@ struct AssetsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { Haptics.tap(); showAddAccount = true } label: {
-                        Image(systemName: "plus").scaledFont(16, weight: .semibold)
+                        Image(systemName: "plus").scaledFont(.title, weight: .semibold)
                     }
                     .accessibilityLabel("添加账户")
                 }
@@ -148,15 +148,15 @@ struct AssetsView: View {
     private var netSummary: some View {
         HStack(alignment: .bottom, spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("净资产").scaledFont(12).foregroundStyle(.secondary)
+                Text("净资产").scaledFont(.sm).foregroundStyle(.secondary)
                 Text(hidden ? "¥ ****" : "¥ " + money(totals.net))
-                    .scaledFont(30, weight: .heavy, design: .rounded)
+                    .scaledFont(.xl, weight: .heavy, design: .rounded)
                     .monospacedDigit()
                     .foregroundStyle(totals.net < 0 ? Theme.redText : Color.primary)
                 Text(hidden
                      ? "总资产 ¥ **** · 总负债 ¥ ****"
                      : "总资产 ¥" + money(totals.totalAssets) + " · 总负债 ¥" + money(totals.totalDebt))
-                    .scaledFont(11.5)
+                    .scaledFont(.xs)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
@@ -167,7 +167,7 @@ struct AssetsView: View {
                     withAnimation(Motion.fade) { hidden.toggle() }
                 } label: {
                     Image(systemName: hidden ? "eye.slash" : "eye")
-                        .scaledFont(13)
+                        .scaledFont(.sm)
                         .foregroundStyle(.secondary)
                         .frame(width: 30, height: 30)
                         .background(Theme.card)
@@ -178,7 +178,7 @@ struct AssetsView: View {
 
                 Button { Haptics.tap(); onOpenInsight() } label: {
                     Text("净资产趋势 ›")
-                        .scaledFont(12.5, weight: .semibold)
+                        .scaledFont(.sm, weight: .semibold)
                         .foregroundStyle(Theme.blueText)
                 }
                 .buttonStyle(PressableButtonStyle(scale: 0.97))
@@ -194,10 +194,10 @@ struct AssetsView: View {
         VStack(spacing: 0) {
             // 头部：标题 + 右侧汇总小字
             HStack(alignment: .firstTextBaseline) {
-                Text(title).scaledFont(13, weight: .semibold)
+                Text(title).scaledFont(.sm, weight: .semibold)
                 Spacer(minLength: 8)
                 Text(groupSubtitle(title: title, list: list))
-                    .scaledFont(11)
+                    .scaledFont(.xs)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
@@ -235,11 +235,11 @@ struct AssetsView: View {
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(acc.name)
-                        .scaledFont(14.5, weight: .semibold)
+                        .scaledFont(.body, weight: .semibold)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     Text(rowSubtitle(acc))
-                        .scaledFont(11)
+                        .scaledFont(.xs)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -247,12 +247,12 @@ struct AssetsView: View {
                 Spacer(minLength: 8)
 
                 Text(rowAmount(acc))
-                    .scaledFont(15, weight: .bold)
+                    .scaledFont(.body, weight: .bold)
                     .monospacedDigit()
                     .foregroundStyle(acc.kind.isCredit ? Theme.redText : Color.primary)
                     .lineLimit(1)
 
-                Text("›").scaledFont(16).foregroundStyle(.tertiary)
+                Text("›").scaledFont(.title).foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 11)
@@ -271,15 +271,13 @@ struct AssetsView: View {
     /// 账户图标（归一化素材：通用 Fluent 3D / 品牌真实 logo）
     ///
     /// ⚠️ 彩色贴图**不加 `.renderingMode(.template)`**（会被染成单色）。
-    /// 无 asset 时退回 emoji（不画方块底 —— 素材本身已带形状与留白）。
+    /// 无 asset 时退回**单字字块**（M 徽标语族，暂时保留）；emoji 兜底层已于 2026-10-15 删除。
     private func accountIcon(_ acc: Account) -> some View {
         Group {
             if !acc.icon.asset.isEmpty, UIImage(named: acc.icon.asset) != nil {
                 Image(acc.icon.asset).resizable().scaledToFit()
-            } else if !acc.icon.emoji.isEmpty {
-                Text(acc.icon.emoji).scaledFont(22)
             } else {
-                Text(acc.kind.logoChar).scaledFont(15, weight: .heavy).foregroundStyle(.secondary)
+                Text(acc.kind.logoChar).scaledFont(.body, weight: .heavy).foregroundStyle(.secondary)
             }
         }
         .frame(width: 40, height: 40)
@@ -327,19 +325,19 @@ struct AssetsView: View {
         let months = DebtEngine.payoffMonths(activePlans)
         return Button { Haptics.tap(); showInstallments = true } label: {
             HStack(spacing: 12) {
-                CategoryIcon(asset: "cur_tear_off_calendar", fallback: "🗓️", size: 26)
+                CategoryIcon(asset: "cur_tear_off_calendar", size: 26)
                     .frame(width: 40, height: 40)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("分期总览").scaledFont(15, weight: .semibold).foregroundStyle(.primary)
+                    Text("分期总览").scaledFont(.body, weight: .semibold).foregroundStyle(.primary)
                     Text(hidden
                          ? "金额已隐藏"
                          : "\(activePlans.count) 笔 · 还剩 \(months) 期 · 还欠 ¥" + money(total))
-                        .scaledFont(11.5).foregroundStyle(.secondary).monospacedDigit()
+                        .scaledFont(.xs).foregroundStyle(.secondary).monospacedDigit()
                         .lineLimit(1)
                 }
                 Spacer(minLength: 8)
-                Text("›").scaledFont(16).foregroundStyle(.tertiary)
+                Text("›").scaledFont(.title).foregroundStyle(.tertiary)
             }
             .padding(14)
             .background(Theme.card)
@@ -355,22 +353,22 @@ struct AssetsView: View {
         let total = fixedExpenses.reduce(Decimal(0)) { $0 + $1.amount }
         return NavigationLink { FixedExpenseView() } label: {
             HStack(spacing: 12) {
-                CategoryIcon(asset: "cat_fixed", fallback: "🏡", size: 26)
+                CategoryIcon(asset: "cat_fixed", size: 26)
                     .frame(width: 40, height: 40)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("固定支出 / 订阅").scaledFont(15, weight: .semibold).foregroundStyle(.primary)
+                    Text("固定支出 / 订阅").scaledFont(.body, weight: .semibold).foregroundStyle(.primary)
                     Text(fixedExpenses.isEmpty ? "房租、会员等每月固定扣 · 不是负债"
                                                : "\(fixedExpenses.count) 项 · 每月固定扣")
-                        .scaledFont(11.5).foregroundStyle(.secondary)
+                        .scaledFont(.xs).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
                 if !fixedExpenses.isEmpty {
                     Text(hidden ? "¥ ****" : "¥" + money(total))
-                        .scaledFont(15, weight: .semibold).monospacedDigit()
+                        .scaledFont(.body, weight: .semibold).monospacedDigit()
                         .foregroundStyle(.primary)
                 }
-                Text("›").scaledFont(16).foregroundStyle(.tertiary)
+                Text("›").scaledFont(.title).foregroundStyle(.tertiary)
             }
             .padding(14)
             .background(Theme.card)
@@ -384,7 +382,7 @@ struct AssetsView: View {
     private var transferPill: some View {
         Button { Haptics.tap(); showTransfer = true } label: {
             Text("转账")
-                .scaledFont(15.5, weight: .semibold)
+                .scaledFont(.body, weight: .semibold)
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 44).padding(.vertical, 13)
                 .background(Theme.card)

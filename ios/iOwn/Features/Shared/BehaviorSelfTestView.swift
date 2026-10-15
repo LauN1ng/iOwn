@@ -30,14 +30,14 @@ struct BehaviorSelfTestView: View {
         let allPass = failCount == 0 && !results.isEmpty
         return VStack(alignment: .leading, spacing: 6) {
             Text("行为自检 · Behavior Self-Test")
-                .scaledFont(11, weight: .semibold)
+                .scaledFont(.xs, weight: .semibold)
                 .foregroundStyle(.secondary)
             Text(allPass ? "全部通过 \(passCount)/\(results.count)"
                          : "\(failCount) 项失败 · \(passCount)/\(results.count) 通过")
-                .scaledFont(22, weight: .bold)
+                .scaledFont(.lg, weight: .bold)
                 .foregroundStyle(allPass ? Theme.greenText : Theme.redText)
             Text("跑在独立内存容器 · 与 UI 共用 EntryWriter 真实写路径")
-                .scaledFont(10.5)
+                .scaledFont(.micro)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -55,10 +55,10 @@ struct BehaviorSelfTestView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Text(r.passed ? "✓" : "✗")
-                    .scaledFont(13, weight: .bold)
+                    .scaledFont(.sm, weight: .bold)
                     .foregroundStyle(r.passed ? Theme.greenText : Theme.redText)
                 Text(r.name)
-                    .scaledFont(12, weight: .semibold)
+                    .scaledFont(.sm, weight: .semibold)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
             }
@@ -68,7 +68,7 @@ struct BehaviorSelfTestView: View {
                 Text("实际 \(r.actual)")
                     .foregroundStyle(r.passed ? Color.secondary : Theme.redText)
             }
-            .scaledFont(11)
+            .scaledFont(.xs)
             .foregroundStyle(.secondary)
             .monospacedDigit()
         }

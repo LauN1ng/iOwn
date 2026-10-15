@@ -26,9 +26,9 @@ struct AccountFlowSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
-                Text("流水").scaledFont(13, weight: .semibold)
+                Text("流水").scaledFont(.sm, weight: .semibold)
                 Spacer()
-                Text("\(txs.count) 笔").scaledFont(11.5).foregroundStyle(.secondary)
+                Text("\(txs.count) 笔").scaledFont(.xs).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 4)
 
@@ -47,7 +47,7 @@ struct AccountFlowSection: View {
 
                 if txs.count > shownLimit {
                     Text("只显示最近 \(shownLimit) 笔")
-                        .scaledFont(11).foregroundStyle(.secondary)
+                        .scaledFont(.xs).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                         .padding(.top, 2)
                 }
@@ -58,7 +58,7 @@ struct AccountFlowSection: View {
     private func row(_ tx: Tx, divider: Bool) -> some View {
         let cat = CategoryPresets.category(id: tx.categoryID)
         return HStack(spacing: 12) {
-            CategoryIcon(asset: cat?.iconName, fallback: cat?.emoji ?? "💸", size: 22)
+            CategoryIcon(asset: cat?.iconName, size: 22)
                 .frame(width: 36, height: 36)
                 .background(Theme.iconBg)
                 .cornerRadius(11)
@@ -66,11 +66,11 @@ struct AccountFlowSection: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(Self.title(tx, cat: cat))
-                    .scaledFont(14.5, weight: .semibold)
+                    .scaledFont(.body, weight: .semibold)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text(tx.note.isEmpty ? (cat?.name ?? "") : tx.note)
-                    .scaledFont(11.5)
+                    .scaledFont(.xs)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -79,11 +79,11 @@ struct AccountFlowSection: View {
 
             VStack(alignment: .trailing, spacing: 1) {
                 Text(Self.amount(tx))
-                    .scaledFont(15, weight: .bold)
+                    .scaledFont(.body, weight: .bold)
                     .monospacedDigit()
                     .foregroundStyle(tx.type == .out ? Color.primary : Theme.greenText)
                 Text(Self.dayFormatter.string(from: tx.date))
-                    .scaledFont(10.5)
+                    .scaledFont(.micro)
                     .foregroundStyle(.secondary)
             }
         }

@@ -36,7 +36,7 @@ struct AddInstallmentSheet: View {
             VStack(alignment: .leading, spacing: 14) {
                 SheetGrabber()
                 Text(isBatch ? "补录已有的分期" : "编辑分期")
-                    .scaledFont(17, weight: .bold)
+                    .scaledFont(.title, weight: .bold)
                     .frame(maxWidth: .infinity)
 
                 field("归属信用账户") { accountPicker }
@@ -55,7 +55,7 @@ struct AddInstallmentSheet: View {
                         drafts.append(PlanDraft())
                     } label: {
                         Text("＋ 再加一笔")
-                            .scaledFont(13.5, weight: .semibold)
+                            .scaledFont(.sm, weight: .semibold)
                             .foregroundStyle(Theme.greenText)
                             .frame(maxWidth: .infinity).padding(.vertical, 12)
                             .background(Theme.greenSoft).cornerRadius(12)
@@ -71,7 +71,7 @@ struct AddInstallmentSheet: View {
                     dismiss()
                 } label: {
                     Text(isBatch ? "保存 \(validCount) 笔分期" : "保存修改")
-                        .scaledFont(15, weight: .semibold).foregroundStyle(.white)
+                        .scaledFont(.body, weight: .semibold).foregroundStyle(.white)
                         .frame(maxWidth: .infinity).padding(.vertical, 15)
                         .background(canSave ? Theme.green : Theme.disabled)
                         .cornerRadius(14)
@@ -94,11 +94,11 @@ struct AddInstallmentSheet: View {
         return VStack(alignment: .leading, spacing: 9) {
             // 第 x / n 期
             HStack(spacing: 6) {
-                Text("第").scaledFont(12.5).foregroundStyle(.secondary)
+                Text("第").scaledFont(.sm).foregroundStyle(.secondary)
                 numField($drafts[i].currentPeriod, width: 32)
-                Text("/").scaledFont(12.5).foregroundStyle(.secondary)
+                Text("/").scaledFont(.sm).foregroundStyle(.secondary)
                 numField($drafts[i].totalPeriods, width: 36)
-                Text("期").scaledFont(12.5).foregroundStyle(.secondary)
+                Text("期").scaledFont(.sm).foregroundStyle(.secondary)
                 Spacer(minLength: 6)
                 if isBatch && drafts.count > 1 {
                     Button {
@@ -106,7 +106,7 @@ struct AddInstallmentSheet: View {
                         drafts.remove(at: i)
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .scaledFont(15).foregroundStyle(.tertiary)
+                            .scaledFont(.body).foregroundStyle(.tertiary)
                     }
                     .buttonStyle(PressableButtonStyle(scale: 0.9))
                     .accessibilityLabel("删除这一笔")
@@ -115,18 +115,18 @@ struct AddInstallmentSheet: View {
 
             // 每期金额
             HStack(spacing: 8) {
-                Text("每期").scaledFont(12.5).foregroundStyle(.secondary)
+                Text("每期").scaledFont(.sm).foregroundStyle(.secondary)
                 TextField("0.00", text: $drafts[i].perPeriod)
                     .keyboardType(.decimalPad)
-                    .scaledFont(17, weight: .semibold).monospacedDigit()
+                    .scaledFont(.title, weight: .semibold).monospacedDigit()
                     .multilineTextAlignment(.trailing)
                     .accessibilityLabel("每期金额")
-                Text("元").scaledFont(12.5).foregroundStyle(.secondary)
+                Text("元").scaledFont(.sm).foregroundStyle(.secondary)
             }
 
             // 备注（可选）
             TextField("备注（可选，如 手机分期）", text: $drafts[i].label)
-                .scaledFont(12.5)
+                .scaledFont(.sm)
                 .padding(.horizontal, 10).padding(.vertical, 8)
                 .background(Theme.iconBg)
                 .cornerRadius(8)
@@ -179,11 +179,11 @@ struct AddInstallmentSheet: View {
             Text(diff <= 1
                  ? "首期多 ¥\(money(diff)) —— 尾差，花呗 / 白条会这样，不填也行"
                  : "首期多 ¥\(money(diff)) —— 手续费一次性收取，必须填，否则会少算")
-                .scaledFont(11)
+                .scaledFont(.xs)
                 .foregroundStyle(diff <= 1 ? Color.secondary : Theme.redText)
         } else if d.first > 0 {
             Text("首期与每期一样，可以不填")
-                .scaledFont(11).foregroundStyle(.secondary)
+                .scaledFont(.xs).foregroundStyle(.secondary)
         }
     }
 
@@ -195,14 +195,14 @@ struct AddInstallmentSheet: View {
             let diff = last - d.per
             if abs(diff) > 0.005 {
                 Text("末期 = ¥\(money(last))（比每期\(diff > 0 ? "多" : "少") ¥\(money(abs(diff)))）—— 银行分期通常是这个")
-                    .scaledFont(11).foregroundStyle(Theme.greenText)
+                    .scaledFont(.xs).foregroundStyle(Theme.greenText)
             } else {
                 Text("末期 = ¥\(money(last))，与每期一致")
-                    .scaledFont(11).foregroundStyle(.secondary)
+                    .scaledFont(.xs).foregroundStyle(.secondary)
             }
         } else if d.repay > 0 {
             Text("合计 = 本金 ＋ 手续费/利息。填了它，末期差额会自动算出来。")
-                .scaledFont(11).foregroundStyle(.secondary)
+                .scaledFont(.xs).foregroundStyle(.secondary)
         }
     }
 
@@ -210,18 +210,18 @@ struct AddInstallmentSheet: View {
     private func optionalRow(label: String, text: Binding<String>,
                              onCollapse: @escaping () -> Void) -> some View {
         HStack(spacing: 8) {
-            Text(label).scaledFont(12.5).foregroundStyle(.secondary)
+            Text(label).scaledFont(.sm).foregroundStyle(.secondary)
             TextField("0.00", text: text)
                 .keyboardType(.decimalPad)
-                .scaledFont(15, weight: .semibold).monospacedDigit()
+                .scaledFont(.body, weight: .semibold).monospacedDigit()
                 .multilineTextAlignment(.trailing)
                 .accessibilityLabel("\(label)金额")
-            Text("元").scaledFont(12.5).foregroundStyle(.secondary)
+            Text("元").scaledFont(.sm).foregroundStyle(.secondary)
             Button {
                 Haptics.tap()
                 onCollapse()
             } label: {
-                Text("收起").scaledFont(11).foregroundStyle(.secondary)
+                Text("收起").scaledFont(.xs).foregroundStyle(.secondary)
                     .padding(.horizontal, 8).padding(.vertical, 5)
                     .background(Theme.iconBg).cornerRadius(7)
             }
@@ -236,7 +236,7 @@ struct AddInstallmentSheet: View {
             Haptics.tap()
             action()
         } label: {
-            Text(title).scaledFont(11).foregroundStyle(.tertiary)
+            Text(title).scaledFont(.xs).foregroundStyle(.tertiary)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.95))
         .accessibilityHint(hint)
@@ -244,8 +244,8 @@ struct AddInstallmentSheet: View {
 
     /// 说明卡：只在补录模式显示，且不啰嗦
     private var hintCard: some View {
-        Text("账单写「第 2/12 期 ¥120.03」就填 **2**、**12**、**120.03**。尾差落在首期（花呗 / 白条）填「＋首期」，落在末期（银行）填「＋合计」。「一共欠多少」不用录 —— 用详情页的「调整」对账。")
-            .scaledFont(11.5)
+        Text("账单写「第 2/12 期 ¥120.03」就填 2、12、120.03。尾差落在首期（花呗 / 白条）填「＋首期」，落在末期（银行）填「＋合计」。「一共欠多少」不用录 —— 用详情页的「调整」对账。")
+            .scaledFont(.xs)
             .foregroundStyle(.secondary)
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -259,7 +259,7 @@ struct AddInstallmentSheet: View {
     private var accountPicker: some View {
         if creditAccounts.isEmpty {
             Text("还没有信用账户 —— 先到资产页右上角 ＋ 新建一个信用卡 / 花呗 / 白条")
-                .scaledFont(12.5).foregroundStyle(.secondary)
+                .scaledFont(.sm).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
                 .background(Theme.card).cornerRadius(11)
@@ -272,11 +272,11 @@ struct AddInstallmentSheet: View {
                     } label: {
                         HStack(spacing: 10) {
                             accountIcon(acc)
-                            Text(acc.name).scaledFont(13.5)
+                            Text(acc.name).scaledFont(.sm)
                             Spacer()
                             if accountID == acc.id {
                                 Image(systemName: "checkmark")
-                                    .scaledFont(13, weight: .semibold)
+                                    .scaledFont(.sm, weight: .semibold)
                                     .foregroundStyle(Theme.green)
                             }
                         }
@@ -298,11 +298,10 @@ struct AddInstallmentSheet: View {
             if !acc.icon.asset.isEmpty, UIImage(named: acc.icon.asset) != nil {
                 // ⚠️ 彩色贴图：不要加 .renderingMode(.template)
                 Image(acc.icon.asset).resizable().scaledToFit()
-            } else if !acc.icon.emoji.isEmpty {
-                Text(acc.icon.emoji).scaledFont(15)
             } else {
+                // 2026-10-15：emoji 兜底层已删 → 落到单字字块（暂时保留）
                 Text(acc.kind.logoChar)
-                    .scaledFont(13, weight: .semibold).foregroundStyle(.white)
+                    .scaledFont(.sm, weight: .semibold).foregroundStyle(.white)
                     .frame(width: 30, height: 30)
                     .background(Color(hex: acc.kind.brandColorHex))
                     .cornerRadius(9)
@@ -315,7 +314,7 @@ struct AddInstallmentSheet: View {
     private func numField(_ text: Binding<String>, width: CGFloat) -> some View {
         TextField("0", text: text)
             .keyboardType(.numberPad)
-            .scaledFont(14, weight: .semibold).monospacedDigit()
+            .scaledFont(.body, weight: .semibold).monospacedDigit()
             .multilineTextAlignment(.center)
             .frame(width: width)
             .padding(.vertical, 7)
@@ -326,7 +325,7 @@ struct AddInstallmentSheet: View {
     @ViewBuilder
     private func field<C: View>(_ label: String, @ViewBuilder content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label).scaledFont(11.5).foregroundStyle(.secondary)
+            Text(label).scaledFont(.xs).foregroundStyle(.secondary)
             content()
         }
     }

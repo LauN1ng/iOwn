@@ -53,10 +53,10 @@ struct InsightView: View {
                 } label: {
                     HStack(spacing: 5) {
                         Text(scope == 0 ? monthLabel : "全年")
-                            .scaledFont(15, weight: .bold)
+                            .scaledFont(.body, weight: .bold)
                             .foregroundStyle(Theme.greenText)
                         Image(systemName: "chevron.down")
-                            .scaledFont(10, weight: .bold)
+                            .scaledFont(.micro, weight: .bold)
                             .foregroundStyle(Theme.greenText)
                     }
                     .padding(.horizontal, 12).padding(.vertical, 6)
@@ -70,14 +70,14 @@ struct InsightView: View {
 
                 if let avg = InsightStats.monthlyAverage(txs) {
                     HStack(spacing: 3) {
-                        Text("月均支出").scaledFont(11).foregroundStyle(.secondary)
-                        Text(money(avg)).scaledFont(11, weight: .semibold).foregroundStyle(.primary)
+                        Text("月均支出").scaledFont(.xs).foregroundStyle(.secondary)
+                        Text(money(avg)).scaledFont(.xs, weight: .semibold).foregroundStyle(.primary)
                     }
                 }
             }
 
             Text(money(headlineAmount))
-                .scaledFont(42, weight: .heavy, design: .rounded)
+                .scaledFont(.display, weight: .heavy, design: .rounded)
                 .foregroundStyle(Theme.greenText)
                 .monospacedDigit()
                 .tracking(-0.5)
@@ -88,10 +88,10 @@ struct InsightView: View {
             // 底部：今年总支出
             Divider().overlay(Theme.hairline)
             HStack {
-                Text("今年总支出").scaledFont(12).foregroundStyle(.secondary)
+                Text("今年总支出").scaledFont(.sm).foregroundStyle(.secondary)
                 Spacer()
                 Text(money(InsightStats.yearTotal(txs)))
-                    .scaledFont(13, weight: .bold).foregroundStyle(.primary).monospacedDigit()
+                    .scaledFont(.sm, weight: .bold).foregroundStyle(.primary).monospacedDigit()
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -133,7 +133,7 @@ struct InsightView: View {
             HStack(spacing: 5) {
                 ForEach(0..<12, id: \.self) { i in
                     Text("\(i + 1)")
-                        .scaledFont(9)
+                        .scaledFont(.micro)
                         .foregroundStyle((i + 1) == currentMonth ? Theme.greenText : .secondary)
                         .frame(maxWidth: .infinity)
                 }
@@ -164,7 +164,7 @@ struct InsightView: View {
         let cols = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
 
         return VStack(alignment: .leading, spacing: 10) {
-            Text("支出日历").scaledFont(13, weight: .bold)
+            Text("支出日历").scaledFont(.sm, weight: .bold)
 
             LazyVGrid(columns: cols, spacing: 4) {
                 ForEach(0..<leading, id: \.self) { _ in
@@ -183,8 +183,8 @@ struct InsightView: View {
 
             Divider().overlay(Theme.hairline)
             HStack(spacing: 4) {
-                Text("\(count)").scaledFont(12, weight: .bold).foregroundStyle(Theme.greenText)
-                Text("笔 · 连续 \(streak) 天").scaledFont(11).foregroundStyle(.secondary)
+                Text("\(count)").scaledFont(.sm, weight: .bold).foregroundStyle(Theme.greenText)
+                Text("笔 · 连续 \(streak) 天").scaledFont(.xs).foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -210,22 +210,22 @@ struct InsightView: View {
     private var moodCard: some View {
         let moods = InsightStats.moodCounts(txs)
         return VStack(alignment: .leading, spacing: 10) {
-            Text("心情账单").scaledFont(13, weight: .bold)
+            Text("心情账单").scaledFont(.sm, weight: .bold)
 
             if moods.isEmpty {
                 Text("记几笔\n带心情的账")
-                    .scaledFont(12).foregroundStyle(.secondary)
+                    .scaledFont(.sm).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 4)
             } else {
                 ForEach(moods, id: \.mood) { item in
                     HStack(spacing: 6) {
                         CategoryIcon(item.mood, size: 22).accessibilityHidden(true)
-                        Text(item.mood.label).scaledFont(12).foregroundStyle(.primary)
+                        Text(item.mood.label).scaledFont(.sm).foregroundStyle(.primary)
                             .lineLimit(1)
                         Spacer(minLength: 4)
                         Text("× \(item.count)")
-                            .scaledFont(13, weight: .bold).foregroundStyle(Theme.greenText)
+                            .scaledFont(.sm, weight: .bold).foregroundStyle(Theme.greenText)
                             .monospacedDigit()
                     }
                 }
@@ -245,26 +245,26 @@ struct InsightView: View {
         let shares = InsightStats.categoryShares(txs)
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("分类占比").scaledFont(13, weight: .bold)
+                Text("分类占比").scaledFont(.sm, weight: .bold)
                 Spacer()
-                Text("占当月总支出").scaledFont(11).foregroundStyle(.secondary)
+                Text("占当月总支出").scaledFont(.xs).foregroundStyle(.secondary)
             }
 
             if shares.isEmpty {
                 Text("本月还没有支出记录")
-                    .scaledFont(12).foregroundStyle(.secondary)
+                    .scaledFont(.sm).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 12)
             } else {
                 ForEach(shares) { s in
                     VStack(spacing: 6) {
                         HStack(spacing: 6) {
-                            CategoryIcon(asset: s.iconName, fallback: s.emoji, size: 22)
+                            CategoryIcon(asset: s.iconName, size: 22)
                                 .accessibilityHidden(true)
-                            Text(s.name).scaledFont(13).foregroundStyle(.primary)
+                            Text(s.name).scaledFont(.sm).foregroundStyle(.primary)
                             Spacer()
                             Text("\(Int((s.ratio * 100).rounded()))%")
-                                .scaledFont(12, weight: .semibold).foregroundStyle(Theme.greenText)
+                                .scaledFont(.sm, weight: .semibold).foregroundStyle(Theme.greenText)
                                 .monospacedDigit()
                         }
                         GeometryReader { geo in
@@ -308,16 +308,9 @@ struct InsightView: View {
         return (wd + 5) % 7                                  // 周一→0 … 周日→6
     }
 
-    /// 两位小数金额串（视觉 §4.2：全 App 金额两位小数）
+    /// 两位小数金额串（走 `Money.string`，与全 App 金额格式统一）
     private func money(_ v: Decimal) -> String {
-        let n = NSDecimalNumber(decimal: v)
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.minimumFractionDigits = 2
-        f.maximumFractionDigits = 2
-        f.groupingSeparator = ","
-        f.usesGroupingSeparator = true
-        return "¥ " + (f.string(from: n) ?? "0.00")
+        "¥ " + Money.string(v)
     }
 }
 

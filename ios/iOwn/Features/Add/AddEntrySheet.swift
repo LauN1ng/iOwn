@@ -174,13 +174,13 @@ struct AddEntrySheet: View {
     private var stageGrid: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 16) {
-                Text("支出").scaledFont(20, weight: .bold)
+                Text("支出").scaledFont(.lg, weight: .bold)
                     .foregroundStyle(isOut ? Theme.greenText : Color.secondary.opacity(0.4))
                     .contentShape(Rectangle())
                     .onTapGesture { isOut = true }
                     .accessibilityAddTraits(isOut ? [.isButton, .isSelected] : .isButton)
                     .accessibilityLabel("支出")
-                Text("收入").scaledFont(20, weight: .bold)
+                Text("收入").scaledFont(.lg, weight: .bold)
                     .foregroundStyle(!isOut ? Theme.greenText : Color.secondary.opacity(0.4))
                     .contentShape(Rectangle())
                     .onTapGesture { isOut = false }
@@ -192,7 +192,7 @@ struct AddEntrySheet: View {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
-                        .scaledFont(15, weight: .semibold)
+                        .scaledFont(.body, weight: .semibold)
                         .foregroundStyle(.secondary)
                         .padding(8)
                         .background(Theme.card)
@@ -200,7 +200,9 @@ struct AddEntrySheet: View {
                 }
                 .buttonStyle(PressableButtonStyle(scale: 0.92))
                 .accessibilityLabel("关闭")
-                Image(systemName: "gearshape").foregroundStyle(.tertiary) // TODO(M3-A5) 分类管理入口
+                // 分类管理入口（TODO(M3-A5) 未接线）—— 2026-10-15：线性 SF Symbol → Fluent 3D 素材
+                Image("cur_label").renderingMode(.original).resizable().scaledToFit()
+                    .frame(width: 22, height: 22)
                     .accessibilityHidden(true)                            // 未接线：不进无障碍树
             }
 
@@ -214,7 +216,7 @@ struct AddEntrySheet: View {
                     } label: {
                         VStack(spacing: 8) {
                             CategoryIcon(cat, size: 40).accessibilityHidden(true)  // 装饰：名称已念出
-                            Text(cat.name).scaledFont(12.5, weight: .medium)
+                            Text(cat.name).scaledFont(.sm, weight: .medium)
                                 .foregroundStyle(.primary)
                         }
                         .frame(maxWidth: .infinity)
@@ -224,20 +226,7 @@ struct AddEntrySheet: View {
                     }
                     .buttonStyle(PressableButtonStyle())
                 }
-                CellButton(emoji: "＋", name: "添加") {} // TODO(M3-A5) 自定义大类
-                    .accessibilityHint("自定义大类，后续版本开放")
             }
-
-            HStack {
-                Text("⚡ 快捷分类")
-                    .scaledFont(13.5, weight: .semibold)
-                    .foregroundStyle(Theme.greenText)
-                Spacer()
-                Text("›").foregroundStyle(.tertiary)
-            }
-            .padding(14)
-            .background(Theme.card)
-            .cornerRadius(Radius.medium)
         }
         .padding(.horizontal, Radius.pagePadding)
         .padding(.bottom, 20)
@@ -252,22 +241,22 @@ struct AddEntrySheet: View {
                     Haptics.tap()
                     go(to: 0)
                 } label: {
-                    Image(systemName: "arrow.left").scaledFont(16, weight: .semibold)
+                    Image(systemName: "arrow.left").scaledFont(.title, weight: .semibold)
                         .foregroundStyle(.primary)
                 }
                 .buttonStyle(PressableButtonStyle(scale: 0.9))
                 .accessibilityLabel("返回分类选择")
                 Text(category?.name ?? "")
-                    .scaledFont(12).foregroundStyle(.secondary)
+                    .scaledFont(.sm).foregroundStyle(.secondary)
                 Text(sub?.name ?? "")
-                    .scaledFont(22, weight: .bold)
+                    .scaledFont(.lg, weight: .bold)
                 Spacer()
                 if editing == nil {
                     Button {
                         Haptics.tap()
                         saveAndContinue()
                     } label: {
-                        Text("再记").scaledFont(13, weight: .semibold)
+                        Text("再记").scaledFont(.sm, weight: .semibold)
                             .foregroundStyle(Theme.greenText)
                             .padding(.horizontal, 12).padding(.vertical, 7)
                             .background(Theme.greenSoft)
@@ -281,7 +270,7 @@ struct AddEntrySheet: View {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
-                        .scaledFont(15, weight: .semibold)
+                        .scaledFont(.body, weight: .semibold)
                         .foregroundStyle(.secondary)
                         .padding(8)
                         .background(Theme.card)
@@ -301,7 +290,7 @@ struct AddEntrySheet: View {
                         } label: {
                             HStack(spacing: 6) {
                                 CategoryIcon(s, size: 19).accessibilityHidden(true)
-                                Text(s.name).scaledFont(13.5, weight: .medium)
+                                Text(s.name).scaledFont(.sm, weight: .medium)
                             }
                             .padding(.horizontal, 14).padding(.vertical, 9)
                             .background(sub?.id == s.id ? Theme.green : Theme.card)
@@ -311,17 +300,13 @@ struct AddEntrySheet: View {
                         .buttonStyle(PressableButtonStyle(scale: 0.94))
                         .accessibilityAddTraits(sub?.id == s.id ? [.isButton, .isSelected] : .isButton)
                     }
-                    ChipLabel(emoji: "＋", name: "添加")  // TODO(M3-A5) 自定义二级
-                        .accessibilityHint("自定义二级分类，后续版本开放")
-                    ChipLabel(emoji: "⚙", name: "设置")
-                        .accessibilityHint("二级分类设置，后续版本开放")
                 }
                 .padding(.horizontal, Radius.pagePadding)
             }
             .padding(.top, 14)
 
             Text("¥ \(amountDisplay)")
-                .scaledFont(42, weight: .heavy, design: .rounded)
+                .scaledFont(.display, weight: .heavy, design: .rounded)
                 .foregroundStyle(Theme.greenText)
                 .monospacedDigit()
                 .tracking(-0.5)                       // 大字收紧字距（apple-design §15）
@@ -330,7 +315,7 @@ struct AddEntrySheet: View {
 
             HStack(spacing: 12) {
                 TextField("备注", text: $note)
-                    .scaledFont(14)
+                    .scaledFont(.body)
                     .accessibilityLabel("备注")
                 Button {
                     Haptics.tap()
@@ -341,7 +326,7 @@ struct AddEntrySheet: View {
                             CategoryIcon(mood, size: 15)
                         }
                         Text(mood?.label ?? "心情＋")
-                            .scaledFont(12)
+                            .scaledFont(.sm)
                     }
                     .foregroundStyle(mood == nil ? Color.secondary : Color.primary)
                     .padding(.horizontal, 10).padding(.vertical, 6)
@@ -351,8 +336,8 @@ struct AddEntrySheet: View {
                 .buttonStyle(PressableButtonStyle(scale: 0.94))
                 .accessibilityLabel(mood.map { "心情：\($0.label)" } ?? "添加心情")
                 .accessibilityHint("点按轮换心情")
-                Image(systemName: "plus.circle.dashed").foregroundStyle(.tertiary) // 附件预留
-                    .accessibilityHidden(true)                                      // 未接线
+                // 2026-10-15（D1）：删除装饰性的 `plus.circle.dashed` 附件预留位
+                // —— 它从未接线，且是全 App 最后一批「非控件型 SF Symbol」之一。
             }
             .padding(12)
             .background(Theme.card)
@@ -371,13 +356,13 @@ struct AddEntrySheet: View {
                             } label: {
                                 HStack(spacing: 6) {
                                     Text(acc.kind.logoChar)
-                                        .scaledFont(11, weight: .bold)
+                                        .scaledFont(.xs, weight: .bold)
                                         .foregroundStyle(.white)
                                         .frame(width: 18, height: 18)
                                         .background(Color(hex: acc.kind.brandColorHex))
                                         .cornerRadius(5)
                                         .accessibilityHidden(true)   // 装饰：账户名已念出
-                                    Text(acc.name).scaledFont(12.5, weight: .medium)
+                                    Text(acc.name).scaledFont(.sm, weight: .medium)
                                 }
                                 .padding(.horizontal, 10).padding(.vertical, 7)
                                 .background(selected ? Theme.green : Theme.card)
@@ -397,7 +382,7 @@ struct AddEntrySheet: View {
             // 选分期则保存时自动在该账户名下生成一笔分期计划
             if isCreditSelected && isOut {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("付款方式").scaledFont(11.5).foregroundStyle(.secondary)
+                    Text("付款方式").scaledFont(.xs).foregroundStyle(.secondary)
                     HStack(spacing: 8) {
                         payChip("全额下期", on: payFull) { payFull = true }
                         ForEach([3, 6, 12, 24], id: \.self) { n in
@@ -409,7 +394,7 @@ struct AddEntrySheet: View {
                     }
                     if !payFull {
                         Text(installmentHint)
-                            .scaledFont(11).foregroundStyle(Theme.blueText)
+                            .scaledFont(.xs).foregroundStyle(Theme.blueText)
                     }
                 }
                 .padding(.horizontal, Radius.pagePadding)
@@ -430,7 +415,7 @@ struct AddEntrySheet: View {
             Haptics.tap()
             action()
         } label: {
-            Text(t).scaledFont(12.5)
+            Text(t).scaledFont(.sm)
                 .foregroundStyle(on ? Theme.greenText : .secondary)
                 .padding(.horizontal, 13).padding(.vertical, 8)
                 .background(on ? Theme.greenSoft : Theme.card)
@@ -455,7 +440,7 @@ struct AddEntrySheet: View {
                     keyRow([".", "0", "＋−"], colW)
                 }
                 VStack(spacing: gap) {
-                    keyButton("⌫", style: .danger, size: CGSize(width: colW, height: keyH)) {
+                    keyButton(systemName: "delete.left", pointSize: 19, style: .danger, size: CGSize(width: colW, height: keyH)) {
                         Haptics.key()
                         if !amountStr.isEmpty { amountStr.removeLast() }
                     }
@@ -463,7 +448,7 @@ struct AddEntrySheet: View {
                         Haptics.tap()
                         date = .now
                     }
-                    keyButton("✓", style: .okActive(amountCents > 0), size: CGSize(width: colW, height: keyH * 2 + gap)) { saveAndDismiss() }
+                    keyButton(systemName: "checkmark", pointSize: 22, style: .okActive(amountCents > 0), size: CGSize(width: colW, height: keyH * 2 + gap)) { saveAndDismiss() }
                 }
             }
             .frame(maxHeight: .infinity, alignment: .top)
@@ -487,7 +472,7 @@ struct AddEntrySheet: View {
     private func keyButton(_ label: String, style: KeyStyle, size: CGSize, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .scaledFont(label == "✓" ? 22 : 19, weight: .bold)
+                .scaledFont(label == "✓" ? .lg : .title, weight: .bold)
                 .frame(width: size.width, height: size.height)
                 .background(backgroundColor(style))
                 .foregroundStyle(foregroundColor(style))
@@ -495,6 +480,20 @@ struct AddEntrySheet: View {
         }
         .buttonStyle(PressableButtonStyle(scale: 0.93))
         .accessibilityLabel(Self.keyAccessibilityLabel(label))
+    }
+
+    /// 键盘 SF Symbol 键位（替换原 Unicode 字符：⌫ / ✓）—— 键盘字号固定不缩放，避免撑破固定 keyH
+    private func keyButton(systemName: String, pointSize: CGFloat, style: KeyStyle, size: CGSize, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: pointSize, weight: .bold))
+                .frame(width: size.width, height: size.height)
+                .background(backgroundColor(style))
+                .foregroundStyle(foregroundColor(style))
+                .cornerRadius(Radius.medium)
+        }
+        .buttonStyle(PressableButtonStyle(scale: 0.93))
+        .accessibilityLabel(Self.keySymbolAccessibilityLabel(systemName))
     }
 
     /// 键盘键位的 VoiceOver 名称（符号键必须翻译，否则只念出符号本身）
@@ -505,6 +504,15 @@ struct AddEntrySheet: View {
         case "今天": "日期改为今天"
         case "＋−": "切换收入或支出"
         default: label
+        }
+    }
+
+    /// SF Symbol 键位的 VoiceOver 名称
+    private static func keySymbolAccessibilityLabel(_ name: String) -> String {
+        switch name {
+        case "delete.left": "删除"
+        case "checkmark": "完成并保存"
+        default: name
         }
     }
 
@@ -640,36 +648,3 @@ extension Mood {
     }
 }
 
-private struct CellButton: View {
-    let emoji: String
-    let name: String
-    let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Text(emoji).scaledFont(34).accessibilityHidden(true)
-                Text(name).scaledFont(12.5, weight: .medium).foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(Theme.card)
-            .cornerRadius(Radius.medium)
-        }
-        .buttonStyle(PressableButtonStyle())
-    }
-}
-
-private struct ChipLabel: View {
-    let emoji: String
-    let name: String
-    var body: some View {
-        HStack(spacing: 6) {
-            Text(emoji).scaledFont(16).accessibilityHidden(true)
-            Text(name).scaledFont(13.5, weight: .medium)
-        }
-        .padding(.horizontal, 14).padding(.vertical, 9)
-        .background(Theme.card)
-        .foregroundStyle(.secondary)
-        .cornerRadius(Radius.small)
-    }
-}

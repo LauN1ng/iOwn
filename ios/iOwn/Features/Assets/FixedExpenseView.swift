@@ -4,8 +4,9 @@ import SwiftData
 // MARK: - 固定支出图标（复用已有 Fluent 3D 贴图，asset 名即 `sub_*`）
 //
 // 说明：`FixedExpense.emoji` 这个字段名没改（改字段名会破坏 SwiftData 轻量迁移），
-// 但**内容语义已扩展** —— 新写入的是 `sub_*` asset 名；老数据里存的裸 emoji 照旧按
-// 兜底渲染（`CategoryIcon` 找不到 asset 就显示 emoji 字符）。所以无需 schema 迁移。
+// 但**内容语义已扩展** —— 新写入的是 `sub_*` asset 名；老数据里存的裸 emoji 字符
+// 由 `CuratedIcons.asset(forEmoji:)` 反查回 asset。所以无需 schema 迁移。
+// （2026-10-15：`CategoryIcon` 的 emoji 兜底出口已删，查不到的语义渲染灰底占位。）
 
 struct FixedExpenseIconDef: Identifiable {
     let asset: String
@@ -30,22 +31,22 @@ enum FixedExpenseIcon {
         .init(asset: "sub_ticket",       emoji: "🎫", name: "票券"),
     ]
 
-    /// 存进 `FixedExpense.emoji` 的值 → 渲染参数
+    /// 存进 `FixedExpense.emoji` 的值 → asset 名（找不到返回 nil，渲染灰底占位）
     ///
     /// 三种形态兼容：① 新数据 = `sub_*` asset 名；② `cur_*`（预留：将来这套也可能被选中）；
-    /// ③ 老数据 = 裸 emoji 字符（2026-10-11 之前写入的）→ 无 asset，原样兜底。
+    /// ③ 老数据 = 裸 emoji 字符（2026-10-11 之前写入的）→ 反查 curated 表。
     /// 空串（理论上不会出现）退回 Fluent 日历，不再用 iOS emoji。
-    static func render(_ stored: String) -> (asset: String?, fallback: String) {
+    static func render(_ stored: String) -> String? {
         if let hit = all.first(where: { $0.asset == stored }) {
-            return (hit.asset, hit.emoji)
+            return hit.asset
         }
         if let item = CuratedIcons.item(stored) {
-            return (item.asset, item.emoji)
+            return item.asset
         }
         if stored.isEmpty {
-            return ("cur_tear_off_calendar", "📅")
+            return "cur_tear_off_calendar"
         }
-        return (nil, stored)
+        return CuratedIcons.asset(forEmoji: stored)
     }
 }
 
@@ -91,7 +92,7 @@ struct FixedExpenseView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { Haptics.tap(); showAdd = true } label: {
-                    Image(systemName: "plus").scaledFont(16, weight: .semibold)
+                    Image(systemName: "plus").scaledFont(.title, weight: .semibold)
                 }
                 .accessibilityLabel("添加固定支出")
             }
@@ -116,14 +117,14 @@ struct FixedExpenseView: View {
 
     private var summaryRow: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text("每月固定合计").scaledFont(12).foregroundStyle(.secondary)
+            Text("每月固定合计").scaledFont(.sm).foregroundStyle(.secondary)
             Text("¥ " + Money.string(dec(monthlyTotal)))
-                .scaledFont(30, weight: .heavy, design: .rounded)
+                .scaledFont(.xl, weight: .heavy, design: .rounded)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text("\(items.count) 项 · 每月自动扣，不累计成欠款")
-                .scaledFont(11.5).foregroundStyle(.secondary)
+                .scaledFont(.xs).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 2)
@@ -131,7 +132,7 @@ struct FixedExpenseView: View {
 
     private var notice: some View {
         Text("这些是「每月固定扣的持续支出」，不是负债 —— 所以不叫待还、也不会还完；但它们照样会扣掉你的本月可支配。")
-            .scaledFont(11.5)
+            .scaledFont(.xs)
             .foregroundStyle(Theme.blueText)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
@@ -156,25 +157,25 @@ struct FixedExpenseView: View {
         let icon = FixedExpenseIcon.render(item.emoji)
         return Button { Haptics.tap(); editing = item } label: {
             HStack(spacing: 12) {
-                CategoryIcon(asset: icon.asset, fallback: icon.fallback, size: 24)
+                CategoryIcon(asset: icon, size: 24)
                     .frame(width: 40, height: 40)
                     .background(Theme.iconBg)
                     .cornerRadius(12)
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(item.name).scaledFont(15, weight: .semibold).foregroundStyle(.primary)
-                    Text("每月 \(item.dueDay) 日扣款").scaledFont(11.5).foregroundStyle(.secondary)
+                    Text(item.name).scaledFont(.body, weight: .semibold).foregroundStyle(.primary)
+                    Text("每月 \(item.dueDay) 日扣款").scaledFont(.xs).foregroundStyle(.secondary)
                 }
 
                 Spacer(minLength: 8)
 
                 Text("¥" + Money.string(dec(item.amount)))
-                    .scaledFont(15.5, weight: .bold).monospacedDigit()
+                    .scaledFont(.body, weight: .bold).monospacedDigit()
                     .foregroundStyle(.primary)
 
                 // 可见的编辑入口（原先只能靠"点这一行"或长按，界面上毫无提示）
-                Text("›").scaledFont(16).foregroundStyle(.tertiary)
+                Text("›").scaledFont(.title).foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -204,7 +205,7 @@ struct FixedExpenseView: View {
     private var addButton: some View {
         Button { Haptics.tap(); showAdd = true } label: {
             Text("＋ 添加固定支出")
-                .scaledFont(15, weight: .semibold)
+                .scaledFont(.body, weight: .semibold)
                 .foregroundStyle(Theme.greenText)
                 .frame(maxWidth: .infinity).padding(.vertical, 15)
                 .background(Theme.greenSoft).cornerRadius(14)
@@ -267,14 +268,14 @@ struct FixedExpenseSheet: View {
                 Haptics.tap()
                 dismiss()
             } label: {
-                Text("取消").scaledFont(15).foregroundStyle(.secondary)
+                Text("取消").scaledFont(.body).foregroundStyle(.secondary)
             }
             .buttonStyle(PressableButtonStyle(scale: 0.96))
             .accessibilityLabel("取消")
 
             Spacer()
             Text(editing == nil ? "添加固定支出" : "编辑固定支出")
-                .scaledFont(17, weight: .bold)
+                .scaledFont(.title, weight: .bold)
             Spacer()
 
             Button {
@@ -283,7 +284,7 @@ struct FixedExpenseSheet: View {
                 dismiss()
             } label: {
                 Text("保存")
-                    .scaledFont(14, weight: .semibold)
+                    .scaledFont(.body, weight: .semibold)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16).padding(.vertical, 8)
                     .background(canSave ? Theme.green : Theme.disabled)
@@ -301,7 +302,7 @@ struct FixedExpenseSheet: View {
 
     private var iconSection: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text("图标").scaledFont(12.5, weight: .semibold).foregroundStyle(.secondary)
+            Text("图标").scaledFont(.sm, weight: .semibold).foregroundStyle(.secondary)
             LazyVGrid(columns: iconColumns, spacing: 12) {
                 ForEach(FixedExpenseIcon.all) { ic in
                     iconCell(ic)
@@ -320,7 +321,7 @@ struct FixedExpenseSheet: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(selected ? Theme.greenSoft : Theme.card)
                     .frame(height: 48)
-                CategoryIcon(asset: ic.asset, fallback: ic.emoji, size: 26)
+                CategoryIcon(asset: ic.asset, size: 26)
             }
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -338,16 +339,16 @@ struct FixedExpenseSheet: View {
         VStack(spacing: 0) {
             row("名称") {
                 TextField("房租 / 视频会员", text: $name)
-                    .scaledFont(15, weight: .semibold)
+                    .scaledFont(.body, weight: .semibold)
                     .multilineTextAlignment(.trailing)
             }
             divider
             row("每月金额") {
                 HStack(spacing: 4) {
-                    Text("¥").scaledFont(14, weight: .semibold).foregroundStyle(.secondary)
+                    Text("¥").scaledFont(.body, weight: .semibold).foregroundStyle(.secondary)
                     TextField("如 1230.50", text: $amountStr)
                         .keyboardType(.decimalPad)
-                        .scaledFont(15, weight: .bold)
+                        .scaledFont(.body, weight: .bold)
                         .multilineTextAlignment(.trailing)
                         .monospacedDigit()
                 }
@@ -369,7 +370,7 @@ struct FixedExpenseSheet: View {
 
     private func row<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
         HStack(spacing: 8) {
-            Text(label).scaledFont(14.5, weight: .medium)
+            Text(label).scaledFont(.body, weight: .medium)
             Spacer(minLength: 8)
             content()
         }
@@ -392,7 +393,7 @@ struct FixedExpenseSheet: View {
             }
         } label: {
             Text("删除这项")
-                .scaledFont(14.5, weight: .semibold)
+                .scaledFont(.body, weight: .semibold)
                 .foregroundStyle(Theme.redText)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 13)

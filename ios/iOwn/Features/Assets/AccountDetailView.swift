@@ -66,12 +66,12 @@ struct AccountDetailView: View {
             accountIconLarge
             VStack(alignment: .leading, spacing: 3) {
                 Text(account.name)
-                    .scaledFont(22, weight: .heavy)
+                    .scaledFont(.lg, weight: .heavy)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 if !subtitle.isEmpty {
                     Text(subtitle)
-                        .scaledFont(12)
+                        .scaledFont(.sm)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -93,10 +93,9 @@ struct AccountDetailView: View {
             if !account.icon.asset.isEmpty, UIImage(named: account.icon.asset) != nil {
                 // ⚠️ 彩色贴图：不要加 .renderingMode(.template)
                 Image(account.icon.asset).resizable().scaledToFit()
-            } else if !account.icon.emoji.isEmpty {
-                Text(account.icon.emoji).scaledFont(40)
             } else {
-                Text(account.kind.logoChar).scaledFont(26, weight: .heavy).foregroundStyle(.secondary)
+                // 2026-10-15：emoji 兜底层已删（C 语族）→ 直接落到单字字块（M 徽标语族，暂时保留）
+                Text(account.kind.logoChar).scaledFont(.xl, weight: .heavy).foregroundStyle(.secondary)
             }
         }
         .frame(width: 64, height: 64)
@@ -108,9 +107,9 @@ struct AccountDetailView: View {
     private var balanceCard: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("当前余额").scaledFont(12).foregroundStyle(.secondary)
+                Text("当前余额").scaledFont(.sm).foregroundStyle(.secondary)
                 Text(balance < 0 ? "-¥ " + money(-balance) : "¥ " + money(balance))
-                    .scaledFont(24, weight: .heavy)
+                    .scaledFont(.lg, weight: .heavy)
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
@@ -131,7 +130,7 @@ struct AccountDetailView: View {
     private func pill(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .scaledFont(12.5, weight: .semibold)
+                .scaledFont(.sm, weight: .semibold)
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 14).padding(.vertical, 8)
                 .background(Theme.iconBg)
@@ -145,7 +144,7 @@ struct AccountDetailView: View {
     private var editButton: some View {
         Button { Haptics.tap(); showEdit = true } label: {
             Text("编辑账户")
-                .scaledFont(15, weight: .semibold)
+                .scaledFont(.body, weight: .semibold)
                 .foregroundStyle(Theme.greenText)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)

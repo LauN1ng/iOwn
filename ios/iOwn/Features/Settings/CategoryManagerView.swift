@@ -1,7 +1,10 @@
 import SwiftUI
 
-// MARK: - E5 分类管理 / A5 自定义二级子类（名称+emoji）
+// MARK: - E5 分类管理 / A5 自定义二级子类（名称 + 图标）
 // 预设子类只读；自定义子类可增删（M3 备忘 §4）
+//
+// 2026-10-15（D2 页面容器语言）：系统 `List` → **全自绘**（`ScrollView` + `VStack` + 白卡），
+// 与其余业务页统一容器语言。已知取舍：失去系统 List 的分组吸顶 / 系统缩进，全部由 `CardSection` 承担。
 
 struct CategoryManagerView: View {
     @State private var version = 0          // CustomSubStore 非 Observable，手动翻版本驱动刷新
@@ -9,36 +12,17 @@ struct CategoryManagerView: View {
     @State private var pendingRemove: (CategoryDef, CategoryDef.SubDef)?
 
     var body: some View {
-        List {
-            ForEach(CategoryPresets.all) { cat in
-                Section {
-                    ForEach(cat.subs) { sub in
-                        subRow(cat, sub)
-                    }
-                    Button {
-                        Haptics.tap()
-                        addTarget = cat
-                    } label: {
-                        Label("添加「\(cat.name)」子类", systemImage: "plus.circle.fill")
-                            .scaledFont(15, weight: .semibold)
-                            .foregroundStyle(Theme.greenText)
-                    }
-                } header: {
-                    HStack(spacing: 6) {
-                        CategoryIcon(cat, size: 20)
-                        Text(cat.name)
-                    }
+        ScrollView {
+            VStack(spacing: Radius.cardSpacing) {
+                ForEach(CategoryPresets.all) { cat in
+                    categorySection(cat)
                 }
+                CardFooterNote(text: "自定义子类保存在本机；删掉后已记账不受影响，只影响之后的分类选择。")
             }
-            Section {
-                Text("自定义子类保存在本机；删掉后已记账不受影响，只影响之后的分类选择。")
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
+            .padding(.horizontal, Radius.pagePadding)
+            .padding(.top, 6)
+            .padding(.bottom, 40)
         }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .listRowBackground(Theme.card)
-        .listRowSeparatorTint(Theme.hairline)
         .background(Theme.bg)
         .navigationTitle("分类管理")
         .id(version)
@@ -68,6 +52,85 @@ struct CategoryManagerView: View {
         .onAppear(perform: handleCIArg)
     }
 
+    // MARK: 分组（一个大类 = 标题 + 白卡）
+
+    private func categorySection(_ cat: CategoryDef) -> some View {
+        let subs = cat.subs
+        return VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                CategoryIcon(cat, size: 20)
+                Text(cat.name).scaledFont(.sm, weight: .semibold).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 4)
+
+            CardSection {
+                ForEach(subs.indices, id: \.self) { i in
+                    subRow(cat, subs[i])
+                    CardDivider()
+                }
+                addSubButton(cat)
+            }
+        }
+    }
+
+    // MARK: 行
+
+    /// 子类行：自定义 → 可点删除；预设 → 只读「预设」标
+    @ViewBuilder
+    private func subRow(_ cat: CategoryDef, _ sub: CategoryDef.SubDef) -> some View {
+        if CustomSubStore.isCustom(sub.id) {
+            Button {
+                Haptics.tap()
+                pendingRemove = (cat, sub)
+            } label: {
+                rowContent(sub) {
+                    Image(systemName: "minus.circle")
+                        .foregroundStyle(Theme.redText)
+                        .accessibilityLabel("删除 \(sub.name)")
+                }
+            }
+            .buttonStyle(.plain)
+        } else {
+            rowContent(sub) {
+                Text("预设").scaledFont(.xs).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func rowContent<Trailing: View>(_ sub: CategoryDef.SubDef,
+                                            @ViewBuilder trailing: () -> Trailing) -> some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 8) {
+                CategoryIcon(sub, size: 22)
+                Text(sub.name).scaledFont(.body)
+            }
+            .foregroundStyle(.primary)
+            Spacer(minLength: 8)
+            trailing()
+        }
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+    }
+
+    private func addSubButton(_ cat: CategoryDef) -> some View {
+        Button {
+            Haptics.tap()
+            addTarget = cat
+        } label: {
+            HStack(spacing: 6) {
+                // 加号是「控件符号」，按 D1 纪律保留 SF Symbol
+                Image(systemName: "plus.circle.fill")
+                Text("添加「\(cat.name)」子类").scaledFont(.body, weight: .semibold)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(Theme.greenText)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     /// CI 截图钩子：直接展开「添加子类」sheet 以拍新的图标选择器。
     /// ⚠️ 这是**嵌套 sheet**（本页本身也是 sheet），必须等外层先落位 → 延迟 0.7s。
     /// 按 `AGENTS.md` §4：钩子只读 `ProcessInfo.arguments`，不加存储属性。
@@ -77,37 +140,6 @@ struct CategoryManagerView: View {
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 700_000_000)
             addTarget = cat
-        }
-    }
-
-    @ViewBuilder
-    private func subRow(_ cat: CategoryDef, _ sub: CategoryDef.SubDef) -> some View {
-        if CustomSubStore.isCustom(sub.id) {
-            Button {
-                Haptics.tap()
-                pendingRemove = (cat, sub)
-            } label: {
-                HStack {
-                    HStack(spacing: 8) {
-                        CategoryIcon(sub, size: 22)
-                        Text(sub.name).scaledFont(15)
-                    }
-                    .foregroundStyle(.primary)
-                    Spacer()
-                    Image(systemName: "minus.circle")
-                        .foregroundStyle(Theme.redText)
-                        .accessibilityLabel("删除 \(sub.name)")
-                }
-            }
-        } else {
-            HStack {
-                HStack(spacing: 8) {
-                    CategoryIcon(sub, size: 22)
-                    Text(sub.name).scaledFont(15)
-                }
-                Spacer()
-                Text("预设").scaledFont(11).foregroundStyle(.secondary)
-            }
         }
     }
 }
@@ -168,7 +200,7 @@ struct AddCustomSubSheet: View {
         HStack(spacing: 8) {
             CategoryIcon(category, size: 24)
             Text("\(category.name) · 新子类")
-                .scaledFont(17, weight: .bold)
+                .scaledFont(.title, weight: .bold)
         }
         .padding(.top, 4)
     }
@@ -178,11 +210,11 @@ struct AddCustomSubSheet: View {
     private var iconSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text("图标").scaledFont(12).foregroundStyle(.secondary)
+                Text("图标").scaledFont(.sm).foregroundStyle(.secondary)
                 Spacer(minLength: 8)
                 // 让用户明确知道自己选的是哪个（图标本身没文字）
                 if let item = CuratedIcons.item(iconAsset) {
-                    Text(item.name).scaledFont(11).foregroundStyle(.tertiary)
+                    Text(item.name).scaledFont(.xs).foregroundStyle(.tertiary)
                 }
             }
 
@@ -210,7 +242,7 @@ struct AddCustomSubSheet: View {
             groupIndex = i
         } label: {
             Text(groups[i].title)
-                .scaledFont(12, weight: .semibold)
+                .scaledFont(.sm, weight: .semibold)
                 .foregroundStyle(on ? Color.white : Color.secondary)
                 .padding(.horizontal, 10).padding(.vertical, 5)
                 .background(on ? Theme.green : Theme.iconBg)
@@ -226,7 +258,7 @@ struct AddCustomSubSheet: View {
             Haptics.tap()
             iconAsset = item.asset
         } label: {
-            CategoryIcon(asset: item.asset, fallback: item.emoji, size: 26)
+            CategoryIcon(asset: item.asset, size: 26)
                 .frame(maxWidth: .infinity)
                 .frame(height: 40)
                 .background(on ? Theme.greenSoft : Theme.card,
@@ -243,9 +275,9 @@ struct AddCustomSubSheet: View {
 
     private var nameSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("名称").scaledFont(12).foregroundStyle(.secondary)
+            Text("名称").scaledFont(.sm).foregroundStyle(.secondary)
             TextField("如：咖啡续命", text: $name)
-                .scaledFont(16)
+                .scaledFont(.title)
                 .padding(12)
                 .background(Theme.card, in: RoundedRectangle(cornerRadius: Radius.small))
                 .overlay(RoundedRectangle(cornerRadius: Radius.small)
@@ -258,7 +290,7 @@ struct AddCustomSubSheet: View {
             save()
         } label: {
             Text("保存")
-                .scaledFont(16, weight: .bold)
+                .scaledFont(.title, weight: .bold)
                 .foregroundStyle(name.isEmpty ? Theme.disabledText : .white)
                 .frame(maxWidth: .infinity, minHeight: 48)
                 .background(name.isEmpty ? Theme.disabled : Theme.green,

@@ -28,7 +28,12 @@ struct WageTimerCard: View {
         .buttonStyle(PressableButtonStyle(scale: 0.98))
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint("打开工资计时器设置")
-        .sheet(isPresented: $showSettings, onDismiss: { config = .load() }) { WageSettingsView() }
+        .sheet(isPresented: $showSettings, onDismiss: { config = .load() }) {
+            // 2026-10-15（D2）：与 RootTabView 的入口保持一致（两处入口必须同款）
+            WageSettingsView(showsGrabber: true)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+        }
     }
 
     /// VoiceOver 摘要（不跟随每秒自走，避免朗读数字追着跳）
@@ -45,7 +50,7 @@ struct WageTimerCard: View {
         let state = config.todayStatus(now: now)
         VStack(alignment: .leading, spacing: 6) {
             Text("到手薪资 · 本月已赚")
-                .scaledFont(12)
+                .scaledFont(.sm)
                 .foregroundStyle(.secondary)
 
             if config.isConfigured {
@@ -53,14 +58,12 @@ struct WageTimerCard: View {
                     // ⭐ 2026-10-12「方案 B」：状态 emoji 40pt、**裸放不带容器底**，
                     //    放在金额左侧当「卡片的脸」。emoji 是全 App 唯一彩色源，
                     //    这里是它能拿到的最高舞台（首屏最大的一张卡）。
-                    CategoryIcon(asset: state.iconAsset,
-                                 fallback: state.iconFallback,
-                                 size: 40)
+                    CategoryIcon(asset: state.iconAsset, size: 40)
                         .accessibilityHidden(true)   // 装饰：状态语义由整卡 accessibilityLabel + 右侧胶囊承载
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text("¥" + Money.string(earned))
-                            .scaledFont(30, weight: .heavy, design: .rounded)
+                            .scaledFont(.xl, weight: .heavy, design: .rounded)
                             .foregroundStyle(Theme.greenText)
                             .monospacedDigit()
                             .tracking(-0.4)
@@ -70,7 +73,7 @@ struct WageTimerCard: View {
                             .minimumScaleFactor(0.85)
                         // 2026-10-12：原「时薪…」行与新增的 40pt emoji 抢宽度 → 允许轻微缩字
                         Text("时薪 ¥\(Money.compact(config.hourlyWage(now: now))) · 本月已走 \(config.daysTouchedThisMonth(now: now)) 个工作日")
-                            .scaledFont(11.5)
+                            .scaledFont(.xs)
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
@@ -81,11 +84,11 @@ struct WageTimerCard: View {
                 }
             } else {
                 Text("¥ ——")
-                    .scaledFont(30, weight: .heavy, design: .rounded)
+                    .scaledFont(.xl, weight: .heavy, design: .rounded)
                     .foregroundStyle(Theme.greenText.opacity(0.45))
                     .monospacedDigit()
                 Text("点这里设置到手薪资与工作时段 ›")
-                    .scaledFont(11.5, weight: .semibold)
+                    .scaledFont(.xs, weight: .semibold)
                     .foregroundStyle(Theme.greenText)
             }
         }
@@ -116,7 +119,7 @@ private struct StatusPill: View {
         VStack(alignment: .trailing, spacing: 4) {
             // 状态胶囊（中性底，不再用品牌色填充）
             Text(state.label)
-                .scaledFont(11, weight: .semibold)
+                .scaledFont(.xs, weight: .semibold)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 10).padding(.vertical, 4)
                 .background(Theme.iconBg)
@@ -126,10 +129,10 @@ private struct StatusPill: View {
             if let (prefix, target) = countdown(now: now) {
                 HStack(spacing: 3) {
                     Text(prefix)
-                        .scaledFont(10.5)
+                        .scaledFont(.micro)
                         .foregroundStyle(.tertiary)
                     Text(target, style: .timer)      // 系统实时绘制，秒级跳动（App 内 + 未来小组件通用）
-                        .scaledFont(10.5, weight: .semibold)
+                        .scaledFont(.micro, weight: .semibold)
                         .foregroundStyle(Theme.greenText)
                         .monospacedDigit()
                 }

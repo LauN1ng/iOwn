@@ -34,7 +34,7 @@ struct SheetGrabber: View {
 // 因此用 `@ScaledMetric` 包一层：默认字号下取值 == 原 size（**视觉零变化**），
 // 系统调大字号时按 `.body` 曲线放大。
 //
-// 用法：把 `.font(.system(size: 15, weight: .semibold))` 换成 `.scaledFont(15, weight: .semibold)`。
+// 用法：把 `.font(.system(size: 15, weight: .semibold))` 换成 `.scaledFont(.body, weight: .semibold)`。
 // 不要直接用 `.font(.system(size:))`，除非是刻意不缩放的图形尺寸。
 
 private struct ScaledFontModifier: ViewModifier {
@@ -55,10 +55,23 @@ private struct ScaledFontModifier: ViewModifier {
 
 extension View {
     /// 跟随 Dynamic Type 的系统字体（替代 `.font(.system(size:weight:design:))`）
+    /// 旧 API：仅供 `keyButton` 等动态 pt 场景保留使用，业务代码请走 token 版本
     func scaledFont(_ size: CGFloat,
                     weight: Font.Weight = .regular,
                     design: Font.Design = .default) -> some View {
         modifier(ScaledFontModifier(size: size, weight: weight, design: design))
+    }
+
+    /// 字号 token 入口（**业务代码统一用这个**）
+    /// `display` 档固定不缩放；其余档跟随 Dynamic Type
+    func scaledFont(_ token: Type,
+                    weight: Font.Weight = .regular,
+                    design: Font.Design = .default) -> some View {
+        if token.scales {
+            modifier(ScaledFontModifier(size: token.pt, weight: weight, design: design))
+        } else {
+            font(.system(size: token.pt, weight: weight, design: design))
+        }
     }
 
     /// 视觉尺寸不变，把点击热区扩到至少 `side`×`side`（iOS HIG 44pt）

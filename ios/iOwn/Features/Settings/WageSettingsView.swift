@@ -4,8 +4,21 @@ import SwiftUI
 /// 存 UserDefaults（WageConfig），首页顶卡与洞察页共用
 ///
 /// v1.6：口径由「月薪」改为「到手薪资」（不含五险一金/个税计算）；新增「调休」手动标记节
+///
+/// 2026-10-15（D2 页面容器语言）：系统 `Form` → **全自绘**（`ScrollView` + `VStack` + 白卡）。
+/// 这是本轮唯一「背景色不统一」的页面 —— Form 既没接管滚动背景（系统冷灰 `#F2F2F7`）
+/// 也没给行底白卡，切进来会看到底色跳变 + 卡片语言断裂。改自绘后三者归一。
 struct WageSettingsView: View {
     @Environment(\.dismiss) private var dismiss
+
+    /// 以 sheet 呈现时显示自绘把手（`NavigationLink` push 进来时不需要）
+    private let showsGrabber: Bool
+
+    /// 显式 init：本页有 `@AppStorage` / `@State` 等私有包装属性，
+    /// 显式给一个只带 `showsGrabber` 的入口，避免 memberwise init 暴露全部包装参数。
+    init(showsGrabber: Bool = false) {
+        self.showsGrabber = showsGrabber
+    }
 
     @AppStorage(WageKeys.takeHomePay) private var takeHomePay: Double = 0
     @AppStorage(WageKeys.payday) private var payday: Int = 15
@@ -37,156 +50,41 @@ struct WageSettingsView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollViewReader { proxy in
-            Form {
-                Section {
-                    HStack {
-                        Text("到手薪资")
-                        Spacer()
-                        TextField("0", text: $salaryText)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .monospacedDigit()
-                            .frame(maxWidth: 140)
-                            .onChange(of: salaryText) { _, newValue in
-                                // 允许数字与一个小数点（最多两位小数）
-                                let cleaned = Self.sanitizeAmount(newValue)
-                                if cleaned != newValue { salaryText = cleaned }
-                                takeHomePay = Double(cleaned) ?? 0
+            VStack(spacing: 0) {
+                if showsGrabber { SheetGrabber() }
+
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: Radius.cardSpacing) {
+                            incomeSection
+                            workTimeSection
+                            lunchSection
+                            workdaysSection
+                            makeupSection
+                            holidaySection
+                            previewSection
+                        }
+                        .padding(.horizontal, Radius.pagePadding)
+                        .padding(.top, 6)
+                        .padding(.bottom, 40)
+                    }
+                    .background(Theme.bg)
+                    .onAppear {
+                        salaryText = takeHomePay > 0 ? Self.formatAmount(takeHomePay) : ""
+                        let c = Calendar.current
+                        startDate = c.date(bySettingHour: startHour, minute: startMinute, second: 0, of: .now) ?? .now
+                        endDate = c.date(bySettingHour: endHour, minute: endMinute, second: 0, of: .now) ?? .now
+                        lunchStartDate = c.date(bySettingHour: lunchStartHour, minute: lunchStartMinute, second: 0, of: .now) ?? .now
+                        // CI 截图钩子：滚到「节假日数据」节，便于核对调休同步结果
+                        if ProcessInfo.processInfo.arguments.contains("-ci-wage-bottom") {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                                withAnimation { proxy.scrollTo("holidaySection", anchor: .center) }
                             }
-                        Text("元").foregroundStyle(.secondary)
-                    }
-                    Picker("发薪日", selection: $payday) {
-                        ForEach(1...31, id: \.self) { Text("每月 \($0) 日").tag($0) }
-                    }
-                } header: {
-                    Text("收入")
-                } footer: {
-                    Text("填每月实际到手的金额（已扣五险一金与个税后，可填小数如 6475.88）。本版不自动计算社保/个税，避免因各地政策差异算不准；发薪日用于账期划分（M2 资产联动时启用）")
-                }
-
-                Section("工作时段") {
-                    DatePicker("上班", selection: $startDate, displayedComponents: .hourAndMinute)
-                        .onChange(of: startDate) { _, newValue in
-                            let c = Calendar.current.dateComponents([.hour, .minute], from: newValue)
-                            startHour = c.hour ?? 9
-                            startMinute = c.minute ?? 0
-                        }
-                    DatePicker("下班", selection: $endDate, displayedComponents: .hourAndMinute)
-                        .onChange(of: endDate) { _, newValue in
-                            let c = Calendar.current.dateComponents([.hour, .minute], from: newValue)
-                            endHour = c.hour ?? 18
-                            endMinute = c.minute ?? 0
-                        }
-                }
-
-                Section {
-                    DatePicker("午休开始", selection: $lunchStartDate, displayedComponents: .hourAndMinute)
-                        .onChange(of: lunchStartDate) { _, newValue in
-                            let c = Calendar.current.dateComponents([.hour, .minute], from: newValue)
-                            lunchStartHour = c.hour ?? 12
-                            lunchStartMinute = c.minute ?? 0
-                        }
-                    Stepper(value: $lunchMinutes, in: 0...180, step: 15) {
-                        LabeledContent("午休时长", value: lunchMinutes == 0 ? "不扣除" : "\(lunchMinutes) 分钟")
-                    }
-                } header: {
-                    Text("午休")
-                } footer: {
-                    Text("每日工时与已赚金额会自动扣除午休时间")
-                }
-
-                Section {
-                    HStack(spacing: 6) {
-                        ForEach(Self.weekdayOptions, id: \.value) { item in
-                            Button {
-                                Haptics.tap()
-                                toggle(item.value)
-                            } label: {
-                                Text(item.label)
-                                    .scaledFont(14, weight: .semibold)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 9)
-                                    .background(workdays.contains(item.value) ? Theme.green : Theme.iconBg)
-                                    .foregroundStyle(workdays.contains(item.value) ? Color.white : Color.primary)
-                                    .cornerRadius(Radius.small)
-                            }
-                            .buttonStyle(PressableButtonStyle(scale: 0.95))
-                            .accessibilityLabel("周\(item.label)")
-                            .accessibilityAddTraits(workdays.contains(item.value) ? [.isButton, .isSelected] : .isButton)
                         }
                     }
-                    .padding(.vertical, 2)
-                } header: {
-                    Text("工作日")
-                }
-
-                // 调休（v1.6 新增）：公司不按国家调休时的兜底
-                Section {
-                    HStack {
-                        DatePicker("选择日期", selection: $newDate, displayedComponents: .date)
-                            .labelsHidden()
-                        Spacer()
-                        Button {
-                            Haptics.tap()
-                            makeupCSV = adding(newDate, to: makeupCSV)
-                        } label: {
-                            Label("补班", systemImage: "plus.circle.fill")
-                        }
-                        .buttonStyle(.borderless)
-                        Button {
-                            Haptics.tap()
-                            offCSV = adding(newDate, to: offCSV)
-                        } label: {
-                            Label("放假", systemImage: "minus.circle.fill")
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                    ForEach(makeup.sorted(), id: \.self) { key in
-                        dayRow(key, badge: "补班", badgeColor: Theme.blue) { makeupCSV = removing(key, from: makeupCSV) }
-                    }
-                    ForEach(extraOff.sorted(), id: \.self) { key in
-                        dayRow(key, badge: "放假", badgeColor: Theme.amber) { offCSV = removing(key, from: offCSV) }
-                    }
-                } header: {
-                    Text("调休")
-                } footer: {
-                    Text("识别时间时会自动参考国家法定节假日与调休（来源 holiday-cn，启动时静默更新）。若你公司不按国家调休，可在此手动指定「补班」或「放假」，手动标记优先级最高")
-                }
-
-                Section {
-                    Button {
-                        Haptics.tap()
-                        Task {
-                            syncing = true
-                            let ok = await HolidayStore.shared.fetch(year: Calendar.current.component(.year, from: .now))
-                            syncResult = ok ? "已同步 \(Calendar.current.component(.year, from: .now)) 年节假日数据" : "同步失败，请检查网络后重试"
-                            syncing = false
-                        }
-                    } label: {
-                        HStack {
-                            Label("同步节假日数据", systemImage: "arrow.triangle.2.circlepath")
-                            Spacer()
-                            if syncing { ProgressView() }
-                        }
-                    }
-                    if let msg = syncResult {
-                        Text(msg)
-                            .scaledFont(12)
-                            .foregroundStyle(msg.hasPrefix("已同步") ? Theme.greenText : Theme.redText)
-                    }
-                    LabeledContent("本地数据", value: HolidayStore.shared.cachedYear == 0 ? "未同步" : "\(HolidayStore.shared.cachedYear) 年")
-                } header: {
-                    Text("节假日数据")
-                }
-                .id("holidaySection")
-
-                Section("时薪预览") {
-                    LabeledContent("到手时薪", value: previewHourly)
-                    LabeledContent("每日工时", value: String(format: "%.1f 小时（已扣午休）", previewConfig.dailyHours))
-                    LabeledContent("本月工作日", value: "\(previewConfig.workdaysInMonth(of: .now)) 天")
                 }
             }
+            .background(Theme.bg)
             .navigationTitle("工资计时器")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -194,19 +92,247 @@ struct WageSettingsView: View {
                     Button("完成") { dismiss() }
                 }
             }
-            .onAppear {
-                salaryText = takeHomePay > 0 ? Self.formatAmount(takeHomePay) : ""
-                let c = Calendar.current
-                startDate = c.date(bySettingHour: startHour, minute: startMinute, second: 0, of: .now) ?? .now
-                endDate = c.date(bySettingHour: endHour, minute: endMinute, second: 0, of: .now) ?? .now
-                lunchStartDate = c.date(bySettingHour: lunchStartHour, minute: lunchStartMinute, second: 0, of: .now) ?? .now
-                // CI 截图钩子：滚到「节假日数据」节，便于核对调休同步结果
-                if ProcessInfo.processInfo.arguments.contains("-ci-wage-bottom") {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                        withAnimation { proxy.scrollTo("holidaySection", anchor: .center) }
+        }
+    }
+
+    // MARK: 收入
+
+    private var incomeSection: some View {
+        VStack(spacing: 8) {
+            CardSectionTitle(text: "收入")
+            CardSection {
+                CardRow("到手薪资") {
+                    HStack(spacing: 4) {
+                        TextField("0", text: $salaryText)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .monospacedDigit()
+                            .scaledFont(.body, weight: .semibold)
+                            .frame(maxWidth: 140)
+                            .onChange(of: salaryText) { _, newValue in
+                                // 允许数字与一个小数点（最多两位小数）
+                                let cleaned = Self.sanitizeAmount(newValue)
+                                if cleaned != newValue { salaryText = cleaned }
+                                takeHomePay = Double(cleaned) ?? 0
+                            }
+                        Text("元").scaledFont(.body).foregroundStyle(.secondary)
+                    }
+                }
+                CardDivider()
+                CardRow("发薪日") {
+                    Picker("", selection: $payday) {
+                        ForEach(1...31, id: \.self) { Text("每月 \($0) 日").tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(.primary)
+                }
+            }
+            CardFooterNote(text: "填每月实际到手的金额（已扣五险一金与个税后，可填小数如 6475.88）。本版不自动计算社保 / 个税，避免因各地政策差异算不准；发薪日用于账期划分（M2 资产联动时启用）")
+        }
+    }
+
+    // MARK: 工作时段
+
+    private var workTimeSection: some View {
+        VStack(spacing: 8) {
+            CardSectionTitle(text: "工作时段")
+            CardSection {
+                CardRow("上班") {
+                    DatePicker("", selection: $startDate, displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                        .onChange(of: startDate) { _, newValue in
+                            let c = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                            startHour = c.hour ?? 9
+                            startMinute = c.minute ?? 0
+                        }
+                }
+                CardDivider()
+                CardRow("下班") {
+                    DatePicker("", selection: $endDate, displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                        .onChange(of: endDate) { _, newValue in
+                            let c = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                            endHour = c.hour ?? 18
+                            endMinute = c.minute ?? 0
+                        }
+                }
+            }
+        }
+    }
+
+    // MARK: 午休
+
+    private var lunchSection: some View {
+        VStack(spacing: 8) {
+            CardSectionTitle(text: "午休")
+            CardSection {
+                CardRow("午休开始") {
+                    DatePicker("", selection: $lunchStartDate, displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                        .onChange(of: lunchStartDate) { _, newValue in
+                            let c = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                            lunchStartHour = c.hour ?? 12
+                            lunchStartMinute = c.minute ?? 0
+                        }
+                }
+                CardDivider()
+                CardRow("午休时长") {
+                    HStack(spacing: 6) {
+                        Text(lunchMinutes == 0 ? "不扣除" : "\(lunchMinutes) 分钟")
+                            .scaledFont(.body)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                        Stepper("", value: $lunchMinutes, in: 0...180, step: 15)
+                            .labelsHidden()
                     }
                 }
             }
+            CardFooterNote(text: "每日工时与已赚金额会自动扣除午休时间")
+        }
+    }
+
+    // MARK: 工作日
+
+    private var workdaysSection: some View {
+        VStack(spacing: 8) {
+            CardSectionTitle(text: "工作日")
+            CardSection {
+                HStack(spacing: 6) {
+                    ForEach(Self.weekdayOptions, id: \.value) { item in
+                        Button {
+                            Haptics.tap()
+                            toggle(item.value)
+                        } label: {
+                            Text(item.label)
+                                .scaledFont(.body, weight: .semibold)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 9)
+                                .background(workdays.contains(item.value) ? Theme.green : Theme.iconBg)
+                                .foregroundStyle(workdays.contains(item.value) ? Color.white : Color.primary)
+                                .cornerRadius(Radius.small)
+                        }
+                        .buttonStyle(PressableButtonStyle(scale: 0.95))
+                        .accessibilityLabel("周\(item.label)")
+                        .accessibilityAddTraits(workdays.contains(item.value) ? [.isButton, .isSelected] : .isButton)
+                    }
+                }
+                .padding(.vertical, 6)
+            }
+        }
+    }
+
+    // MARK: 调休
+
+    private var makeupSection: some View {
+        VStack(spacing: 8) {
+            CardSectionTitle(text: "调休")
+            CardSection {
+                HStack(spacing: 10) {
+                    DatePicker("", selection: $newDate, displayedComponents: .date)
+                        .labelsHidden()
+                    Spacer(minLength: 8)
+                    Button {
+                        Haptics.tap()
+                        makeupCSV = adding(newDate, to: makeupCSV)
+                    } label: {
+                        Label("补班", systemImage: "plus.circle.fill")
+                            .scaledFont(.body, weight: .semibold)
+                            .foregroundStyle(Theme.greenText)
+                    }
+                    .buttonStyle(.plain)
+                    Button {
+                        Haptics.tap()
+                        offCSV = adding(newDate, to: offCSV)
+                    } label: {
+                        Label("放假", systemImage: "minus.circle.fill")
+                            .scaledFont(.body, weight: .semibold)
+                            .foregroundStyle(Theme.greenText)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.vertical, 10)
+
+                ForEach(makeup.sorted(), id: \.self) { key in
+                    CardDivider()
+                    dayRow(key, badge: "补班", badgeColor: Theme.blue) { makeupCSV = removing(key, from: makeupCSV) }
+                }
+                ForEach(extraOff.sorted(), id: \.self) { key in
+                    CardDivider()
+                    dayRow(key, badge: "放假", badgeColor: Theme.amber) { offCSV = removing(key, from: offCSV) }
+                }
+            }
+            CardFooterNote(text: "识别时间时会自动参考国家法定节假日与调休（来源 holiday-cn，启动时静默更新）。若你公司不按国家调休，可在此手动指定「补班」或「放假」，手动标记优先级最高")
+        }
+    }
+
+    // MARK: 节假日数据
+
+    private var holidaySection: some View {
+        VStack(spacing: 8) {
+            CardSectionTitle(text: "节假日数据")
+            CardSection {
+                Button {
+                    Haptics.tap()
+                    Task {
+                        syncing = true
+                        let ok = await HolidayStore.shared.fetch(year: Calendar.current.component(.year, from: .now))
+                        syncResult = ok ? "已同步 \(Calendar.current.component(.year, from: .now)) 年节假日数据" : "同步失败，请检查网络后重试"
+                        syncing = false
+                    }
+                } label: {
+                    HStack {
+                        Label("同步节假日数据", systemImage: "arrow.triangle.2.circlepath")
+                            .scaledFont(.body, weight: .semibold)
+                            .foregroundStyle(Theme.greenText)
+                        Spacer(minLength: 8)
+                        if syncing { ProgressView() }
+                    }
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if let msg = syncResult {
+                    Text(msg)
+                        .scaledFont(.sm)
+                        .foregroundStyle(msg.hasPrefix("已同步") ? Theme.greenText : Theme.redText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.bottom, 8)
+                }
+
+                CardDivider()
+                CardRow("本地数据") {
+                    Text(HolidayStore.shared.cachedYear == 0 ? "未同步" : "\(HolidayStore.shared.cachedYear) 年")
+                        .scaledFont(.body)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .id("holidaySection")
+    }
+
+    // MARK: 时薪预览
+
+    private var previewSection: some View {
+        VStack(spacing: 8) {
+            CardSectionTitle(text: "时薪预览")
+            CardSection {
+                CardRow("到手时薪") {
+                    Text(previewHourly).scaledFont(.body).foregroundStyle(.secondary)
+                }
+                CardDivider()
+                CardRow("每日工时") {
+                    Text(String(format: "%.1f 小时（已扣午休）", previewConfig.dailyHours))
+                        .scaledFont(.body)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.trailing)
+                }
+                CardDivider()
+                CardRow("本月工作日") {
+                    Text("\(previewConfig.workdaysInMonth(of: .now)) 天")
+                        .scaledFont(.body)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -216,21 +342,22 @@ struct WageSettingsView: View {
     private func dayRow(_ key: String, badge: String, badgeColor: Color, onDelete: @escaping () -> Void) -> some View {
         HStack {
             Text(key)
-                .scaledFont(15)
+                .scaledFont(.body)
                 .monospacedDigit()
             Text(badge)
-                .scaledFont(11, weight: .semibold)
+                .scaledFont(.xs, weight: .semibold)
                 .foregroundStyle(.white)
                 .padding(.horizontal, 8).padding(.vertical, 2)
                 .background(badgeColor)
                 .cornerRadius(999)
-            Spacer()
+            Spacer(minLength: 8)
             Button(role: .destructive, action: onDelete) {
                 Image(systemName: "trash")
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
             .accessibilityLabel("删除 \(key) \(badge)")
         }
+        .padding(.vertical, 10)
     }
 
     private var previewConfig: WageConfig { WageConfig.load() }

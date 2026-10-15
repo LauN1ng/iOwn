@@ -34,7 +34,7 @@ struct SuccessOverlay: View {
                     ZStack {
                         Circle().fill(Theme.green)
                         Image(systemName: "checkmark")
-                            .scaledFont(11, weight: .heavy)
+                            .scaledFont(.xs, weight: .heavy)
                             .foregroundStyle(.white)
                             .accessibilityHidden(true)   // 装饰：结果由下方金额 + 分类文字承载
                     }
@@ -48,7 +48,7 @@ struct SuccessOverlay: View {
                     .frame(width: 80, height: 80)
                     .shadow(color: Theme.green.opacity(0.42), radius: 17, y: 14)
                 Image(systemName: "checkmark")
-                    .scaledFont(34, weight: .heavy)
+                    .scaledFont(.display, weight: .heavy)
                     .foregroundStyle(.white)
                     .accessibilityHidden(true)   // 装饰：结果由下方金额 + 分类文字承载
             }
@@ -68,14 +68,14 @@ struct SuccessOverlay: View {
                     .opacity(popped ? 1 : 0)
 
                 Text(amountText)
-                    .scaledFont(38, weight: .heavy, design: .rounded)
+                    .scaledFont(.display, weight: .heavy, design: .rounded)
                     .foregroundStyle(Theme.greenText)
                     .monospacedDigit()
                     .tracking(-0.5)
                     .padding(.top, 30)
 
                 Text("\(info.categoryName) · \(info.subName) · 已入账")
-                    .scaledFont(14.5)
+                    .scaledFont(.body)
                     .foregroundStyle(.secondary)
                     .padding(.top, 8)
 
@@ -83,7 +83,7 @@ struct SuccessOverlay: View {
                 // 这里只留一行文字点明「这张脸是什么意思」。
                 if let mood = info.mood {
                     Text(mood.label)
-                        .scaledFont(13)
+                        .scaledFont(.sm)
                         .foregroundStyle(.secondary)
                         .padding(.top, 18)
                 }
@@ -91,7 +91,7 @@ struct SuccessOverlay: View {
                 Spacer(minLength: 0)
 
                 Text("今日第 \(info.todayCount) 笔 · 连续 \(info.streak) 天 · 记账日 +1")
-                    .scaledFont(12.5)
+                    .scaledFont(.sm)
                     .foregroundStyle(.tertiary)
                     .monospacedDigit()
                     .padding(.bottom, 48)

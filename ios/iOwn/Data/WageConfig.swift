@@ -275,19 +275,6 @@ enum WorkState {
             return CuratedIcons.State.makeup
         }
     }
-
-    /// asset 缺失时的兜底 emoji（`CategoryIcon` 的 fallback）
-    var iconFallback: String {
-        switch self {
-        case .beforeWork:                 return "⏰"
-        case .working:                    return "💼"
-        case .lunch:                      return "🍜"
-        case .afterWork:                  return "🏠"
-        case .rest:                       return "🛋️"
-        case .makeupBefore, .makeupWorking, .makeupAfter:
-            return "🔁"
-        }
-    }
 }
 
 // MARK: - 金额格式化（千分位 + 两位小数）
@@ -304,6 +291,11 @@ enum Money {
 
     static func string(_ value: Double) -> String {
         formatter.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
+    }
+
+    /// Decimal 重载（用于引擎 / 视图直接传入 SwiftData Decimal，避免调用方手写转换）
+    static func string(_ value: Decimal) -> String {
+        string(NSDecimalNumber(decimal: value).doubleValue)
     }
 
     /// 时薪副注用：整数显示（<100 保留一位小数）

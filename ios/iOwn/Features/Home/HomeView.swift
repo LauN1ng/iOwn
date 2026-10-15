@@ -66,17 +66,17 @@ struct HomeView: View {
     private var disposableCard: some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text("本月可支配").scaledFont(11.5).foregroundStyle(.secondary)
+                Text("本月可支配").scaledFont(.xs).foregroundStyle(.secondary)
                 Text("¥ \(Money.string(dec(disposable)))")
-                    .scaledFont(26, weight: .heavy, design: .rounded)
+                    .scaledFont(.xl, weight: .heavy, design: .rounded)
                     .foregroundStyle(Theme.greenText).monospacedDigit()
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 3) {
                 Text("信用应还 ¥\(Money.string(dec(creditDue)))")
-                    .scaledFont(11.5, weight: .semibold).monospacedDigit()
+                    .scaledFont(.xs, weight: .semibold).monospacedDigit()
                 Text("固定支出 ¥\(Money.string(dec(fixedDue)))")
-                    .scaledFont(11.5).foregroundStyle(.secondary).monospacedDigit()
+                    .scaledFont(.xs).foregroundStyle(.secondary).monospacedDigit()
             }
         }
         .padding(15)
@@ -125,7 +125,7 @@ struct HomeView: View {
                 dayText(group.day)
                 Spacer()
                 Text(Self.signedMoney(group.net))
-                    .scaledFont(16, weight: .bold)
+                    .scaledFont(.title, weight: .bold)
                     .foregroundStyle(Theme.greenText)
                     .monospacedDigit()
             }
@@ -151,9 +151,9 @@ struct HomeView: View {
         let dayStr = String(format: "%02d", comps.day ?? 0)
         return HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text(day.formatted(Self.monthStyle) + ".")
-                .scaledFont(15, weight: .bold)
+                .scaledFont(.body, weight: .bold)
             Text(dayStr)
-                .scaledFont(24, weight: .heavy, design: .rounded)
+                .scaledFont(.lg, weight: .heavy, design: .rounded)
                 .monospacedDigit()
         }
         .foregroundStyle(.primary)
@@ -189,23 +189,23 @@ struct HomeView: View {
             let toName = accounts.first { $0.id == tx.toAccountID }?.name ?? "?"
             HStack(spacing: 12) {
                 // 2026-10-12：iOS emoji 字符 → Fluent 3D；并去掉灰方块底（见 txRowContent 说明）
-                CategoryIcon(asset: "cur_left_right_arrow", fallback: "🔄", size: 30)
+                CategoryIcon(asset: "cur_left_right_arrow", size: 30)
                     .frame(width: 42, height: 42)
                     .accessibilityHidden(true)   // 装饰：转账语义已由「资产互转」文字承载
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("资产互转")
-                        .scaledFont(11)
+                        .scaledFont(.xs)
                         .foregroundStyle(.secondary)
                     Text("\(fromName) → \(toName)")
-                        .scaledFont(15, weight: .semibold)
+                        .scaledFont(.body, weight: .semibold)
                         .lineLimit(1)
                 }
 
                 Spacer(minLength: 8)
 
                 Text("¥ \(Self.money(tx.amount))")
-                    .scaledFont(15, weight: .bold)
+                    .scaledFont(.body, weight: .bold)
                     .foregroundStyle(Theme.greenText)
                     .monospacedDigit()
             }
@@ -222,18 +222,16 @@ struct HomeView: View {
                 // 裸放后 emoji 才是列表里唯一的彩色源。
                 // ⚠️ 仍保留 42×42 的**不可见**外框 —— 用固定盒子兜住不同 emoji 的视觉重量差，
                 //    否则列表左边缘会不齐（这是本改动最大的风险点，靠 CI 截图核对）。
-                CategoryIcon(asset: sub?.iconName ?? cat?.iconName,
-                             fallback: sub?.emoji ?? cat?.emoji ?? "🏷️",
-                             size: 30)
+                CategoryIcon(asset: sub?.iconName ?? cat?.iconName, size: 30)
                     .frame(width: 42, height: 42)
                     .accessibilityHidden(true)   // 装饰：分类名已在小字里念出
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(metaLine(cat: cat, accountName: accountName, tx: tx))
-                        .scaledFont(11)
+                        .scaledFont(.xs)
                         .foregroundStyle(.secondary)
                     Text(title)
-                        .scaledFont(15, weight: .semibold)
+                        .scaledFont(.body, weight: .semibold)
                         .lineLimit(1)
                 }
 
@@ -242,7 +240,7 @@ struct HomeView: View {
                 if let mood = tx.mood {
                     HStack(spacing: 4) {
                         CategoryIcon(mood, size: 16)   // 2026-10-12：14 → 16（emoji 升权，流水行内的小幅提权）
-                        Text(mood.label).scaledFont(11)
+                        Text(mood.label).scaledFont(.xs)
                     }
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8).padding(.vertical, 2)
@@ -253,7 +251,7 @@ struct HomeView: View {
                 // 还款流水标注：它不是消费，洞察统计已排除（Source.repayment）
                 if tx.source == .repayment {
                     Text("还款")
-                        .scaledFont(10, weight: .medium)
+                        .scaledFont(.micro, weight: .medium)
                         .foregroundStyle(Theme.blueText)
                         .padding(.horizontal, 6).padding(.vertical, 1.5)
                         .background(Color(hex: 0xEAF1FE))
@@ -261,7 +259,7 @@ struct HomeView: View {
                 }
 
                 Text("\(sign)¥ \(Self.money(tx.amount))")
-                    .scaledFont(15, weight: .bold)
+                    .scaledFont(.body, weight: .bold)
                     .foregroundStyle(Theme.greenText)
                     .monospacedDigit()
             }

@@ -26,10 +26,26 @@ struct RootTabView: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             TabView(selection: $selection) {
-                HomeView().tabItem { Label("线索", systemImage: "list.bullet") }.tag(0)
-                InsightView().tabItem { Label("洞察", systemImage: "chart.bar") }.tag(1)
-                AssetsView(onOpenInsight: { selection = 1 }).tabItem { Label("资产", systemImage: "banknote") }.tag(2)
-                SettingsView().tabItem { Label("设置", systemImage: "gearshape") }.tag(3)
+                // 2026-10-15（D1 图标材质）：Tab 图标从线性 SF Symbol → **Fluent 3D 素材**
+                // （App 唯一图标语族）。⚠️ 系统 tab bar 默认把图标当模板染单色 →
+                // 必须显式 `.renderingMode(.original)`，否则 3D 贴图会退化成纯色剪影。
+                // 选中态改由**文字色**（`.tint(Theme.greenText)`）承载。
+                HomeView().tabItem {
+                    Image("cur_receipt").renderingMode(.original)
+                    Text("线索")
+                }.tag(0)
+                InsightView().tabItem {
+                    Image("nav_insight").renderingMode(.original)
+                    Text("洞察")
+                }.tag(1)
+                AssetsView(onOpenInsight: { selection = 1 }).tabItem {
+                    Image("acct_wallet").renderingMode(.original)
+                    Text("资产")
+                }.tag(2)
+                SettingsView().tabItem {
+                    Image("nav_settings").renderingMode(.original)
+                    Text("设置")
+                }.tag(3)
             }
             .tint(Theme.greenText)
 
@@ -42,7 +58,7 @@ struct RootTabView: View {
                     showAdd = true
                 } label: {
                     Image(systemName: "plus")
-                        .scaledFont(24, weight: .bold)
+                        .scaledFont(.lg, weight: .bold)
                         .foregroundStyle(.white)
                         .frame(width: 56, height: 56)
                         .background(Theme.green)
@@ -94,7 +110,10 @@ struct RootTabView: View {
                 .presentationDetents([.large])
         }
         .sheet(isPresented: $showWageSettings) {
-            WageSettingsView()
+            // 2026-10-15（D2）：补 detents + 隐藏系统把手 → 与全 App 自绘 grabber 体系一致
+            WageSettingsView(showsGrabber: true)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
         }
         // 添加分期 sheet（截图为半屏，验证两种输入模式换算）
         .sheet(isPresented: $showAddInstallment) {
