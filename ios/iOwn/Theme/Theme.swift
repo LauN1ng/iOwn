@@ -48,15 +48,56 @@ extension Color {
 }
 
 // 形状 token（视觉基准 §3）：大卡 22 / 中 16 / 小 12
+// 2026-10-15（D5）：原仓内实测 **9 种圆角数值**、token 命中率约 54% → 收敛为下面 5 档 + 胶囊，
+// 全部走 `.continuous` 曲线（见 `View.corner(_:)`）。
+// **归并规则 = 就近归并**（记在方案文档顶部表）：
+//   5 / 6 / 7 / 8 / 9 → `micro 8`（小芯片 / 图标底 / 输入格 / 品牌小方块）
+//   11 / 12           → `small 12`（iconBg 容器 / 小件）
+//   14                → `control 14`（主按钮 / 次级按钮）
+//   999               → `capsule`
 enum Radius {
     static let large: CGFloat = 22
     static let medium: CGFloat = 16
-    /// 主按钮 / 选中胶囊（2026-10-15 · D5 立为 token）：绿色主按钮 6 处一致用 14，
-    /// 已形成事实上的第二套令牌，先把它固化，**首个消费者 = `Green3DBackground` 默认值**
+    /// 主按钮 / 次级按钮（2026-10-15 · D5 立为 token）：绿色主按钮 6 处一致用 14，
+    /// 已形成事实上的第二套令牌；**首个消费者 = `Green3DBackground` 默认值**
     static let control: CGFloat = 14
     static let small: CGFloat = 12
+    /// 微型件：小芯片 / 图标底 / 输入格 / 品牌小方块
+    static let micro: CGFloat = 8
+    /// 全药丸
+    static let capsule: CGFloat = 999
     static let pagePadding: CGFloat = 18
     static let cardSpacing: CGFloat = 14
+}
+
+// MARK: - 阴影 token（2026-10-15 · D5）
+//
+// 全仓原先 **零 token、7 处各异**（5 个纯黑 opacity 0.12/0.07/0.05/0.04/0.04 无规律）。
+// 收敛为 **2 档 elevation + 2 档 glow**，其余一律不加阴影（靠明度分层）。
+// 用法：`.shadowStyle(Elevation.e1)` / `.shadowStyle(Glow.green)`（见 `DesignSystem.swift`）。
+
+/// 一档阴影的具体参数
+struct ShadowStyle {
+    let color: Color
+    let radius: CGFloat
+    let y: CGFloat
+}
+
+enum Elevation {
+    /// 常规白卡：**不加阴影**（不写修饰符即可；此档仅为语义完整，`radius == 0` 时修饰符是空操作）
+    static let e0 = ShadowStyle(color: .clear, radius: 0, y: 0)
+    /// 可点卡 / 内嵌卡（几乎不可见，只为「浮起 1px」）
+    static let e1 = ShadowStyle(color: .black.opacity(0.04), radius: 3, y: 1)
+    /// 悬浮物（**预留 · 当前无消费者**）：原消费者 FAB / 转账胶囊已改由
+    /// `Green3DBackground` 的同色投影承担，此处保留档位以备后续悬浮物复用
+    static let e2 = ShadowStyle(color: .black.opacity(0.12), radius: 8, y: 4)
+}
+
+enum Glow {
+    /// 成功屏辉光（**仅** `SuccessOverlay`，不参与 elevation 阶梯）
+    static let green = ShadowStyle(color: Theme.green.opacity(0.42), radius: 17, y: 14)
+    /// 立体主按钮底的同色投影（**仅** `Green3DBackground`）
+    static let greenSoft = ShadowStyle(color: Theme.greenLip.opacity(0.32), radius: 5, y: 3)
 }
 
 // MARK: - 动效 token（视觉基准 v1.3 §6）

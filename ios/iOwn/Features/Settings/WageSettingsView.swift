@@ -211,7 +211,7 @@ struct WageSettingsView: View {
                                 .padding(.vertical, 9)
                                 .background(workdays.contains(item.value) ? Theme.green : Theme.iconBg)
                                 .foregroundStyle(workdays.contains(item.value) ? Color.white : Color.primary)
-                                .cornerRadius(Radius.small)
+                                .corner(Radius.small)
                         }
                         .buttonStyle(PressableButtonStyle(scale: 0.95))
                         .accessibilityLabel("周\(item.label)")
@@ -351,7 +351,7 @@ struct WageSettingsView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 8).padding(.vertical, 2)
                 .background(badgeColor)
-                .cornerRadius(999)
+                .corner(Radius.capsule)
             Spacer(minLength: 8)
             Button(role: .destructive, action: onDelete) {
                 Image(systemName: "trash")

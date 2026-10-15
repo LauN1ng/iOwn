@@ -137,7 +137,7 @@ struct FixedExpenseView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
             .background(Color(hex: 0xEAF1FE))
-            .cornerRadius(Radius.medium)
+            .corner(Radius.medium)
     }
 
     // MARK: 列表（一个白卡容器 + 分隔线，与账户组同构）
@@ -149,8 +149,8 @@ struct FixedExpenseView: View {
             }
         }
         .background(Theme.card)
-        .cornerRadius(Radius.large)
-        .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+        .corner(Radius.large)
+        .shadowStyle(Elevation.e1)
     }
 
     private func row(_ item: FixedExpense, divider: Bool) -> some View {
@@ -160,7 +160,7 @@ struct FixedExpenseView: View {
                 CategoryIcon(asset: icon, size: 24)
                     .frame(width: 40, height: 40)
                     .background(Theme.iconBg)
-                    .cornerRadius(12)
+                    .corner(Radius.small)
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 1) {
@@ -208,7 +208,7 @@ struct FixedExpenseView: View {
                 .scaledFont(.body, weight: .semibold)
                 .foregroundStyle(Theme.greenText)
                 .frame(maxWidth: .infinity).padding(.vertical, 15)
-                .background(Theme.greenSoft).cornerRadius(14)
+                .background(Theme.greenSoft).corner(Radius.control)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.985))
         .padding(.top, 4)
@@ -317,13 +317,13 @@ struct FixedExpenseSheet: View {
             iconAsset = ic.asset
         } label: {
             ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
                     .fill(selected ? Theme.greenSoft : Theme.card)
                     .frame(height: 48)
                 CategoryIcon(asset: ic.asset, size: 26)
             }
             .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
                     .stroke(selected ? Theme.green : Color.clear, lineWidth: 1.5)
             )
         }
@@ -364,7 +364,7 @@ struct FixedExpenseSheet: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
         .background(Theme.card)
-        .cornerRadius(Radius.large)
+        .corner(Radius.large)
     }
 
     private func row<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
@@ -397,7 +397,7 @@ struct FixedExpenseSheet: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 13)
                 .background(Theme.card)
-                .cornerRadius(Radius.medium)
+                .corner(Radius.medium)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.97))
     }

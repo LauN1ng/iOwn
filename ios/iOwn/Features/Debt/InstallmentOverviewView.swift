@@ -65,7 +65,7 @@ struct InstallmentOverviewView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .background(Theme.greenSoft)
-        .cornerRadius(Radius.large)
+        .corner(Radius.large)
     }
 
     // MARK: 未来 12 个月（`DebtEngine.forecast` 的落点）
@@ -89,7 +89,7 @@ struct InstallmentOverviewView: View {
             }
             .padding(.vertical, 4)
             .background(Theme.card)
-            .cornerRadius(Radius.large)
+            .corner(Radius.large)
         }
     }
 
@@ -156,8 +156,8 @@ struct InstallmentOverviewView: View {
         }
         .padding(14)
         .background(Theme.card)
-        .cornerRadius(Radius.medium)
-        .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
+        .corner(Radius.medium)
+        .shadowStyle(Elevation.e1)
     }
 
     // MARK: 工具

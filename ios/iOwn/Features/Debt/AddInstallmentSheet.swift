@@ -61,7 +61,7 @@ struct AddInstallmentSheet: View {
                                 .scaledFont(.sm, weight: .semibold)
                                 .foregroundStyle(Theme.greenText)
                                 .frame(maxWidth: .infinity).padding(.vertical, 12)
-                                .background(Theme.greenSoft).cornerRadius(12)
+                                .background(Theme.greenSoft).corner(Radius.small)
                         }
                         .buttonStyle(PressableButtonStyle(scale: 0.985))
                     }
@@ -132,7 +132,7 @@ struct AddInstallmentSheet: View {
                 .scaledFont(.sm)
                 .padding(.horizontal, 10).padding(.vertical, 8)
                 .background(Theme.iconBg)
-                .cornerRadius(8)
+                .corner(Radius.micro)
 
             // 首期（默认隐藏 —— 只多一个几乎看不见的入口）
             if d.showFirst {
@@ -171,7 +171,7 @@ struct AddInstallmentSheet: View {
         }
         .padding(13)
         .background(Theme.card)
-        .cornerRadius(11)
+        .corner(Radius.small)
     }
 
     /// 首期差额判据（直接写进 App，用户不用记规则）
@@ -226,7 +226,7 @@ struct AddInstallmentSheet: View {
             } label: {
                 Text("收起").scaledFont(.xs).foregroundStyle(.secondary)
                     .padding(.horizontal, 8).padding(.vertical, 5)
-                    .background(Theme.iconBg).cornerRadius(7)
+                    .background(Theme.iconBg).corner(Radius.micro)
             }
             .buttonStyle(PressableButtonStyle(scale: 0.95))
         }
@@ -253,7 +253,7 @@ struct AddInstallmentSheet: View {
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.card)
-            .cornerRadius(11)
+            .corner(Radius.small)
     }
 
     // MARK: 组件
@@ -265,7 +265,7 @@ struct AddInstallmentSheet: View {
                 .scaledFont(.sm).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
-                .background(Theme.card).cornerRadius(11)
+                .background(Theme.card).corner(Radius.small)
         } else {
             VStack(spacing: 0) {
                 ForEach(creditAccounts, id: \.id) { acc in
@@ -291,7 +291,7 @@ struct AddInstallmentSheet: View {
                     }
                 }
             }
-            .background(Theme.card).cornerRadius(11)
+            .background(Theme.card).corner(Radius.small)
         }
     }
 
@@ -307,7 +307,7 @@ struct AddInstallmentSheet: View {
                     .scaledFont(.sm, weight: .semibold).foregroundStyle(.white)
                     .frame(width: 30, height: 30)
                     .background(Color(hex: acc.kind.brandColorHex))
-                    .cornerRadius(9)
+                    .corner(Radius.micro)
             }
         }
         .frame(width: 30, height: 30)
@@ -322,7 +322,7 @@ struct AddInstallmentSheet: View {
             .frame(width: width)
             .padding(.vertical, 7)
             .background(Theme.iconBg)
-            .cornerRadius(8)
+            .corner(Radius.micro)
     }
 
     @ViewBuilder

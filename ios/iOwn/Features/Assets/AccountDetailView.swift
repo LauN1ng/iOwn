@@ -124,7 +124,7 @@ struct AccountDetailView: View {
         }
         .padding(15)
         .background(Theme.card)
-        .cornerRadius(Radius.large)
+        .corner(Radius.large)
     }
 
     private func pill(_ title: String, action: @escaping () -> Void) -> some View {
@@ -134,7 +134,7 @@ struct AccountDetailView: View {
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 14).padding(.vertical, 8)
                 .background(Theme.iconBg)
-                .cornerRadius(999)
+                .corner(Radius.capsule)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.95))
     }
@@ -149,7 +149,7 @@ struct AccountDetailView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
                 .background(Theme.greenSoft)
-                .cornerRadius(14)
+                .corner(Radius.control)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.985))
         .padding(.top, 4)

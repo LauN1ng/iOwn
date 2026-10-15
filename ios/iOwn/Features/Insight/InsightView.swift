@@ -97,7 +97,7 @@ struct InsightView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .background(Theme.card)
-        .cornerRadius(Radius.large)
+        .corner(Radius.large)
     }
 
     /// 12 月柱状图：当月（或全年口径下 12 月最大值）绿柱高亮，其余灰柱；虚线基线
@@ -119,7 +119,7 @@ struct InsightView: View {
                         let v = series[i]
                         let h = barHeight(v, max: maxVal)
                         let isCur = (i + 1) == currentMonth
-                        RoundedRectangle(cornerRadius: 3)
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
                             .fill(isCur ? Theme.green : Theme.iconBg)
                             .frame(height: max(h, 4))
                             .frame(maxWidth: .infinity)
@@ -174,7 +174,7 @@ struct InsightView: View {
                     let day = calendar.date(byAdding: .day, value: d - 1, to: monthStart()) ?? .now
                     let amt = daily[calendar.startOfDay(for: day)] ?? 0
                     let level = InsightStats.heatLevel(amt, maxAmount: maxDaily)
-                    RoundedRectangle(cornerRadius: 3)
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
                         .fill(heatColor(level))
                         .frame(height: 14)
                         .accessibilityHidden(true)
@@ -190,7 +190,7 @@ struct InsightView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Theme.card)
-        .cornerRadius(Radius.large)
+        .corner(Radius.large)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("支出日历，本月 \(count) 笔，连续 \(streak) 天")
     }
@@ -213,10 +213,10 @@ struct InsightView: View {
             Text("心情账单").scaledFont(.sm, weight: .bold)
 
             if moods.isEmpty {
-                Text("记几笔\n带心情的账")
-                    .scaledFont(.sm).foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 4)
+                EmptyStateCard(icon: "mood_satisfied",
+                               title: "记几笔\n带心情的账",
+                               hint: "",
+                               style: .compact)
             } else {
                 ForEach(moods, id: \.mood) { item in
                     HStack(spacing: 6) {
@@ -235,7 +235,7 @@ struct InsightView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Theme.card)
-        .cornerRadius(Radius.large)
+        .corner(Radius.large)
         .accessibilityElement(children: .combine)
     }
 
@@ -251,10 +251,10 @@ struct InsightView: View {
             }
 
             if shares.isEmpty {
-                Text("本月还没有支出记录")
-                    .scaledFont(.sm).foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 12)
+                EmptyStateCard(icon: "cur_receipt",
+                               title: "本月还没有支出记录",
+                               hint: "",
+                               style: .compact)
             } else {
                 ForEach(shares) { s in
                     VStack(spacing: 6) {
@@ -284,7 +284,7 @@ struct InsightView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .background(Theme.card)
-        .cornerRadius(Radius.large)
+        .corner(Radius.large)
     }
 
     // MARK: - 辅助

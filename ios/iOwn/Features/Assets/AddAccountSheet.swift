@@ -161,7 +161,7 @@ struct AddAccountSheet: View {
                             .foregroundStyle(kind == k ? Color.white : Color.primary)
                             .padding(.horizontal, 13).padding(.vertical, 8)
                             .background(kind == k ? Theme.green : Theme.card)
-                            .cornerRadius(999)
+                            .corner(Radius.capsule)
                         }
                         .buttonStyle(PressableButtonStyle(scale: 0.96))
                         .disabled(editing != nil)   // 编辑时类型不可改（余额推导依赖类型口径）
@@ -314,7 +314,7 @@ struct AddAccountSheet: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 13)
                     .background(Theme.card)
-                    .cornerRadius(Radius.medium)
+                    .corner(Radius.medium)
             }
             .buttonStyle(PressableButtonStyle(scale: 0.97))
             .disabled(referenced)
@@ -333,7 +333,7 @@ struct AddAccountSheet: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
             .background(Theme.card)
-            .cornerRadius(Radius.large)
+            .corner(Radius.large)
     }
 
     private func row<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
@@ -439,7 +439,7 @@ private struct AccountIconPicker: View {
                         }
                         .padding(.horizontal, 16).padding(.vertical, 13)
                         .background(Theme.card)
-                        .cornerRadius(Radius.medium)
+                        .corner(Radius.medium)
                     }
                     .buttonStyle(PressableButtonStyle(scale: 0.98))
 
@@ -473,7 +473,7 @@ private struct AccountIconPicker: View {
         } label: {
             VStack(spacing: 6) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                         .fill(ic == selection ? Theme.greenSoft : Theme.card)
                         .frame(width: 56, height: 56)
                     if UIImage(named: ic.asset) != nil {
@@ -483,7 +483,7 @@ private struct AccountIconPicker: View {
                     // asset 缺失（理论上不会：AccountIcon 每档都有素材）→ 只留 ZStack 的圆角底，不再退回 emoji
                 }
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
                         .stroke(ic == selection ? Theme.green : Color.clear, lineWidth: 2)
                 )
                 Text(ic.displayName)

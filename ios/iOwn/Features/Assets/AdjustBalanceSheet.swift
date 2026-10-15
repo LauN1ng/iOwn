@@ -70,7 +70,7 @@ struct AdjustBalanceSheet: View {
                     .padding(15)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Theme.card)
-                    .cornerRadius(Radius.large)
+                    .corner(Radius.large)
 
                     if let d = diff, d != 0 {
                         let up = d > 0
@@ -80,7 +80,7 @@ struct AdjustBalanceSheet: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(12)
                             .background(Theme.card)
-                            .cornerRadius(11)
+                            .corner(Radius.small)
                     }
 
                     Text("调整只平移「初始余额」，不会产生流水，也不影响洞察页的任何统计。")

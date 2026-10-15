@@ -222,7 +222,7 @@ struct AddEntrySheet: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(Theme.card)
-                        .cornerRadius(Radius.medium)
+                        .corner(Radius.medium)
                     }
                     .buttonStyle(PressableButtonStyle())
                 }
@@ -260,7 +260,7 @@ struct AddEntrySheet: View {
                             .foregroundStyle(Theme.greenText)
                             .padding(.horizontal, 12).padding(.vertical, 7)
                             .background(Theme.greenSoft)
-                            .cornerRadius(9)
+                            .corner(Radius.micro)
                     }
                     .buttonStyle(PressableButtonStyle(scale: 0.94))
                     .accessibilityHint("保存这一笔并继续记下一笔")
@@ -295,7 +295,7 @@ struct AddEntrySheet: View {
                             .padding(.horizontal, 14).padding(.vertical, 9)
                             .background(sub?.id == s.id ? Theme.green : Theme.card)
                             .foregroundStyle(sub?.id == s.id ? Color.white : Color.primary)
-                            .cornerRadius(Radius.small)
+                            .corner(Radius.small)
                         }
                         .buttonStyle(PressableButtonStyle(scale: 0.94))
                         .accessibilityAddTraits(sub?.id == s.id ? [.isButton, .isSelected] : .isButton)
@@ -331,7 +331,7 @@ struct AddEntrySheet: View {
                     .foregroundStyle(mood == nil ? Color.secondary : Color.primary)
                     .padding(.horizontal, 10).padding(.vertical, 6)
                     .background(Theme.bg)
-                    .cornerRadius(999)
+                    .corner(Radius.capsule)
                 }
                 .buttonStyle(PressableButtonStyle(scale: 0.94))
                 .accessibilityLabel(mood.map { "心情：\($0.label)" } ?? "添加心情")
@@ -341,7 +341,7 @@ struct AddEntrySheet: View {
             }
             .padding(12)
             .background(Theme.card)
-            .cornerRadius(Radius.medium)
+            .corner(Radius.medium)
             .padding(.horizontal, Radius.pagePadding)
 
             // B2 账户联动：选账户 → 余额自动扣减/增加
@@ -360,14 +360,14 @@ struct AddEntrySheet: View {
                                         .foregroundStyle(.white)
                                         .frame(width: 18, height: 18)
                                         .background(Color(hex: acc.kind.brandColorHex))
-                                        .cornerRadius(5)
+                                        .corner(Radius.micro)
                                         .accessibilityHidden(true)   // 装饰：账户名已念出
                                     Text(acc.name).scaledFont(.sm, weight: .medium)
                                 }
                                 .padding(.horizontal, 10).padding(.vertical, 7)
                                 .background(selected ? Theme.green : Theme.card)
                                 .foregroundStyle(selected ? Color.white : Color.primary)
-                                .cornerRadius(999)
+                                .corner(Radius.capsule)
                             }
                             .buttonStyle(PressableButtonStyle(scale: 0.94))
                             .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
@@ -419,8 +419,8 @@ struct AddEntrySheet: View {
                 .foregroundStyle(on ? Theme.greenText : .secondary)
                 .padding(.horizontal, 13).padding(.vertical, 8)
                 .background(on ? Theme.greenSoft : Theme.card)
-                .cornerRadius(9)
-                .overlay(RoundedRectangle(cornerRadius: 9)
+                .corner(Radius.micro)
+                .overlay(RoundedRectangle(cornerRadius: Radius.micro, style: .continuous)
                     .stroke(on ? Theme.green : Theme.hairline, lineWidth: 1))
         }
         .buttonStyle(PressableButtonStyle(scale: 0.96))

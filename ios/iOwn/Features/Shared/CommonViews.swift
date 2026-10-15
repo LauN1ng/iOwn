@@ -1,39 +1,50 @@
 import SwiftUI
 
-// MARK: - 共享小组件（骨架期占位卡 / 空态卡）
+// MARK: - 共享小组件（空态卡）
 
-struct PlaceholderCard: View {
-    let title: String
-    let hint: String
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).scaledFont(.title)
-            Text(hint).scaledFont(.sm).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Theme.card)
-        .cornerRadius(Radius.large)
-    }
-}
-
+/// 空状态卡 —— 全 App **唯一**空态语言（2026-10-15 · D4 统一）。
+///
+/// 两档（原先洞察页有 2 处是「裸文字飘在灰底/白卡上」，既无图标也无容器 → 已收编）：
+/// - `.card`（默认）：独立白卡（52pt 图标 + 标题 + 说明 + 上下 40pt）。用于整块内容为空。
+/// - `.compact`：**卡内嵌**（32pt 图标 / 无卡底 / 上下 16pt）。用于「本身已在白卡内」的空态
+///   —— 直接用 `.card` 会变成**卡套卡**（见方案文档 §6.2 嵌套陷阱）。
 struct EmptyStateCard: View {
-    /// Fluent 3D asset 名（`cur_*` / `acct_*`）—— **不再收 emoji 字符**
+    enum Style { case card, compact }
+
+    /// Fluent 3D asset 名（`cur_*` / `acct_*` / `mood_*`）—— **不收 emoji 字符**；传空串 = 不显示图标
     var icon: String = "cur_receipt"
     var title: String = "还没有记录"
     var hint: String = "点右下角 + 记第一笔"
+    var style: Style = .card
+
+    private var isCard: Bool { style == .card }
+    private var iconSize: CGFloat { isCard ? 52 : 32 }
+    private var vSpacing: CGFloat { isCard ? 12 : 8 }
+    private var vPadding: CGFloat { isCard ? 40 : 16 }
+    private var titleToken: Type { isCard ? .body : .sm }
+    private var hintToken: Type { isCard ? .sm : .xs }
 
     var body: some View {
-        VStack(spacing: 12) {
-            CategoryIcon(asset: icon, size: 52)   // 空态是首屏唯一的东西，给大
-                .accessibilityHidden(true)                            // 装饰
-            Text(title).scaledFont(.body).foregroundStyle(.secondary)
-            Text(hint).scaledFont(.sm).foregroundStyle(.tertiary)
+        VStack(spacing: vSpacing) {
+            if !icon.isEmpty {
+                CategoryIcon(asset: icon, size: iconSize)   // `.card` 是首屏唯一的东西，给大
+                    .accessibilityHidden(true)              // 装饰
+            }
+            Text(title)
+                .scaledFont(titleToken)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            if !hint.isEmpty {
+                Text(hint)
+                    .scaledFont(hintToken)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
-        .background(Theme.card)
-        .cornerRadius(Radius.large)
+        .padding(.vertical, vPadding)
+        .background(isCard ? Theme.card : Color.clear)
+        .corner(isCard ? Radius.large : 0)
         .accessibilityElement(children: .combine)
     }
 }
@@ -70,7 +81,7 @@ struct CardSection<Content: View>: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
             .background(Theme.card)
-            .cornerRadius(Radius.large)
+            .corner(Radius.large)
     }
 }
 

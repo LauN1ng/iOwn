@@ -205,7 +205,7 @@ struct AssetsView: View {
         }
         .padding(.bottom, 6)
         .background(Theme.card)
-        .cornerRadius(Radius.large)
+        .corner(Radius.large)
     }
 
     /// 分组右上角小字：个数 · 合计
@@ -334,7 +334,7 @@ struct AssetsView: View {
             }
             .padding(14)
             .background(Theme.card)
-            .cornerRadius(Radius.large)
+            .corner(Radius.large)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.985))
         .accessibilityHint("查看全部分期与还清时间")
@@ -365,7 +365,7 @@ struct AssetsView: View {
             }
             .padding(14)
             .background(Theme.card)
-            .cornerRadius(Radius.large)
+            .corner(Radius.large)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.985))
     }

@@ -81,8 +81,8 @@ struct HomeView: View {
         }
         .padding(15)
         .background(Theme.card)
-        .cornerRadius(Radius.large)
-        .overlay(RoundedRectangle(cornerRadius: Radius.large)
+        .corner(Radius.large)
+        .overlay(RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
             .stroke(Color(hex: 0xD6EDDC), lineWidth: 1))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("本月可支配 ¥\(Money.string(dec(disposable)))，信用应还 ¥\(Money.string(dec(creditDue)))，固定支出 ¥\(Money.string(dec(fixedDue)))")
@@ -136,7 +136,7 @@ struct HomeView: View {
         }
         .padding(16)
         .background(Theme.card)
-        .cornerRadius(Radius.large)
+        .corner(Radius.large)
     }
 
     /// 英文月份缩写（静态 FormatStyle，避免每行渲染都新建 DateFormatter）
@@ -245,7 +245,7 @@ struct HomeView: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8).padding(.vertical, 2)
                     .background(Theme.bg)
-                    .cornerRadius(999)
+                    .corner(Radius.capsule)
                 }
 
                 // 还款流水标注：它不是消费，洞察统计已排除（Source.repayment）
@@ -255,7 +255,7 @@ struct HomeView: View {
                         .foregroundStyle(Theme.blueText)
                         .padding(.horizontal, 6).padding(.vertical, 1.5)
                         .background(Color(hex: 0xEAF1FE))
-                        .cornerRadius(6)
+                        .corner(Radius.micro)
                 }
 
                 Text("\(sign)¥ \(Self.money(tx.amount))")

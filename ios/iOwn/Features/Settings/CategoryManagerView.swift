@@ -246,7 +246,7 @@ struct AddCustomSubSheet: View {
                 .foregroundStyle(on ? Color.white : Color.secondary)
                 .padding(.horizontal, 10).padding(.vertical, 5)
                 .background(on ? Theme.green : Theme.iconBg)
-                .cornerRadius(999)
+                .corner(Radius.capsule)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.96))
         .accessibilityAddTraits(on ? [.isButton, .isSelected] : .isButton)
@@ -262,8 +262,8 @@ struct AddCustomSubSheet: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 40)
                 .background(on ? Theme.greenSoft : Theme.card,
-                            in: RoundedRectangle(cornerRadius: Radius.small))
-                .overlay(RoundedRectangle(cornerRadius: Radius.small)
+                            in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
                     .stroke(on ? Theme.green : Theme.hairline, lineWidth: 1))
         }
         .buttonStyle(PressableButtonStyle(scale: 0.94))
@@ -279,8 +279,8 @@ struct AddCustomSubSheet: View {
             TextField("如：咖啡续命", text: $name)
                 .scaledFont(.title)
                 .padding(12)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: Radius.small))
-                .overlay(RoundedRectangle(cornerRadius: Radius.small)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
                     .stroke(Theme.hairline, lineWidth: 1))
         }
     }

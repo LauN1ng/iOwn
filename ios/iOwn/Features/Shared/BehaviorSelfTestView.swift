@@ -43,8 +43,8 @@ struct BehaviorSelfTestView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(Theme.card)
-        .cornerRadius(Radius.large)
-        .overlay(RoundedRectangle(cornerRadius: Radius.large)
+        .corner(Radius.large)
+        .overlay(RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
             .stroke(allPass ? Theme.green : Theme.redText, lineWidth: 1))
         .padding(.bottom, 4)
     }
@@ -75,8 +75,8 @@ struct BehaviorSelfTestView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(11)
         .background(Theme.card)
-        .cornerRadius(Radius.medium)
-        .overlay(RoundedRectangle(cornerRadius: Radius.medium)
+        .corner(Radius.medium)
+        .overlay(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
             .stroke(r.passed ? Theme.hairline : Theme.redText.opacity(0.6), lineWidth: 1))
     }
 }

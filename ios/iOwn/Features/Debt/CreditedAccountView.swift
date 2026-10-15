@@ -120,7 +120,7 @@ struct CreditedAccountView: View {
                         .foregroundStyle(.primary)
                         .padding(.horizontal, 13).padding(.vertical, 7)
                         .background(Theme.iconBg)
-                        .cornerRadius(999)
+                        .corner(Radius.capsule)
                 }
                 .buttonStyle(PressableButtonStyle(scale: 0.95))
                 .accessibilityLabel("调整余额（对账）")
@@ -158,7 +158,7 @@ struct CreditedAccountView: View {
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.card)
-        .cornerRadius(Radius.large)
+        .corner(Radius.large)
     }
 
     /// ⭐「债有尽头」——预计还清日 + 还剩几期。
@@ -207,7 +207,7 @@ struct CreditedAccountView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(15)
         .background(Theme.card)
-        .cornerRadius(Radius.large)
+        .corner(Radius.large)
     }
 
     private var limitText: String {
@@ -230,7 +230,7 @@ struct CreditedAccountView: View {
                     .scaledFont(.micro, weight: .medium)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 6).padding(.vertical, 1.5)
-                    .background(Theme.iconBg).cornerRadius(6)
+                    .background(Theme.iconBg).corner(Radius.micro)
                 Spacer()
                 Text("¥\(Money.string(dec(currentBill)))")
                     .scaledFont(.title, weight: .bold).monospacedDigit()
@@ -240,8 +240,8 @@ struct CreditedAccountView: View {
         }
         .padding(15)
         .background(Theme.card)
-        .cornerRadius(Radius.large)
-        .overlay(RoundedRectangle(cornerRadius: Radius.large)
+        .corner(Radius.large)
+        .overlay(RoundedRectangle(cornerRadius: Radius.large, style: .continuous)
             .stroke(Theme.hairline, lineWidth: 1))
     }
 
@@ -275,7 +275,7 @@ struct CreditedAccountView: View {
                         .scaledFont(.micro, weight: .medium)
                         .foregroundStyle(Color(hex: 0x8A5A0B))
                         .padding(.horizontal, 6).padding(.vertical, 1.5)
-                        .background(Color(hex: 0xFCF3E2)).cornerRadius(6)
+                        .background(Color(hex: 0xFCF3E2)).corner(Radius.micro)
                     Spacer(minLength: 6)
                     Text("¥\(Money.string(dec(DebtEngine.displayDue(l))))")
                         .scaledFont(.body, weight: .semibold).monospacedDigit()
@@ -293,8 +293,8 @@ struct CreditedAccountView: View {
             }
             .padding(14)
             .background(Theme.card)
-            .cornerRadius(Radius.medium)
-            .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
+            .corner(Radius.medium)
+            .shadowStyle(Elevation.e1)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.985))
         .accessibilityHint("打开编辑，长按可删除")
@@ -336,7 +336,7 @@ struct CreditedAccountView: View {
         }
         .padding(15)
         .background(Theme.card)
-        .cornerRadius(Radius.large)
+        .corner(Radius.large)
     }
 
     @ViewBuilder
@@ -348,7 +348,7 @@ struct CreditedAccountView: View {
                         .scaledFont(.body, weight: .semibold)
                         .foregroundStyle(Theme.greenText)
                         .frame(maxWidth: .infinity).padding(.vertical, 15)
-                        .background(Theme.greenSoft).cornerRadius(14)
+                        .background(Theme.greenSoft).corner(Radius.control)
                 }
                 .buttonStyle(PressableButtonStyle(scale: 0.985))
             }

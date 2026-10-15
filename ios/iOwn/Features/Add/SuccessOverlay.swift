@@ -46,7 +46,7 @@ struct SuccessOverlay: View {
                 Circle()
                     .fill(Theme.green)
                     .frame(width: 80, height: 80)
-                    .shadow(color: Theme.green.opacity(0.42), radius: 17, y: 14)
+                    .shadowStyle(Glow.green)
                 Image(systemName: "checkmark")
                     .scaledFont(.display, weight: .heavy)
                     .foregroundStyle(.white)

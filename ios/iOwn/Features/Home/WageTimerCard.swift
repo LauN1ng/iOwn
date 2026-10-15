@@ -23,7 +23,7 @@ struct WageTimerCard: View {
                 content(config: config, now: context.date)
             }
             .background(Theme.card)
-            .cornerRadius(Radius.large)
+            .corner(Radius.large)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.98))
         .accessibilityLabel(accessibilityLabel)
@@ -130,7 +130,7 @@ private struct StatusPill: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 10).padding(.vertical, 4)
                 .background(Theme.iconBg)
-                .cornerRadius(999)
+                .corner(Radius.capsule)
 
             // 倒计时副行（仅在有意义的状态显示）
             if let (prefix, target) = countdown(now: now) {

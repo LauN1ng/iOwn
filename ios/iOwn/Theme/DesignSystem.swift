@@ -66,8 +66,8 @@ struct Green3DBackground: View {
                 }
                 // 底部暗唇
                 .overlay { shape.strokeBorder(Theme.greenLip.opacity(0.50), lineWidth: 1) }
-                // 同色环境投影
-                .shadow(color: Theme.greenLip.opacity(0.32), radius: 5, y: 3)
+                // 同色环境投影（token：`Glow.greenSoft`）
+                .shadowStyle(Glow.greenSoft)
         } else {
             shape.fill(Theme.disabled)
         }
@@ -82,6 +82,30 @@ extension View {
                  circle: Bool = false) -> some View {
         background(Green3DBackground(enabled: enabled, radius: radius,
                                      capsule: capsule, circle: circle))
+    }
+}
+
+// MARK: - 统一圆角 / 统一阴影（2026-10-15 · D5）
+//
+// 圆角：全仓原先 9 种数值、token 命中率约 54%，且 `.cornerRadius(_:)` 是 **circular** 曲线
+// （仓内只有 2 处用了 `.continuous`）。统一走 `Radius.*` token + `.continuous`（squircle，iOS 原生观感）。
+// 阴影：原先零 token、7 处各异 → 统一走 `Elevation` / `Glow`。
+//
+// ⚠️ `.corner(_:)` 与 `.cornerRadius(_:)` **只差曲线风格**，不改布局、不改裁剪范围。
+extension View {
+    /// 统一圆角（`.continuous` 曲线）。业务代码传 `Radius.*`，**不要再写裸 `.cornerRadius(n)`**
+    func corner(_ r: CGFloat) -> some View {
+        clipShape(RoundedRectangle(cornerRadius: r, style: .continuous))
+    }
+
+    /// 统一阴影档位（替代裸 `.shadow(color:radius:y:)`）。`Radius == 0` 的档（`Elevation.e0`）为空操作
+    @ViewBuilder
+    func shadowStyle(_ s: ShadowStyle) -> some View {
+        if s.radius > 0 {
+            shadow(color: s.color, radius: s.radius, y: s.y)
+        } else {
+            self
+        }
     }
 }
 

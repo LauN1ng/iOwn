@@ -59,7 +59,7 @@ struct TransferSheet: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 22)
                 .background(Theme.card)
-                .cornerRadius(Radius.large)
+                .corner(Radius.large)
 
                 Text("转账在流水里不计收支，仅移动余额")
                     .scaledFont(.xs)
@@ -147,7 +147,7 @@ struct TransferSheet: View {
                 }
                 .padding(.horizontal, 12).padding(.vertical, 10)
                 .background(Theme.card)
-                .cornerRadius(Radius.small)
+                .corner(Radius.small)
             }
             .tint(.primary)
             .accessibilityHint("双击选择\(label)账户")

@@ -43,7 +43,7 @@ struct AccountFlowSection: View {
                 }
                 .padding(.vertical, 4)
                 .background(Theme.card)
-                .cornerRadius(Radius.large)
+                .corner(Radius.large)
 
                 if txs.count > shownLimit {
                     Text("只显示最近 \(shownLimit) 笔")
@@ -61,7 +61,7 @@ struct AccountFlowSection: View {
             CategoryIcon(asset: cat?.iconName, size: 22)
                 .frame(width: 36, height: 36)
                 .background(Theme.iconBg)
-                .cornerRadius(11)
+                .corner(Radius.small)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 1) {
