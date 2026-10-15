@@ -257,22 +257,28 @@ enum WorkState {
         }
     }
 
-    // MARK: 状态图标（2026-10-12 新增 —— 工资卡「方案 B」：emoji 当卡片的脸）
+    // MARK: 状态图标（2026-10-15 改「情绪脸」—— 从回答「我在干嘛」到回答「我什么感觉」）
     //
-    // 素材 = Fluent 3D `state_*`（见 `Data/CuratedIcons.swift` 的 `State`，由
-    // `reports/_build_cur_icons.py` 生成）。语义与旧的彩色胶囊一一对应：
-    // 调休三态共用 `makeup`，对应原先「蓝胶囊」那一条分支。
+    // 2026-10-12 原版用 `state_*`（Fluent 3D 物品：闹钟 / 公文包 / 面碗 / 房子 / 沙发 / 箭头）。
+    // 问题：那是一套「带图的开关」，只陈述状态，不表达情绪 —— 放大它只会得到一个更大的名词。
+    // 现改用 `face_*`（F 语族，见 `Data/WageFace.swift`）：6 张情绪脸。
+    //
+    // 语义映射（状态 → 心情），调休三态共用一个苦笑脸：
+    //   未上班 → 打哈欠「还没醒」 · 工作中 → 融化「忙到化掉」 · 午休中 → 嗯～「开饭了」
+    //   已下班 → 墨镜「下班，爽」 · 休息日 → 庆祝「今天属于我」 · 调休 → 含泪笑「苦笑」
+    //
+    // 回滚：把下面 6 个 `WageFace.*` 换回 `CuratedIcons.State.*` 即可（旧素材未删）。
 
     /// Asset Catalog 名
     var iconAsset: String {
         switch self {
-        case .beforeWork:                 return CuratedIcons.State.beforeWork
-        case .working:                    return CuratedIcons.State.working
-        case .lunch:                      return CuratedIcons.State.lunch
-        case .afterWork:                  return CuratedIcons.State.afterWork
-        case .rest:                       return CuratedIcons.State.rest
+        case .beforeWork:                 return WageFace.yawning
+        case .working:                    return WageFace.melting
+        case .lunch:                      return WageFace.savoring
+        case .afterWork:                  return WageFace.sunglasses
+        case .rest:                       return WageFace.partying
         case .makeupBefore, .makeupWorking, .makeupAfter:
-            return CuratedIcons.State.makeup
+            return WageFace.bitterSmile
         }
     }
 }

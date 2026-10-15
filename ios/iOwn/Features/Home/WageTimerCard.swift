@@ -55,10 +55,16 @@ struct WageTimerCard: View {
 
             if config.isConfigured {
                 HStack(alignment: .center, spacing: 12) {
-                    // ⭐ 2026-10-12「方案 B」：状态 emoji 40pt、**裸放不带容器底**，
-                    //    放在金额左侧当「卡片的脸」。emoji 是全 App 唯一彩色源，
-                    //    这里是它能拿到的最高舞台（首屏最大的一张卡）。
-                    CategoryIcon(asset: state.iconAsset, size: 40)
+                    // ⭐ 2026-10-15「情绪脸」：40pt → **56pt** 裸放（不带容器底），当「卡片的脸」。
+                    //
+                    //   尺寸依据：右侧文字块实测高度 ≈ 金额行(.xl) + 6 + 副行(.xs) ≈ 55pt，
+                    //   56pt 的脸与它**齐平** —— 脸和钱「平起平坐」，是这张卡里 emoji 能拿到的
+                    //   最高舞台（首屏最大的一张卡）。宽度实测：脸 56 + 间距 12 后，金额区仍余
+                    //   ≈168pt，两行文案（135 / 170pt）放得下，不需要截断。
+                    //
+                    //   语义依据：素材从 `state_*`（物品：公文包）换成 `face_*`（脸：融化）——
+                    //   见 `Data/WageFace.swift`。**换语义才是主修复，放大只是配套**。
+                    CategoryIcon(asset: state.iconAsset, size: 56)
                         .accessibilityHidden(true)   // 装饰：状态语义由整卡 accessibilityLabel + 右侧胶囊承载
 
                     VStack(alignment: .leading, spacing: 6) {
@@ -71,12 +77,13 @@ struct WageTimerCard: View {
                             .animation(.easeOut(duration: 0.35), value: earned)   // 数字滚动而非硬跳
                             .lineLimit(1)
                             .minimumScaleFactor(0.85)
-                        // 2026-10-12：原「时薪…」行与新增的 40pt emoji 抢宽度 → 允许轻微缩字
+                        // 2026-10-15：emoji 40 → 56pt 后又多占了 16pt 宽度；大字号（.xxxLarge）
+                        // 下副行最长 → 把缩字下限从 0.8 放到 0.7，避免直接截断成省略号。
                         Text("时薪 ¥\(Money.compact(config.hourlyWage(now: now))) · 本月已走 \(config.daysTouchedThisMonth(now: now)) 个工作日")
                             .scaledFont(.xs)
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            .minimumScaleFactor(0.7)
                     }
                     Spacer(minLength: 4)
                     // 状态胶囊 + 倒计时（2026-10-12 已去色，见 StatusPill）
