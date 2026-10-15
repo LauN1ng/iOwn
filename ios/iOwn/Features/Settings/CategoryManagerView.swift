@@ -293,8 +293,7 @@ struct AddCustomSubSheet: View {
                 .scaledFont(.title, weight: .bold)
                 .foregroundStyle(name.isEmpty ? Theme.disabledText : .white)
                 .frame(maxWidth: .infinity, minHeight: 48)
-                .background(name.isEmpty ? Theme.disabled : Theme.green,
-                            in: RoundedRectangle(cornerRadius: Radius.medium))
+                .green3D(enabled: !name.isEmpty, radius: Radius.medium)
         }
         .disabled(name.isEmpty)
         .accessibilityLabel("保存自定义子类")

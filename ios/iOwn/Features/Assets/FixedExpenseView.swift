@@ -287,8 +287,7 @@ struct FixedExpenseSheet: View {
                     .scaledFont(.body, weight: .semibold)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16).padding(.vertical, 8)
-                    .background(canSave ? Theme.green : Theme.disabled)
-                    .cornerRadius(999)
+                    .green3D(enabled: canSave, capsule: true)
             }
             .buttonStyle(PressableButtonStyle(scale: 0.95))
             .disabled(!canSave)

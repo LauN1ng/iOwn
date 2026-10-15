@@ -54,12 +54,11 @@ struct RootTabView: View {
                         .scaledFont(.lg, weight: .bold)
                         .foregroundStyle(.white)
                         .frame(width: 56, height: 56)
-                        .background(Theme.green)
-                        .clipShape(Circle())
+                        .green3D(circle: true)
                         // 环形"挖空"：FAB 会盖住滚到该位置的流水行金额，加一圈页面底色描边
-                        // 把它读成浮在最上层的一层，而不是和行内文字糊在一起
+                        // 把它读成浮在最上层的一层，而不是和行内文字糊在一起。
+                        // 2026-10-15（D5）：立体底自带**同色**环境投影 → 原黑色 0.12 落影已删。
                         .overlay(Circle().stroke(Theme.bg, lineWidth: 3))
-                        .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
                 }
                 .buttonStyle(PressableButtonStyle(scale: 0.92))
                 .accessibilityLabel("记一笔")

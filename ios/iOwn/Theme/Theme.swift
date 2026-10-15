@@ -8,6 +8,12 @@ enum Theme {
     static let green  = Color(hex: 0x3ABF58)   // 主绿（仅填充/图形）：FAB、净资产卡、选中态底色、按钮底
     static let greenSoft = Color(hex: 0xEAF7EC)
     static let greenDeep = Color(hex: 0x2FA34A) // 净资产卡渐变终（起 #3ABF58，绿色重卡统一主色）
+
+    // MARK: 立体主按钮专用（2026-10-15 · D5）—— 只服务「绿色主按钮」的 Fluent 3D 质感，
+    // 光源假想在正上方：上表面受光（greenTop）→ 背光（greenDeep）→ 底缘再压一层暗唇（greenLip）。
+    // ⚠️ 不要拿去当文字色或一般填充色，语义仅限「立体按钮的受光面 / 暗唇」。
+    static let greenTop  = Color(hex: 0x5AD377) // 立体按钮：顶部受光面（比主绿亮）
+    static let greenLip  = Color(hex: 0x23833A) // 立体按钮：底部暗唇 + 同色环境投影
     static let red    = Color(hex: 0xF56358)   // 红（仅填充/图形：⌫ 键底等）
     static let blue   = Color(hex: 0x4A8CF7)   // 蓝（仅填充/图形）
     static let amber  = Color(hex: 0xF6B73C)   // 点缀/资产页 FAB
@@ -45,6 +51,9 @@ extension Color {
 enum Radius {
     static let large: CGFloat = 22
     static let medium: CGFloat = 16
+    /// 主按钮 / 选中胶囊（2026-10-15 · D5 立为 token）：绿色主按钮 6 处一致用 14，
+    /// 已形成事实上的第二套令牌，先把它固化，**首个消费者 = `Green3DBackground` 默认值**
+    static let control: CGFloat = 14
     static let small: CGFloat = 12
     static let pagePadding: CGFloat = 18
     static let cardSpacing: CGFloat = 14

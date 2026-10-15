@@ -4,7 +4,8 @@ import UIKit
 
 /// 资产页（2026-10-11 去卡片化 · B 方案「分组列表」）
 ///
-/// 结构：净资产汇总行 → **现金账户分组** → **信用账户分组** → 固定支出入口 → 转账胶囊。
+/// 结构：净资产汇总行 → **现金账户分组** → **信用账户分组** → 固定支出入口。
+/// （2026-10-15 · D5：底部「转账」胶囊已删 —— 转账入口保留在账户详情页余额卡的「转账」胶囊内。）
 ///
 /// 为什么去掉卡堆（用户 2026-10-11 定）：
 /// 卡堆「太重 / 没有美术资源去绘制卡面 / 浅色化后又失去原本的样子」——三个症状同源：
@@ -25,7 +26,6 @@ struct AssetsView: View {
     /// 跳转洞察页（净资产趋势）——由 RootTabView 注入切换 Tab；默认空实现保证 `AssetsView()` 仍可构造
     var onOpenInsight: () -> Void = {}
 
-    @State private var showTransfer = false
     @State private var showAddAccount = false   // 右上角 ＋ → 建户
     @State private var hidden = false           // 👁 隐私遮挡
 
@@ -69,10 +69,6 @@ struct AssetsView: View {
                     if !activePlans.isEmpty { installmentEntry }
 
                     fixedEntry
-
-                    if accounts.count >= 2 {
-                        transferPill
-                    }
                 }
                 .padding(.horizontal, Radius.pagePadding)
                 .padding(.top, 4)
@@ -107,11 +103,6 @@ struct AssetsView: View {
         .sheet(isPresented: $showAddAccount) {
             AddAccountSheet()
                 .presentationDetents([.large])
-                .presentationDragIndicator(.hidden)
-        }
-        .sheet(isPresented: $showTransfer) {
-            TransferSheet()
-                .presentationDetents([.fraction(0.68), .large])
                 .presentationDragIndicator(.hidden)
         }
         .onAppear {
@@ -377,22 +368,6 @@ struct AssetsView: View {
             .cornerRadius(Radius.large)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.985))
-    }
-
-    // MARK: 转账胶囊
-
-    private var transferPill: some View {
-        Button { Haptics.tap(); showTransfer = true } label: {
-            Text("转账")
-                .scaledFont(.body, weight: .semibold)
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 44).padding(.vertical, 13)
-                .background(Theme.card)
-                .cornerRadius(999)
-                .shadow(color: .black.opacity(0.07), radius: 7, y: 4)
-        }
-        .buttonStyle(PressableButtonStyle(scale: 0.97))
-        .padding(.top, 8)
     }
 
     // MARK: 工具

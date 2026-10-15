@@ -357,9 +357,7 @@ struct CreditedAccountView: View {
                     Text("标记本月已还款")
                         .scaledFont(.body, weight: .semibold).foregroundStyle(.white)
                         .frame(maxWidth: .infinity).padding(.vertical, 15)
-                        .background(Theme.green)
-                        .cornerRadius(14)
-                        .shadow(color: Theme.green.opacity(0.32), radius: 10, y: 5)
+                        .green3D()
                 }
                 .buttonStyle(PressableButtonStyle(scale: 0.985))
                 Text("只推进分期期数并记一笔还款流水，当期欠款靠记账自动更新")

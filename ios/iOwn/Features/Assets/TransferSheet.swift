@@ -75,8 +75,7 @@ struct TransferSheet: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 15)
-                        .background(canSave ? Theme.green : Theme.disabled)
-                        .cornerRadius(Radius.medium)
+                        .green3D(enabled: canSave, radius: Radius.medium)
                 }
                 .buttonStyle(PressableButtonStyle(scale: 0.97))
                 .disabled(!canSave)

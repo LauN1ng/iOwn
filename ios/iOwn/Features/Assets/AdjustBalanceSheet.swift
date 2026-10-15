@@ -94,8 +94,7 @@ struct AdjustBalanceSheet: View {
                         Text("确认调整")
                             .scaledFont(.body, weight: .semibold).foregroundStyle(.white)
                             .frame(maxWidth: .infinity).padding(.vertical, 15)
-                            .background(canSave ? Theme.green : Theme.disabled)
-                            .cornerRadius(14)
+                            .green3D(enabled: canSave)
                     }
                     .buttonStyle(PressableButtonStyle(scale: 0.985))
                     .disabled(!canSave)

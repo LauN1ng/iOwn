@@ -469,14 +469,25 @@ struct AddEntrySheet: View {
         case okActive(Bool)
     }
 
+    /// 键位底：`okActive` 生效态（绿色 ✓）走「立体」底，其余键保持扁平。
+    /// 2026-10-15（D5）：✓「完成并保存」是全 App 最主的主按钮 → 与其余绿色主按钮统一 Fluent 3D 质感。
+    @ViewBuilder
+    private func keyBackground(_ s: KeyStyle) -> some View {
+        if case .okActive(true) = s {
+            Color.clear.green3D(radius: Radius.medium)
+        } else {
+            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                .fill(backgroundColor(s))
+        }
+    }
+
     private func keyButton(_ label: String, style: KeyStyle, size: CGSize, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
                 .scaledFont(label == "✓" ? .lg : .title, weight: .bold)
                 .frame(width: size.width, height: size.height)
-                .background(backgroundColor(style))
+                .background(keyBackground(style))
                 .foregroundStyle(foregroundColor(style))
-                .cornerRadius(Radius.medium)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.93))
         .accessibilityLabel(Self.keyAccessibilityLabel(label))
@@ -488,9 +499,8 @@ struct AddEntrySheet: View {
             Image(systemName: systemName)
                 .font(.system(size: pointSize, weight: .bold))
                 .frame(width: size.width, height: size.height)
-                .background(backgroundColor(style))
+                .background(keyBackground(style))
                 .foregroundStyle(foregroundColor(style))
-                .cornerRadius(Radius.medium)
         }
         .buttonStyle(PressableButtonStyle(scale: 0.93))
         .accessibilityLabel(Self.keySymbolAccessibilityLabel(systemName))

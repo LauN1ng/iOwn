@@ -15,6 +15,69 @@ struct PressableButtonStyle: ButtonStyle {
     }
 }
 
+// MARK: - 立体绿色主按钮底（Fluent 3D 质感 · 2026-10-15 D5）
+//
+// 与 App 唯一彩色源（Fluent 3D emoji）同材质：把光源假想在**正上方** ——
+//   ① 主面垂直渐变：上亮（受光）→ 下暗（背光），整块读成一块弧面
+//   ② 顶部高光带：模拟镜面反射，落在外缘 ~1/3 处渐隐
+//   ③ 底部 1pt 暗唇：把下缘「收」进去，强化厚度转折
+//   ④ 同色环境投影：Fluent 3D 的落影是**彩色**的（不是黑），让按钮真的「离地」
+// 只铺底，不动字号 / 内边距 / 按压反馈（`PressableButtonStyle` 原样保留）。
+//
+// 用法（替换原来的 `.background(color).cornerRadius(n)` 两件套）：
+//   `.green3D(enabled: canSave)`               —— 默认圆角（Radius.control 14）
+//   `.green3D(enabled: canSave, radius: Radius.medium)`
+//   `.green3D(enabled: canSave, capsule: true)` —— 全药丸（工具条「保存」）
+//   `.green3D(circle: true)`                    —— FAB
+// `enabled == false`（禁用）退回扁平中性底，**不做立体**（禁用态不该有体积感）。
+struct Green3DBackground: View {
+    var enabled: Bool = true
+    var radius: CGFloat = Radius.control
+    var capsule: Bool = false
+    var circle: Bool = false
+
+    // ⚠️ 必须用 `AnyInsettableShape`（不是 `AnyShape`）—— 底部暗唇走 `strokeBorder`，
+    //    而 `strokeBorder` 是 `InsettableShape` 的扩展，`AnyShape` 只是 `Shape`，编译不过。
+    private var shape: AnyInsettableShape {
+        if circle { return AnyInsettableShape(Circle()) }
+        if capsule { return AnyInsettableShape(Capsule()) }
+        return AnyInsettableShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+    }
+
+    var body: some View {
+        if enabled {
+            shape
+                .fill(LinearGradient(colors: [Theme.greenTop, Theme.green, Theme.greenDeep],
+                                     startPoint: .top, endPoint: .bottom))
+                // 顶部高光带（受光面）
+                .overlay {
+                    shape.fill(LinearGradient(
+                        stops: [.init(color: .white.opacity(0.34), location: 0.00),
+                                .init(color: .white.opacity(0.07), location: 0.38),
+                                .init(color: .clear,              location: 0.62)],
+                        startPoint: .top, endPoint: .bottom))
+                }
+                // 底部暗唇
+                .overlay { shape.strokeBorder(Theme.greenLip.opacity(0.50), lineWidth: 1) }
+                // 同色环境投影
+                .shadow(color: Theme.greenLip.opacity(0.32), radius: 5, y: 3)
+        } else {
+            shape.fill(Theme.disabled)
+        }
+    }
+}
+
+extension View {
+    /// 给绿色主按钮铺「立体」底（见 `Green3DBackground` 注释）
+    func green3D(enabled: Bool = true,
+                 radius: CGFloat = Radius.control,
+                 capsule: Bool = false,
+                 circle: Bool = false) -> some View {
+        background(Green3DBackground(enabled: enabled, radius: radius,
+                                     capsule: capsule, circle: circle))
+    }
+}
+
 // MARK: - Sheet 自绘把手（原先在记一笔/建户/转账三处各写一遍，收敛为一处）
 
 struct SheetGrabber: View {
