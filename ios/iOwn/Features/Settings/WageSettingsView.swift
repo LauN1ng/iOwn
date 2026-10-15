@@ -49,10 +49,12 @@ struct WageSettingsView: View {
     private var extraOff: Set<String> { WageConfig.parseDateSet(offCSV) }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                if showsGrabber { SheetGrabber() }
+        VStack(spacing: 0) {
+            // 自绘把手：**必须在 NavigationStack 之外**。放里面会落在导航栏下方，
+            // 看起来像导航栏底下多出一个游离元素（CI 38692474720 截图实测）；放外面才贴 sheet 顶边。
+            if showsGrabber { SheetGrabber() }
 
+            NavigationStack {
                 ScrollViewReader { proxy in
                     ScrollView {
                         VStack(spacing: Radius.cardSpacing) {
@@ -83,16 +85,16 @@ struct WageSettingsView: View {
                         }
                     }
                 }
-            }
-            .background(Theme.bg)
-            .navigationTitle("工资计时器")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }
+                .navigationTitle("工资计时器")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("完成") { dismiss() }
+                    }
                 }
             }
         }
+        .background(Theme.bg)
     }
 
     // MARK: 收入

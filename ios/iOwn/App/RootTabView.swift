@@ -27,25 +27,15 @@ struct RootTabView: View {
         ZStack(alignment: .bottomTrailing) {
             TabView(selection: $selection) {
                 // 2026-10-15（D1 图标材质）：Tab 图标从线性 SF Symbol → **Fluent 3D 素材**
-                // （App 唯一图标语族）。⚠️ 系统 tab bar 默认把图标当模板染单色 →
-                // 必须显式 `.renderingMode(.original)`，否则 3D 贴图会退化成纯色剪影。
-                // 选中态改由**文字色**（`.tint(Theme.greenText)`）承载。
-                HomeView().tabItem {
-                    Image("cur_receipt").renderingMode(.original)
-                    Text("线索")
-                }.tag(0)
-                InsightView().tabItem {
-                    Image("nav_insight").renderingMode(.original)
-                    Text("洞察")
-                }.tag(1)
-                AssetsView(onOpenInsight: { selection = 1 }).tabItem {
-                    Image("acct_wallet").renderingMode(.original)
-                    Text("资产")
-                }.tag(2)
-                SettingsView().tabItem {
-                    Image("nav_settings").renderingMode(.original)
-                    Text("设置")
-                }.tag(3)
+                // （App 唯一图标语族）。两个必须同时满足的点（CI run 38692474720 实测）：
+                //  1) 系统 tab bar 默认把图标当模板染单色 → 必须 `.renderingMode(.original)`
+                //  2) 素材 intrinsic 是 85pt（1x 档），远超 tab 插槽 → **必须显式限尺寸**，
+                //     否则图标会压到下面的文字标签上（首轮截图里「洞察/资产」压在图标上）
+                // 选中态由**文字色**（`.tint(Theme.greenText)`）承载；图标两侧保持原色。
+                HomeView().tabItem { tabItem("线索", "cur_receipt") }.tag(0)
+                InsightView().tabItem { tabItem("洞察", "nav_insight") }.tag(1)
+                AssetsView(onOpenInsight: { selection = 1 }).tabItem { tabItem("资产", "acct_wallet") }.tag(2)
+                SettingsView().tabItem { tabItem("设置", "nav_settings") }.tag(3)
             }
             .tint(Theme.greenText)
 
@@ -194,6 +184,22 @@ struct RootTabView: View {
         // Dynamic Type：默认限制在标准区间（保护键盘/净资产卡等固定版式）；
         // -ci-large-text 时强制 .xxxLarge，供 CI 截图验证缩放确实生效
         .modifier(TypeSizeCap(forceXXXL: ciArgs.contains("-ci-large-text")))
+    }
+
+    /// Tab 项：Fluent 3D 图标 + 文字。
+    /// 用 `Label(title:icon:)` 形态（而不是并排 `Image` + `Text` 两个 sibling），
+    /// 保证被桥接成 `UITabBarItem` 的「图标 + 标题」而非一整个自定义视图；
+    /// 图标显式 `resizable + frame` 限到 28pt —— 素材 1x 档是 85pt，不限会压住标题。
+    private func tabItem(_ title: String, _ asset: String) -> some View {
+        Label {
+            Text(title)
+        } icon: {
+            Image(asset)
+                .renderingMode(.original)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 28, height: 28)
+        }
     }
 
     /// CI 截图钩子：launch argument "-ci-demo-data" 注入样例数据（仓库无真实数据）
