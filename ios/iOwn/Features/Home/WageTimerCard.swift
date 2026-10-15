@@ -29,9 +29,9 @@ struct WageTimerCard: View {
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint("打开工资计时器设置")
         .sheet(isPresented: $showSettings, onDismiss: { config = .load() }) {
-            // 2026-10-15（D2）：与 RootTabView 的入口保持一致（两处入口必须同款）
+            // 2026-10-15（D2/D3）：与 RootTabView 的入口保持一致（两处入口必须同款）
             WageSettingsView(showsGrabber: true)
-                .presentationDetents([.large])
+                .presentationDetents([.fraction(0.85), .large])
                 .presentationDragIndicator(.hidden)
         }
     }

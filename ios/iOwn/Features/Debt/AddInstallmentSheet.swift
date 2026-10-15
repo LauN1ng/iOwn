@@ -32,56 +32,60 @@ struct AddInstallmentSheet: View {
     private var isBatch: Bool { editing == nil }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                SheetGrabber()
-                Text(isBatch ? "补录已有的分期" : "编辑分期")
-                    .scaledFont(.title, weight: .bold)
-                    .frame(maxWidth: .infinity)
+        // 把手必须在 ScrollView **之外**（D3 §5.2）：放里面会跟着内容一起滚走
+        VStack(spacing: 0) {
+            SheetGrabber()
 
-                field("归属信用账户") { accountPicker }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(isBatch ? "补录已有的分期" : "编辑分期")
+                        .scaledFont(.title, weight: .bold)
+                        .frame(maxWidth: .infinity)
 
-                field(isBatch ? "已有的分期 · 账单一行抄一格" : "这一笔") {
-                    VStack(spacing: 10) {
-                        ForEach(drafts.indices, id: \.self) { i in
-                            draftCard(i)
+                    field("归属信用账户") { accountPicker }
+
+                    field(isBatch ? "已有的分期 · 账单一行抄一格" : "这一笔") {
+                        VStack(spacing: 10) {
+                            ForEach(drafts.indices, id: \.self) { i in
+                                draftCard(i)
+                            }
                         }
                     }
-                }
 
-                if isBatch {
+                    if isBatch {
+                        Button {
+                            Haptics.tap()
+                            drafts.append(PlanDraft())
+                        } label: {
+                            Text("＋ 再加一笔")
+                                .scaledFont(.sm, weight: .semibold)
+                                .foregroundStyle(Theme.greenText)
+                                .frame(maxWidth: .infinity).padding(.vertical, 12)
+                                .background(Theme.greenSoft).cornerRadius(12)
+                        }
+                        .buttonStyle(PressableButtonStyle(scale: 0.985))
+                    }
+
+                    if isBatch { hintCard }
+
                     Button {
-                        Haptics.tap()
-                        drafts.append(PlanDraft())
+                        Haptics.success()
+                        save()
+                        dismiss()
                     } label: {
-                        Text("＋ 再加一笔")
-                            .scaledFont(.sm, weight: .semibold)
-                            .foregroundStyle(Theme.greenText)
-                            .frame(maxWidth: .infinity).padding(.vertical, 12)
-                            .background(Theme.greenSoft).cornerRadius(12)
+                        Text(isBatch ? "保存 \(validCount) 笔分期" : "保存修改")
+                            .scaledFont(.body, weight: .semibold).foregroundStyle(.white)
+                            .frame(maxWidth: .infinity).padding(.vertical, 15)
+                            .background(canSave ? Theme.green : Theme.disabled)
+                            .cornerRadius(14)
                     }
                     .buttonStyle(PressableButtonStyle(scale: 0.985))
+                    .disabled(!canSave)
+                    .padding(.top, 2)
                 }
-
-                if isBatch { hintCard }
-
-                Button {
-                    Haptics.success()
-                    save()
-                    dismiss()
-                } label: {
-                    Text(isBatch ? "保存 \(validCount) 笔分期" : "保存修改")
-                        .scaledFont(.body, weight: .semibold).foregroundStyle(.white)
-                        .frame(maxWidth: .infinity).padding(.vertical, 15)
-                        .background(canSave ? Theme.green : Theme.disabled)
-                        .cornerRadius(14)
-                }
-                .buttonStyle(PressableButtonStyle(scale: 0.985))
-                .disabled(!canSave)
-                .padding(.top, 2)
+                .padding(.horizontal, 18)
+                .padding(.bottom, 30)
             }
-            .padding(.horizontal, 18)
-            .padding(.bottom, 30)
         }
         .background(Theme.bg)
         .onAppear(perform: onAppear)

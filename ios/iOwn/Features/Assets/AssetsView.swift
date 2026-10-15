@@ -109,9 +109,11 @@ struct AssetsView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.hidden)
         }
-        .sheet(isPresented: $showTransfer) { TransferSheet() }
-            .presentationDetents([.fraction(0.68), .large])
-            .presentationDragIndicator(.hidden)
+        .sheet(isPresented: $showTransfer) {
+            TransferSheet()
+                .presentationDetents([.fraction(0.68), .large])
+                .presentationDragIndicator(.hidden)
+        }
         .onAppear {
             if ciArgs.contains("-ci-open-account") {
                 showAddAccount = true

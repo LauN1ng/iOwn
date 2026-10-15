@@ -101,11 +101,14 @@ struct RootTabView: View {
         .sheet(isPresented: $showCatManager) {
             NavigationStack { CategoryManagerView() }
                 .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)   // D3：补齐全 App sheet 的 dragIndicator
         }
         .sheet(isPresented: $showWageSettings) {
-            // 2026-10-15（D2）：补 detents + 隐藏系统把手 → 与全 App 自绘 grabber 体系一致
+            // 2026-10-15（D2/D3）：补 detents + 隐藏系统把手 → 与全 App 自绘 grabber 体系一致。
+            // 分档取 `.fraction(0.85) + .large`：设置类属长表单，半屏装不下，但不该一上来就顶格
+            // （D3 §5.3 的三档：0.68 短表单 / .large 建户类 / 0.85 设置类）。
             WageSettingsView(showsGrabber: true)
-                .presentationDetents([.large])
+                .presentationDetents([.fraction(0.85), .large])
                 .presentationDragIndicator(.hidden)
         }
         // 添加分期 sheet（截图为半屏，验证两种输入模式换算）

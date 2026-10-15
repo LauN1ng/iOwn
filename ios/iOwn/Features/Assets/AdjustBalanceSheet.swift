@@ -40,66 +40,70 @@ struct AdjustBalanceSheet: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                SheetGrabber()
-                Text("调整余额（对账）")
-                    .scaledFont(.title, weight: .bold)
-                    .frame(maxWidth: .infinity)
+        // 把手必须在 ScrollView **之外**（D3 §5.2）：放里面会跟着内容一起滚走
+        VStack(spacing: 0) {
+            SheetGrabber()
 
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text("App 里的余额").scaledFont(.sm).foregroundStyle(.secondary)
-                        Spacer()
-                        Text(moneyText(current))
-                            .scaledFont(.body, weight: .semibold).monospacedDigit()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("调整余额（对账）")
+                        .scaledFont(.title, weight: .bold)
+                        .frame(maxWidth: .infinity)
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("App 里的余额").scaledFont(.sm).foregroundStyle(.secondary)
+                            Spacer()
+                            Text(moneyText(current))
+                                .scaledFont(.body, weight: .semibold).monospacedDigit()
+                        }
+                        Divider().overlay(Theme.hairline)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(account.kind.isCredit ? "实际欠款（填正数）" : "实际余额")
+                                .scaledFont(.xs).foregroundStyle(.secondary)
+                            TextField("0.00", text: $actualStr)
+                                .keyboardType(.decimalPad)
+                                .scaledFont(.lg, weight: .bold)
+                                .monospacedDigit()
+                        }
                     }
-                    Divider().overlay(Theme.hairline)
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(account.kind.isCredit ? "实际欠款（填正数）" : "实际余额")
-                            .scaledFont(.xs).foregroundStyle(.secondary)
-                        TextField("0.00", text: $actualStr)
-                            .keyboardType(.decimalPad)
-                            .scaledFont(.lg, weight: .bold)
-                            .monospacedDigit()
+                    .padding(15)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Theme.card)
+                    .cornerRadius(Radius.large)
+
+                    if let d = diff, d != 0 {
+                        let up = d > 0
+                        Text((up ? "将上调 ¥" : "将下调 ¥") + moneyText(abs(d)))
+                            .scaledFont(.sm, weight: .semibold)
+                            .foregroundStyle(up ? Theme.greenText : Theme.redText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
+                            .background(Theme.card)
+                            .cornerRadius(11)
                     }
-                }
-                .padding(15)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.card)
-                .cornerRadius(Radius.large)
 
-                if let d = diff, d != 0 {
-                    let up = d > 0
-                    Text((up ? "将上调 ¥" : "将下调 ¥") + moneyText(abs(d)))
-                        .scaledFont(.sm, weight: .semibold)
-                        .foregroundStyle(up ? Theme.greenText : Theme.redText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
-                        .background(Theme.card)
-                        .cornerRadius(11)
-                }
+                    Text("调整只平移「初始余额」，不会产生流水，也不影响洞察页的任何统计。")
+                        .scaledFont(.xs).foregroundStyle(.secondary)
 
-                Text("调整只平移「初始余额」，不会产生流水，也不影响洞察页的任何统计。")
-                    .scaledFont(.xs).foregroundStyle(.secondary)
-
-                Button {
-                    Haptics.success()
-                    save()
-                    dismiss()
-                } label: {
-                    Text("确认调整")
-                        .scaledFont(.body, weight: .semibold).foregroundStyle(.white)
-                        .frame(maxWidth: .infinity).padding(.vertical, 15)
-                        .background(canSave ? Theme.green : Theme.disabled)
-                        .cornerRadius(14)
+                    Button {
+                        Haptics.success()
+                        save()
+                        dismiss()
+                    } label: {
+                        Text("确认调整")
+                            .scaledFont(.body, weight: .semibold).foregroundStyle(.white)
+                            .frame(maxWidth: .infinity).padding(.vertical, 15)
+                            .background(canSave ? Theme.green : Theme.disabled)
+                            .cornerRadius(14)
+                    }
+                    .buttonStyle(PressableButtonStyle(scale: 0.985))
+                    .disabled(!canSave)
+                    .padding(.top, 6)
                 }
-                .buttonStyle(PressableButtonStyle(scale: 0.985))
-                .disabled(!canSave)
-                .padding(.top, 6)
+                .padding(.horizontal, 18)
+                .padding(.bottom, 30)
             }
-            .padding(.horizontal, 18)
-            .padding(.bottom, 30)
         }
         .background(Theme.bg)
         .onAppear {
