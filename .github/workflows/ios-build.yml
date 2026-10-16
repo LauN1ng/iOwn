@@ -56,6 +56,18 @@ jobs:
           BID=com.iown.app
           xcrun simctl install "${{ steps.sim.outputs.udid }}" "$APP"
           mkdir -p ../artifacts
+          # 0) 空态两屏 —— **必须最先拍**：此刻 App 刚装、从未注入样例数据，全库为空。
+          #    专门用于核对「空状态统一」（D4）：首页 = card 档，洞察页 = compact 档 ×2。
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID"
+          sleep 5
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/25-empty-home.png
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
+          xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-tab-insight
+          sleep 5
+          xcrun simctl io "${{ steps.sim.outputs.udid }}" screenshot ../artifacts/26-empty-insight.png
+          xcrun simctl terminate "${{ steps.sim.outputs.udid }}" "$BID" || true
+          sleep 1
           # 1) 首页流水（注入样例数据）
           xcrun simctl launch "${{ steps.sim.outputs.udid }}" "$BID" -ci-demo-data
           sleep 6
